@@ -1,8 +1,11 @@
+using CS2TeamManager.Application.Interfaces;
+using CS2TeamManager.Application.Services;
+using CS2TeamManager.Infrastructure.Identity;
+using CS2TeamManager.Infrastructure.Persistence;
+using CS2TeamManager.Infrastructure.Repositories;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
-using CS2TeamManager.Infrastructure.Persistence;
-using CS2TeamManager.Infrastructure.Identity;
-using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 using System.Text;
 
@@ -50,6 +53,10 @@ builder.Services.AddControllers();
 
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
+
+// DEPENDENCY INJECTION FOR REPOS & SERVICES
+builder.Services.AddScoped<ITeamRepository, TeamRepository>();
+builder.Services.AddScoped<ITeamService, TeamService>();
 
 var app = builder.Build();
 

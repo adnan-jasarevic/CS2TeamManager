@@ -8,9 +8,14 @@ namespace CS2TeamManager.Domain.Entities
     public class Team
     {
         public int Id { get; set; }
-        public string Name { get; set; }
-        public string CaptainId { get; set; }
-        public List<User> Members { get; set; } = new();
-        public List<Match> Matches { get; set; } = new();
+        public string Name { get; set; } = string.Empty;
+        public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+
+        // Relation to players through a join table (TeamMember)
+        public ICollection<TeamMember> Members { get; set; } = new List<TeamMember>();
+
+        // relation to matches
+        public ICollection<Match> Matches { get; set; } = new List<Match>();
     }
 }
+

@@ -1,9 +1,10 @@
 ﻿using Microsoft.AspNetCore.Identity;
+using CS2TeamManager.Domain.Entities;
 
-namespace CS2TeamManager.Infrastructure.Identity
+namespace CS2TeamManager.Infrastructure.Identity;
+
+public class AppUser : IdentityUser
 {
-    public class AppUser : IdentityUser
-    {
-        // imp,emetacija detalja
-    }
+    // navigation property to team memberships
+    public ICollection<TeamMember> TeamMemberships { get; set; } = new List<TeamMember>();
 }

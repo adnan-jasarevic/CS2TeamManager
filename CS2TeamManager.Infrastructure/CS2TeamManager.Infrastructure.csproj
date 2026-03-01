@@ -16,6 +16,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\CS2TeamManager.Application\CS2TeamManager.Application.csproj" />
     <ProjectReference Include="..\CS2TeamManager.Domain\CS2TeamManager.Domain.csproj" />
   </ItemGroup>
 
