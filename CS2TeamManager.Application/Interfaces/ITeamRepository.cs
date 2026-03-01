@@ -8,4 +8,5 @@ public interface ITeamRepository
     Task<List<Team>> GetTeamsByUserIdAsync(string userId);
     Task<int> GetOwnedTeamsCountAsync(string userId);
     Task<Team> AddAsync(Team team);
+    Task UpdateAsync(Team team);
 }

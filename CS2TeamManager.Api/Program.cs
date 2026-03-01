@@ -29,6 +29,7 @@ builder.Services.AddIdentity<AppUser, IdentityRole>()
     .AddEntityFrameworkStores<AppDbContext>()
     .AddDefaultTokenProviders();
 
+
 builder.Services.AddAuthentication(options =>
 {
     options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
@@ -57,6 +58,7 @@ builder.Services.AddSwaggerGen();
 // DEPENDENCY INJECTION FOR REPOS & SERVICES
 builder.Services.AddScoped<ITeamRepository, TeamRepository>();
 builder.Services.AddScoped<ITeamService, TeamService>();
+builder.Services.AddScoped<IIdentityService, CS2TeamManager.Infrastructure.Services.IdentityService>();
 
 var app = builder.Build();
 

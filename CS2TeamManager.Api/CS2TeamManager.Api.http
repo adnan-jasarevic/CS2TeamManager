@@ -1,6 +1,57 @@
-@CS2TeamManager.Api_HostAddress = http://localhost:5035
+@CS2TeamManager.Api_HostAddress = https://localhost:7185
 
-GET {{CS2TeamManager.Api_HostAddress}}/weatherforecast/
-Accept: application/json
+### REGISTRACIJA
+POST {{CS2TeamManager.Api_HostAddress}}/api/Auth/register
+Content-Type: application/json
 
-###
+{
+  "username": "NikoCS2",
+  "email": "niko@cs2.com",
+  "password": "Password123!"
+}
+
+
+
+### LOGIN (Automatsko hvatanje tokena)
+# @name login
+POST {{CS2TeamManager.Api_HostAddress}}/api/Auth/login
+Content-Type: application/json
+
+{
+  "email": "niko@cs2.com",
+  "password": "Password123!"
+}
+
+### team creation
+POST {{CS2TeamManager.Api_HostAddress}}/api/Teams
+Content-Type: application/json
+Authorization: Bearer {{login.response.body.$.token}}
+
+{
+  "name": "Novi CS2 Tim",
+  "description": "Opis mog tima"
+}
+
+### get teams
+GET {{CS2TeamManager.Api_HostAddress}}/api/Teams/my-teams
+Authorization: Bearer {{login.response.body.$.token}}
+
+### REGISTRACIJA IGRACA
+POST {{CS2TeamManager.Api_HostAddress}}/api/Auth/register
+Content-Type: application/json
+
+{
+  "username": "S1mple",
+  "email": "s1mple@cs2.com",
+  "password": "Password123!"
+}
+
+### DODAVANJE IGRACA U TIM
+POST {{CS2TeamManager.Api_HostAddress}}/api/Teams/1/members
+Content-Type: application/json
+Authorization: Bearer {{login.response.body.$.token}}
+
+{
+  "userEmail": "s1mple@cs2.com"
+}
+

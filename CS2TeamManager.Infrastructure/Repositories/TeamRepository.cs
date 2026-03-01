@@ -41,4 +41,11 @@ public class TeamRepository : ITeamRepository
         await _context.SaveChangesAsync();
         return team;
     }
+
+    public async Task UpdateAsync(Team team)
+    {
+        _context.Teams.Update(team);
+        await _context.SaveChangesAsync();
+    }
+
 }
