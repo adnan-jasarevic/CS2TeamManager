@@ -55,10 +55,12 @@ builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
-// DEPENDENCY INJECTION FOR REPOS & SERVICES
+// DEPENDENCY INJECTION FOR REPOS & SERVICES (HEAVEN/HELL ON EARTH)
 builder.Services.AddScoped<ITeamRepository, TeamRepository>();
 builder.Services.AddScoped<ITeamService, TeamService>();
 builder.Services.AddScoped<IIdentityService, CS2TeamManager.Infrastructure.Services.IdentityService>();
+builder.Services.AddScoped<IMatchRepository, MatchRepository>();
+builder.Services.AddScoped<IMatchService, MatchService>();
 
 var app = builder.Build();
 

@@ -1,6 +1,6 @@
 @CS2TeamManager.Api_HostAddress = https://localhost:7185
 
-### REGISTRACIJA
+### REGISTER
 POST {{CS2TeamManager.Api_HostAddress}}/api/Auth/register
 Content-Type: application/json
 
@@ -12,7 +12,7 @@ Content-Type: application/json
 
 
 
-### LOGIN (Automatsko hvatanje tokena)
+### LOGIN (automatically get token)
 # @name login
 POST {{CS2TeamManager.Api_HostAddress}}/api/Auth/login
 Content-Type: application/json
@@ -36,7 +36,7 @@ Authorization: Bearer {{login.response.body.$.token}}
 GET {{CS2TeamManager.Api_HostAddress}}/api/Teams/my-teams
 Authorization: Bearer {{login.response.body.$.token}}
 
-### REGISTRACIJA IGRACA
+### PLAYER REGISTRY
 POST {{CS2TeamManager.Api_HostAddress}}/api/Auth/register
 Content-Type: application/json
 
@@ -46,7 +46,7 @@ Content-Type: application/json
   "password": "Password123!"
 }
 
-### DODAVANJE IGRACA U TIM
+### ADDING PLAYERS TO A TEAM
 POST {{CS2TeamManager.Api_HostAddress}}/api/Teams/1/members
 Content-Type: application/json
 Authorization: Bearer {{login.response.body.$.token}}
@@ -55,3 +55,24 @@ Authorization: Bearer {{login.response.body.$.token}}
   "userEmail": "s1mple@cs2.com"
 }
 
+### ADD A NEW MATCH (FOR TEAM 1)
+POST {{CS2TeamManager.Api_HostAddress}}/api/Matches/1
+Content-Type: application/json
+Authorization: Bearer {{login.response.body.$.token}}
+
+{
+  "opponentName": "G2 Esports",
+  "tournament": "ESL Pro League",
+  "scheduledDate": "2026-03-02T18:00:00Z",
+  "playedDate": "2026-03-02T20:00:00Z",
+  "status": 2, 
+  "ourScore": 13,
+  "opponentScore": 10,
+  "bestOf": 3,
+  "maps": ["Mirage", "Inferno"],
+  "notes": "Sunpayus destroyed us on the first map but we came back"
+}
+
+### GET ALL MATCHES FOR TEAM 1
+GET {{CS2TeamManager.Api_HostAddress}}/api/Matches/1
+Authorization: Bearer {{login.response.body.$.token}}
