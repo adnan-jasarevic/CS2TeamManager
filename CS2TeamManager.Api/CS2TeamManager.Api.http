@@ -76,3 +76,13 @@ Authorization: Bearer {{login.response.body.$.token}}
 ### GET ALL MATCHES FOR TEAM 1
 GET {{CS2TeamManager.Api_HostAddress}}/api/Matches/1
 Authorization: Bearer {{login.response.body.$.token}}
+
+### team creation with a mistake
+POST {{CS2TeamManager.Api_HostAddress}}/api/Teams
+Content-Type: application/json
+Authorization: Bearer {{login.response.body.$.token}}
+
+{
+  "name": "A",
+  "description": "description x description 101"
+}

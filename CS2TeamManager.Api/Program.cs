@@ -3,6 +3,7 @@ using CS2TeamManager.Application.Services;
 using CS2TeamManager.Infrastructure.Identity;
 using CS2TeamManager.Infrastructure.Persistence;
 using CS2TeamManager.Infrastructure.Repositories;
+using FluentValidation;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
@@ -50,7 +51,16 @@ builder.Services.AddAuthentication(options =>
 });
 
 // controllers
-builder.Services.AddControllers();
+builder.Services.AddControllers(options =>
+{
+    options.Filters.Add<CS2TeamManager.Api.Filters.ValidationFilter>();
+});
+
+builder.Services.AddValidatorsFromAssemblyContaining<CS2TeamManager.Application.DTOs.CreateTeamDto>();
+
+builder.Services.AddExceptionHandler<CS2TeamManager.Api.Middleware.GlobalExceptionHandler>();
+builder.Services.AddProblemDetails();
+
 
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
@@ -63,6 +73,7 @@ builder.Services.AddScoped<IMatchRepository, MatchRepository>();
 builder.Services.AddScoped<IMatchService, MatchService>();
 
 var app = builder.Build();
+app.UseExceptionHandler();
 
 if (app.Environment.IsDevelopment())
 {
