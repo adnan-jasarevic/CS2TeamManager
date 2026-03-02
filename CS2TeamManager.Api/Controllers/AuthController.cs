@@ -31,7 +31,7 @@ public class AuthController : ControllerBase
             Email = dto.Email
         };
 
-        var result = await _userManager.CreateAsync(user, dto.Password);
+        IdentityResult result = await _userManager.CreateAsync(user, dto.Password);
 
         if (result.Succeeded)
             return Ok(new { message = "User registered successfully" });
