@@ -1,4 +1,5 @@
-﻿import React, { useState } from 'react';
+﻿import { Link, useNavigate } from 'react-router-dom';
+import React, { useState } from 'react';
 import api from '../services/api';
 import axios, { AxiosError } from 'axios';
 
@@ -25,6 +26,9 @@ function isAxiosError<T>(error: unknown): error is AxiosError<T> {
 }
 
 export default function Register() {
+    // Initialize useNavigate for programmatic navigation
+    const navigate = useNavigate();
+
     const [username, setUsername] = useState('');
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
@@ -49,15 +53,21 @@ export default function Register() {
             const response = await api.post<RegisterResponse>('/Auth/register', payload);
 
             if (response.data && response.data.message) {
-                setSuccessMessage(`${response.data.message}. You can now log in.`);
+                setSuccessMessage(`${response.data.message}. Redirecting to login...`);
             } else {
-                setSuccessMessage('Account created successfully. You can now log in.');
+                setSuccessMessage('Account created successfully. Redirecting to login...');
             }
 
+            // Clear form fields
             setUsername('');
             setEmail('');
             setPassword('');
             setConfirmPassword('');
+
+            // Automatically redirect to the login page after 2 seconds
+            setTimeout(() => {
+                navigate('/login');
+            }, 2000);
 
         } catch (err: unknown) {
             console.error('Error while trying to register:', err);
@@ -160,10 +170,7 @@ export default function Register() {
                 </form>
 
                 <p className="mt-4 text-center text-gray-400 text-sm">
-                    Already have an account?{' '}
-                    <a href="#" className="text-blue-400 hover:text-blue-300">
-                        Log in
-                    </a>
+                    Already have an account? <Link to="/login" className="text-blue-400 hover:text-blue-300">Log in</Link>
                 </p>
             </div>
         </div>
