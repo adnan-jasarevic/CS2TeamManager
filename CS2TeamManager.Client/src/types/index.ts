@@ -26,3 +26,20 @@ export interface Match {
     matchOutcome: string;
     notes?: string;
 }
+export interface MatchResponse {
+    id: number;
+    opponentName: string;
+    scheduledDate: string;
+    status: string;
+    finalScore?: string;
+    matchOutcome?: string; // "WIN", "LOSS", "DRAW"
+}
+
+export interface TeamDashboardData {
+    totalMatches: number;
+    winRatePercentage: number;
+    totalMembers: number;
+    upcomingMatchesCount: number;
+    recentMatches: MatchResponse[];
+    upcomingMatches: MatchResponse[];
+}
