@@ -68,5 +68,24 @@ public class TeamRepository : ITeamRepository
             .ToListAsync();
     }
 
+    public async Task<List<(TeamMember Member, string Email, string Username)>> GetTeamMembersWithUserDetailsAsync(int teamId)
+    {
+        var query = from tm in _context.TeamMembers
+                    join user in _context.Users on tm.UserId equals user.Id
+                    where tm.TeamId == teamId
+                    select new
+                    {
+                        Member = tm,
+                        Email = user.Email,
+                        Username = user.UserName
+                    };
+
+        var result = await query.ToListAsync();
+
+        return result.Select(x => (x.Member, x.Email, x.Username)).ToList();
+    }
+
+
+
 
 }
