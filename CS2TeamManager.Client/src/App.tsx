@@ -2,7 +2,8 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import Login from './pages/login';
 import Register from './pages/register';
 import Dashboard from './pages/dashboard';
-import PrivateRoute from './components/private-route'; // <-- Naša nova komponenta
+import PrivateRoute from './components/private-route';
+import AppLayout from './components/app-layout';
 
 function App() {
     return (
@@ -15,15 +16,19 @@ function App() {
 
                 {/* private routes */}
                 <Route
-                    path="/dashboard"
                     element={
                         <PrivateRoute>
-                            <Dashboard />
+                            <AppLayout />
                         </PrivateRoute>
                     }
-                />
+                >
+                    <Route path="/dashboard" element={<Dashboard />} />
 
-                {/* fallbavk route */}
+
+                    {/* fallback */}
+                    <Route path="*" element={<Navigate to="/dashboard" replace />} />
+                </Route>
+
                 <Route path="*" element={<Navigate to="/login" replace />} />
             </Routes>
         </BrowserRouter>

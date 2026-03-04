@@ -118,4 +118,65 @@ public class TeamService : ITeamService
 
         return Result<string>.SuccessResult("The User has been successfully removed from the team.");
     }
+
+
+    public async Task<TeamDashboardDto?> GetTeamDashboardAsync(int teamId, string userId)
+    {
+        var isMember = await _teamRepository.IsUserInTeamAsync(teamId, userId);
+        if (!isMember) return null;
+
+        var totalMembers = await _teamRepository.GetTeamMemberCountAsync(teamId);
+
+        var allMatches = await _teamRepository.GetTeamMatchesAsync(teamId);
+
+        var dashboard = new TeamDashboardDto
+        {
+            TotalMembers = totalMembers,
+            TotalMatches = allMatches.Count(m => m.Status == MatchStatus.Finished)
+        };
+
+        var finishedMatches = allMatches.Where(m => m.Status == MatchStatus.Finished).ToList();
+        var wins = finishedMatches.Count(m => m.OurScore > m.OpponentScore);
+
+        if (finishedMatches.Any())
+        {
+            dashboard.WinRatePercentage = (int)Math.Round((double)wins / finishedMatches.Count * 100);
+        }
+        else
+        {
+            dashboard.WinRatePercentage = 0;
+        }
+
+        var upcoming = allMatches
+            .Where(m => m.Status == MatchStatus.Scheduled && m.ScheduledDate > DateTime.UtcNow)
+            .OrderBy(m => m.ScheduledDate)
+            .Take(5)
+            .ToList();
+
+        dashboard.UpcomingMatchesCount = upcoming.Count;
+        dashboard.UpcomingMatches = upcoming.Select(m => new MatchResponseDto
+        {
+            Id = m.Id,
+            OpponentName = m.OpponentName,
+            ScheduledDate = m.ScheduledDate,
+            Status = m.Status.ToString()
+        }).ToList();
+
+        var recent = finishedMatches
+            .OrderByDescending(m => m.ScheduledDate)
+            .Take(5)
+            .ToList();
+
+        dashboard.RecentMatches = recent.Select(m => new MatchResponseDto
+        {
+            Id = m.Id,
+            OpponentName = m.OpponentName,
+            ScheduledDate = m.ScheduledDate,
+            Status = m.Status.ToString(),
+            FinalScore = $"{m.OurScore}-{m.OpponentScore}",
+            MatchOutcome = m.OurScore > m.OpponentScore ? "WIN" : (m.OurScore < m.OpponentScore ? "LOSS" : "DRAW")
+        }).ToList();
+
+        return dashboard;
+    }
 }

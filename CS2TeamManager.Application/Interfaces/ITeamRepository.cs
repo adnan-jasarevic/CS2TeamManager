@@ -9,4 +9,8 @@ public interface ITeamRepository
     Task<int> GetOwnedTeamsCountAsync(string userId);
     Task<Team> AddAsync(Team team);
     Task UpdateAsync(Team team);
+    Task<bool> IsUserInTeamAsync(int teamId, string userId);
+    Task<int> GetTeamMemberCountAsync(int teamId);
+    Task<List<Match>> GetTeamMatchesAsync(int teamId);
+
 }

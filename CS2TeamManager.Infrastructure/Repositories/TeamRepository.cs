@@ -48,4 +48,25 @@ public class TeamRepository : ITeamRepository
         await _context.SaveChangesAsync();
     }
 
+    public async Task<bool> IsUserInTeamAsync(int teamId, string userId)
+    {
+        return await _context.TeamMembers
+            .AnyAsync(tm => tm.TeamId == teamId && tm.UserId == userId);
+    }
+
+    public async Task<int> GetTeamMemberCountAsync(int teamId)
+    {
+        return await _context.TeamMembers
+            .CountAsync(tm => tm.TeamId == teamId);
+    }
+
+    public async Task<List<Match>> GetTeamMatchesAsync(int teamId)
+    {
+        return await _context.Matches
+            .Where(m => m.TeamId == teamId)
+            .OrderBy(m => m.ScheduledDate)
+            .ToListAsync();
+    }
+
+
 }
