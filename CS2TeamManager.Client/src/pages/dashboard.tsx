@@ -38,8 +38,10 @@ export default function Dashboard() {
         }
     }, [navigate, selectedTeamId]);
 
+
     const fetchDashboardStats = async (teamId: number) => {
         try {
+            setError('');
             const response = await api.get<TeamDashboardData>(`/Teams/${teamId}/dashboard`);
             setDashboardData(response.data);
         } catch (err: unknown) {
@@ -102,6 +104,33 @@ export default function Dashboard() {
                     </button>
                 </div>
 
+                {isModalOpen && (
+                    <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
+                        <div className="bg-gray-800 rounded-xl shadow-xl border border-gray-700 w-full max-w-md overflow-hidden">
+                            <div className="p-6 border-b border-gray-700 flex justify-between items-center">
+                                <h2 className="text-xl font-bold text-white">Create New Team</h2>
+                                <button onClick={() => setIsModalOpen(false)} className="text-gray-400 hover:text-white text-2xl">&times;</button>
+                            </div>
+                            <form onSubmit={handleCreateTeam} className="p-6">
+                                <label className="block text-gray-400 text-sm mb-2">Team Name</label>
+                                <input
+                                    type="text"
+                                    value={newTeamName}
+                                    onChange={(e) => setNewTeamName(e.target.value)}
+                                    className="w-full px-4 py-3 bg-[#111322] border border-gray-700 rounded-lg text-white focus:outline-none focus:border-[#ff6b4a]"
+                                    placeholder="e.g. Natus Vincere"
+                                    autoFocus
+                                />
+                                <div className="mt-6 flex justify-end gap-3">
+                                    <button type="button" onClick={() => setIsModalOpen(false)} className="px-4 py-2 text-gray-400 hover:text-white">Cancel</button>
+                                    <button type="submit" disabled={isCreating || !newTeamName.trim()} className="bg-[#ff6b4a] hover:bg-[#e5593c] px-6 py-2 rounded-lg font-bold text-white transition-colors disabled:opacity-50">
+                                        {isCreating ? 'Creating...' : 'Create Team'}
+                                    </button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                )}
             </div>
         );
     }
@@ -109,24 +138,26 @@ export default function Dashboard() {
     // scenario 2: user has teams - show dashboard with team selection dropdown and stats
     return (
         <div className="p-8 relative">
-
-            <div className="flex justify-between items-end mb-8">
+            <div className="flex flex-col md:flex-row justify-between items-start md:items-end mb-8 gap-4">
                 <div>
                     <h1 className="text-3xl font-bold text-white mb-2">Dashboard</h1>
                     <p className="text-gray-400">Welcome back! Here's your team overview.</p>
                 </div>
 
-                <div className="flex flex-col">
-                    <label className="text-xs text-gray-500 mb-1">Select Team:</label>
-                    <select
-                        className="bg-[#181a2d] border border-gray-700 text-white px-4 py-2 rounded-lg focus:outline-none focus:border-[#ff6b4a]"
-                        value={selectedTeamId || ''}
-                        onChange={(e) => setSelectedTeamId(Number(e.target.value))}
-                    >
-                        {teams.map(t => (
-                            <option key={t.id} value={t.id}>{t.name} ({t.currentUserRole})</option>
-                        ))}
-                    </select>
+                <div className="flex items-end gap-4">
+
+                    <div className="flex flex-col">
+                        <label className="text-xs text-gray-500 mb-1">Select Team:</label>
+                        <select
+                            className="bg-[#181a2d] border border-gray-700 text-white px-4 py-2 rounded-lg focus:outline-none focus:border-[#ff6b4a]"
+                            value={selectedTeamId || ''}
+                            onChange={(e) => setSelectedTeamId(Number(e.target.value))}
+                        >
+                            {teams.map(t => (
+                                <option key={t.id} value={t.id}>{t.name} ({t.currentUserRole})</option>
+                            ))}
+                        </select>
+                    </div>
                 </div>
             </div>
 
@@ -169,7 +200,7 @@ export default function Dashboard() {
                     </div>
 
                     <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
-
+                        {/* RECENT MATCHES */}
                         <div className="bg-[#181a2d] p-6 rounded-xl border border-gray-800 shadow-md flex flex-col">
                             <h3 className="text-lg font-bold mb-6 text-white">Recent Matches</h3>
 
@@ -196,7 +227,7 @@ export default function Dashboard() {
                                     ))
                                 )}
                             </div>
-                            <button className="w-full mt-6 py-3 bg-[#111322] hover:bg-gray-800 text-sm font-medium rounded-lg transition-colors border border-gray-800">
+                            <button className="w-full mt-6 py-3 bg-[#111322] hover:bg-gray-800 text-sm font-medium rounded-lg transition-colors border border-gray-800 text-white">
                                 View All Matches
                             </button>
                         </div>
@@ -220,11 +251,10 @@ export default function Dashboard() {
                                     ))
                                 )}
                             </div>
-                            <button className="w-full mt-6 py-3 bg-[#111322] hover:bg-gray-800 text-sm font-medium rounded-lg transition-colors border border-gray-800">
+                            <button className="w-full mt-6 py-3 bg-[#111322] hover:bg-gray-800 text-sm font-medium rounded-lg transition-colors border border-gray-800 text-white">
                                 View Calendar
                             </button>
                         </div>
-
                     </div>
                 </>
             )}

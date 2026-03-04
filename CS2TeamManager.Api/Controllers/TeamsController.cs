@@ -1,5 +1,6 @@
 ﻿using CS2TeamManager.Application.DTOs;
 using CS2TeamManager.Application.Interfaces;
+using CS2TeamManager.Domain.Entities;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using System.Security.Claims;
@@ -71,4 +72,19 @@ public class TeamsController : ControllerBase
         return Ok(new { message = result.Data });
     }
 
+    [HttpGet("{teamId}/dashboard")]
+    public async Task<IActionResult> GetTeamDashboard(int teamId)
+    {
+        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+
+        if (string.IsNullOrEmpty(userId))
+            return Unauthorized("User ID not found in token.");
+
+        var dashboardData = await _teamService.GetTeamDashboardAsync(teamId, userId);
+
+        if (dashboardData == null)
+            return Forbid("You do not have access to this team's dashboard.");
+
+        return Ok(dashboardData);
+    }
 }
