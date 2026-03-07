@@ -12,5 +12,5 @@ public interface ITeamRepository
     Task<bool> IsUserInTeamAsync(int teamId, string userId);
     Task<int> GetTeamMemberCountAsync(int teamId);
     Task<List<Match>> GetTeamMatchesAsync(int teamId);
-
+    Task<List<(TeamMember Member, string Email, string Username)>> GetTeamMembersWithUserDetailsAsync(int teamId);
 }

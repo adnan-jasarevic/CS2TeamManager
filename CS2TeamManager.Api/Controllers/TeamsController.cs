@@ -87,4 +87,17 @@ public class TeamsController : ControllerBase
 
         return Ok(dashboardData);
     }
+
+    [HttpGet("{teamId}/members")]
+    public async Task<IActionResult> GetTeamMembers(int teamId)
+    {
+        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+
+        if (string.IsNullOrEmpty(userId))
+            return Unauthorized();
+
+        var members = await _teamService.GetTeamMembersAsync(teamId);
+
+        return Ok(members);
+    }
 }

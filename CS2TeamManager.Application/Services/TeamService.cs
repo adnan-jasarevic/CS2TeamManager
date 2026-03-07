@@ -179,4 +179,21 @@ public class TeamService : ITeamService
 
         return dashboard;
     }
+
+    public async Task<List<TeamMemberDto>> GetTeamMembersAsync(int teamId)
+    {
+        var membersData = await _teamRepository.GetTeamMembersWithUserDetailsAsync(teamId);
+
+        var dtoList = membersData.Select(data => new TeamMemberDto
+        {
+            Id = data.Member.UserId,
+            Email = data.Email ?? "Unknown",
+            Username = data.Username ?? "Unknown",
+            Role = data.Member.Role.ToString(),
+            JoinedAt = data.Member.JoinedAt
+        }).ToList();
+
+        return dtoList;
+    }
+
 }

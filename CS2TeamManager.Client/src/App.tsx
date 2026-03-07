@@ -2,6 +2,7 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import Login from './pages/login';
 import Register from './pages/register';
 import Dashboard from './pages/dashboard';
+import TeamRoster from './pages/teamroster';
 import PrivateRoute from './components/private-route';
 import AppLayout from './components/app-layout';
 
@@ -23,7 +24,7 @@ function App() {
                     }
                 >
                     <Route path="/dashboard" element={<Dashboard />} />
-
+                    <Route path="/team" element={<TeamRoster />} />
 
                     {/* fallback */}
                     <Route path="*" element={<Navigate to="/dashboard" replace />} />

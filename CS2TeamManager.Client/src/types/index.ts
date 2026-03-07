@@ -43,3 +43,16 @@ export interface TeamDashboardData {
     recentMatches: MatchResponse[];
     upcomingMatches: MatchResponse[];
 }
+
+export interface TeamMember {
+    id: string;
+    email: string;
+    username: string; 
+    role: string; 
+    joinedAt: string;
+}
+
+export interface AddTeamMemberRequest {
+    userEmail: string;
+}
+
