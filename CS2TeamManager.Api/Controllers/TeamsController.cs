@@ -54,11 +54,12 @@ public class TeamsController : ControllerBase
         var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
         if (string.IsNullOrEmpty(userId)) return Unauthorized();
 
-        var result = await _teamService.AddMemberAsync(teamId, userId, dto.UserEmail);
+        var result = await _teamService.InviteMemberAsync(teamId, userId, dto.UserEmail);
 
         if (!result.Success) return BadRequest(new { message = result.ErrorMessage });
         return Ok(new { message = result.Data });
     }
+
 
     [HttpDelete("{teamId}/members/{memberId}")]
     public async Task<IActionResult> RemoveMember(int teamId, string memberId)

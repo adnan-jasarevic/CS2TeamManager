@@ -1,5 +1,6 @@
 ﻿using CS2TeamManager.Application.Interfaces;
 using CS2TeamManager.Domain.Entities;
+using CS2TeamManager.Domain.Enums;
 using CS2TeamManager.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 
@@ -97,6 +98,15 @@ public class TeamRepository : ITeamRepository
         await _context.SaveChangesAsync();
     }
 
+    public async Task<TeamInvite?> GetPendingInviteAsync(int teamId, string email)
+    {
+        return await _context.TeamInvites
+            .FirstOrDefaultAsync(i => i.TeamId == teamId && i.TargetUserEmail == email && i.Status == InviteStatus.Pending);
+    }
 
-
+    public async Task CreateInviteAsync(TeamInvite invite)
+    {
+        await _context.TeamInvites.AddAsync(invite);
+        await _context.SaveChangesAsync();
+    }
 }

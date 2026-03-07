@@ -7,7 +7,8 @@ public interface ITeamService
 {
     Task<(bool Success, string ErrorMessage, TeamDto? Data)> CreateTeamAsync(string userId, CreateTeamDto dto);
     Task<List<TeamDto>> GetUserTeamsAsync(string userId);
-    Task<Result<string>> AddMemberAsync(int teamId, string ownerId, string memberEmail);
+    Task<Result<string>> InviteMemberAsync(int teamId, string senderUserId, string targetEmail);
+
     Task<Result<string>> RemoveMemberAsync(int teamId, string ownerId, string memberIdToRemove);
     Task<TeamDashboardDto?> GetTeamDashboardAsync(int teamId, string userId);
     Task<List<TeamMemberDto>> GetTeamMembersAsync(int teamId);

@@ -66,33 +66,43 @@ public class TeamService : ITeamService
         }).ToList();
     }
 
-    public async Task<Result<string>> AddMemberAsync(int teamId, string ownerId, string memberEmail)
+    public async Task<Result<string>> InviteMemberAsync(int teamId, string senderUserId, string targetEmail)
     {
-        var team = await _teamRepository.GetByIdAsync(teamId);
-        if (team == null) return Result<string>.Failure("The team doesn't exist.");
+        var (exists, targetUserId) = await _identityService.CheckUserExistsAndGetIdAsync(targetEmail);
+        if (!exists)
+            return Result<string>.Failure("A user with this email does not exist. They must register first.");
 
-        var ownerMembership = team.Members.FirstOrDefault(m => m.UserId == ownerId);
-        if (ownerMembership == null || ownerMembership.Role != Domain.Enums.TeamRole.Owner)
-            return Result<string>.Failure("Only the Owner can add players.");
+        if (senderUserId == targetUserId)
+            return Result<string>.Failure("You cannot invite yourself to the team.");
 
-        var userResult = await _identityService.CheckUserExistsAndGetIdAsync(memberEmail);
-        if (!userResult.Exists)
-            return Result<string>.Failure("A user with that Email doesn't exist.");
+        var sender = await _teamRepository.GetTeamMemberAsync(teamId, senderUserId);
+        if (sender == null || (sender.Role != TeamRole.Owner && sender.Role != TeamRole.Captain))
+            return Result<string>.Failure("Only Team Owners or Captains can invite new players.");
 
-        if (team.Members.Any(m => m.UserId == userResult.UserId))
-            return Result<string>.Failure("The user is already in a team.");
+        var existingMember = await _teamRepository.GetTeamMemberAsync(teamId, targetUserId);
+        if (existingMember != null)
+            return Result<string>.Failure("This user is already a member of the team.");
 
-        team.Members.Add(new TeamMember
+        var existingInvite = await _teamRepository.GetPendingInviteAsync(teamId, targetEmail);
+        if (existingInvite != null)
+            return Result<string>.Failure("An active invite has already been sent to this user.");
+
+        var invite = new TeamInvite
         {
-            UserId = userResult.UserId, // We get it through IdentityService
-            TeamId = team.Id,
-            Role = Domain.Enums.TeamRole.Player,
-            JoinedAt = DateTime.UtcNow
-        });
+            TeamId = teamId,
+            TargetUserEmail = targetEmail,
+            TargetUserId = targetUserId,
+            SenderUserId = senderUserId,
+            Status = InviteStatus.Pending,
+            CreatedAt = DateTime.UtcNow
+        };
 
-        await _teamRepository.UpdateAsync(team);
-        return Result<string>.SuccessResult("The user has successfully been added to the team.");
+        await _teamRepository.CreateInviteAsync(invite);
+
+        return Result<string>.SuccessResult("Invite sent successfully.");
     }
+
+
 
     public async Task<Result<string>> RemoveMemberAsync(int teamId, string ownerId, string memberIdToRemove)
     {

@@ -15,4 +15,7 @@ public interface ITeamRepository
     Task<List<(TeamMember Member, string Email, string Username)>> GetTeamMembersWithUserDetailsAsync(int teamId);
     Task<TeamMember?> GetTeamMemberAsync(int teamId, string userId);
     Task UpdateTeamMemberAsync(TeamMember member);
+    Task<TeamInvite?> GetPendingInviteAsync(int teamId, string email);
+    Task CreateInviteAsync(TeamInvite invite);
+
 }

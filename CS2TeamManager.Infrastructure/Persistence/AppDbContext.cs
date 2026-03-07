@@ -12,6 +12,8 @@ public class AppDbContext : IdentityDbContext<AppUser>
     public DbSet<Team> Teams { get; set; }
     public DbSet<Match> Matches { get; set; }
     public DbSet<TeamMember> TeamMembers { get; set; }
+    public DbSet<TeamInvite> TeamInvites { get; set; }
+
 
     protected override void OnModelCreating(ModelBuilder builder)
     {
