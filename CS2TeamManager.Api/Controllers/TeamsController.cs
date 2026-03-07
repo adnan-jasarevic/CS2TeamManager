@@ -71,4 +71,34 @@ public class TeamsController : ControllerBase
         return Ok(new { message = result.Data });
     }
 
+    [HttpGet("{teamId}/dashboard")]
+    public async Task<IActionResult> GetTeamDashboard(int teamId)
+    {
+        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+
+        if (string.IsNullOrEmpty(userId))
+            return Unauthorized("User ID not found in token.");
+
+        var dashboardData = await _teamService.GetTeamDashboardAsync(teamId, userId);
+
+        if (dashboardData == null)
+            return Forbid("You do not have access to this team's dashboard.");
+
+        return Ok(dashboardData);
+    }
+
+    [HttpGet("{teamId}/members")]
+    public async Task<IActionResult> GetTeamMembers(int teamId)
+    {
+        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+
+        if (string.IsNullOrEmpty(userId))
+            return Unauthorized();
+
+        var members = await _teamService.GetTeamMembersAsync(teamId);
+
+        return Ok(members);
+    }
+
+
 }
