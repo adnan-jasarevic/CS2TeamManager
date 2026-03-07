@@ -196,4 +196,29 @@ public class TeamService : ITeamService
         return dtoList;
     }
 
+    public async Task<Result<string>> ChangeMemberRoleAsync(int teamId, string currentUserId, string targetMemberId, string newRoleStr)
+    {
+        var requester = await _teamRepository.GetTeamMemberAsync(teamId, currentUserId);
+        if (requester == null || requester.Role != TeamRole.Owner)
+            return Result<string>.Failure("Only the team owner can change roles.");
+
+        var targetMember = await _teamRepository.GetTeamMemberAsync(teamId, targetMemberId);
+        if (targetMember == null)
+            return Result<string>.Failure("Member not found in the team.");
+
+        if (targetMember.Role == TeamRole.Owner)
+            return Result<string>.Failure("Cannot change the role of the Owner. Use transfer ownership instead.");
+
+        if (!Enum.TryParse(typeof(TeamRole), newRoleStr, out var parsedRole))
+            return Result<string>.Failure("Invalid role provided.");
+
+        var newRoleEnum = (TeamRole)parsedRole;
+
+        targetMember.Role = newRoleEnum;
+        await _teamRepository.UpdateTeamMemberAsync(targetMember);
+
+        return Result<string>.SuccessResult("Role updated successfully.");
+    }
+
+
 }

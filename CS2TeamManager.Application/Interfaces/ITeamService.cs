@@ -12,5 +12,6 @@ public interface ITeamService
     Task<TeamDashboardDto?> GetTeamDashboardAsync(int teamId, string userId);
     Task<List<TeamMemberDto>> GetTeamMembersAsync(int teamId);
 
+    Task<Result<string>> ChangeMemberRoleAsync(int teamId, string currentUserId, string targetMemberId, string newRoleStr);
 
 }

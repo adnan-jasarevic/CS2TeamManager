@@ -100,4 +100,17 @@ public class TeamsController : ControllerBase
 
         return Ok(members);
     }
+
+    [HttpPut("{teamId}/members/{memberId}/role")]
+    public async Task<IActionResult> ChangeMemberRole(int teamId, string memberId, [FromBody] ChangeRoleDto dto)
+    {
+        var currentUserId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (string.IsNullOrEmpty(currentUserId)) return Unauthorized();
+
+        var result = await _teamService.ChangeMemberRoleAsync(teamId, currentUserId, memberId, dto.NewRole);
+
+        if (!result.Success) return BadRequest(new { message = result.ErrorMessage });
+        return Ok(new { message = result.Data });
+    }
+
 }

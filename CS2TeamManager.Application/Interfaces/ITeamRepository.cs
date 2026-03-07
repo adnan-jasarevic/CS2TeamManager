@@ -13,4 +13,6 @@ public interface ITeamRepository
     Task<int> GetTeamMemberCountAsync(int teamId);
     Task<List<Match>> GetTeamMatchesAsync(int teamId);
     Task<List<(TeamMember Member, string Email, string Username)>> GetTeamMembersWithUserDetailsAsync(int teamId);
+    Task<TeamMember?> GetTeamMemberAsync(int teamId, string userId);
+    Task UpdateTeamMemberAsync(TeamMember member);
 }

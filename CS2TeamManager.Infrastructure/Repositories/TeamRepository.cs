@@ -85,6 +85,17 @@ public class TeamRepository : ITeamRepository
         return result.Select(x => (x.Member, x.Email, x.Username)).ToList();
     }
 
+    public async Task<TeamMember?> GetTeamMemberAsync(int teamId, string userId)
+    {
+        return await _context.TeamMembers
+            .FirstOrDefaultAsync(tm => tm.TeamId == teamId && tm.UserId == userId);
+    }
+
+    public async Task UpdateTeamMemberAsync(TeamMember member)
+    {
+        _context.TeamMembers.Update(member);
+        await _context.SaveChangesAsync();
+    }
 
 
 
