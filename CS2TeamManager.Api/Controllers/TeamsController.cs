@@ -114,4 +114,34 @@ public class TeamsController : ControllerBase
         return Ok(new { message = result.Data });
     }
 
+    [HttpGet("my-invites")]
+    public async Task<IActionResult> GetMyPendingInvites()
+    {
+        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+
+        if (string.IsNullOrEmpty(userId))
+            return Unauthorized("User ID not found in token.");
+
+        var invites = await _teamService.GetMyPendingInvitesAsync(userId);
+
+        return Ok(invites);
+    }
+
+    [HttpPost("invites/{inviteId}/respond")]
+    public async Task<IActionResult> RespondToInvite(int inviteId, [FromBody] bool isAccepted)
+    {
+        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+
+        if (string.IsNullOrEmpty(userId))
+            return Unauthorized("User ID not found in token.");
+
+        var result = await _teamService.RespondToInviteAsync(inviteId, userId, isAccepted);
+
+        if (!result.Success) return BadRequest(new { message = result.ErrorMessage });
+
+        return Ok(new { message = result.Data });
+    }
+
+
+
 }

@@ -230,5 +230,67 @@ public class TeamService : ITeamService
         return Result<string>.SuccessResult("Role updated successfully.");
     }
 
+    public async Task<List<TeamInviteDto>> GetMyPendingInvitesAsync(string userId)
+    {
+        var invites = await _teamRepository.GetUserPendingInvitesAsync(userId);
+        var dtoList = new List<TeamInviteDto>();
+
+        foreach (var invite in invites)
+        {
+            string senderName = await _identityService.GetUsernameByIdAsync(invite.SenderUserId);
+
+            dtoList.Add(new TeamInviteDto
+            {
+                InviteId = invite.Id,
+                TeamId = invite.TeamId,
+                TeamName = invite.Team?.Name ?? "Unknown Team",
+                SenderUsername = senderName,
+                CreatedAt = invite.CreatedAt
+            });
+        }
+
+        return dtoList;
+    }
+
+    public async Task<Result<string>> RespondToInviteAsync(int inviteId, string userId, bool isAccepted)
+    {
+        var invite = await _teamRepository.GetInviteByIdAsync(inviteId);
+
+        if (invite == null)
+            return Result<string>.Failure("Invite not found.");
+
+        if (invite.TargetUserId != userId)
+            return Result<string>.Failure("You are not authorized to respond to this invite.");
+
+        if (invite.Status != InviteStatus.Pending)
+            return Result<string>.Failure("This invite has already been responded to.");
+
+        if (isAccepted)
+        {
+            invite.Status = InviteStatus.Accepted;
+            invite.RespondedAt = DateTime.UtcNow;
+
+            // Kreiraj novog člana tima!
+            var newMember = new TeamMember
+            {
+                TeamId = invite.TeamId,
+                UserId = userId,
+                Role = TeamRole.Player, 
+                JoinedAt = DateTime.UtcNow
+            };
+
+            await _teamRepository.AddTeamMemberAsync(newMember);
+        }
+        else
+        {
+            invite.Status = InviteStatus.Declined;
+            invite.RespondedAt = DateTime.UtcNow;
+        }
+
+        await _teamRepository.UpdateInviteAsync(invite);
+
+        return Result<string>.SuccessResult(isAccepted ? "Welcome to the team!" : "Invite declined successfully.");
+    }
+
 
 }

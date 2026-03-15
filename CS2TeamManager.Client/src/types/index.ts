@@ -56,3 +56,11 @@ export interface AddTeamMemberRequest {
     userEmail: string;
 }
 
+export interface TeamInvite {
+    inviteId: number;
+    teamId: number;
+    teamName: string;
+    senderUsername: string;
+    createdAt: string;
+}
+

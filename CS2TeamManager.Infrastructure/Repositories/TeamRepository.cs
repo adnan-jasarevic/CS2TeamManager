@@ -109,4 +109,30 @@ public class TeamRepository : ITeamRepository
         await _context.TeamInvites.AddAsync(invite);
         await _context.SaveChangesAsync();
     }
+
+    public async Task<List<TeamInvite>> GetUserPendingInvitesAsync(string userId)
+    {
+        return await _context.TeamInvites
+            .Include(i => i.Team)
+            .Where(i => i.TargetUserId == userId && i.Status == InviteStatus.Pending)
+            .ToListAsync();
+    }
+
+    public async Task<TeamInvite?> GetInviteByIdAsync(int inviteId)
+    {
+        return await _context.TeamInvites
+            .FirstOrDefaultAsync(i => i.Id == inviteId);
+    }
+
+    public async Task UpdateInviteAsync(TeamInvite invite)
+    {
+        _context.TeamInvites.Update(invite);
+        await _context.SaveChangesAsync();
+    }
+
+    public async Task AddTeamMemberAsync(TeamMember member)
+    {
+        await _context.TeamMembers.AddAsync(member);
+        await _context.SaveChangesAsync();
+    }
 }

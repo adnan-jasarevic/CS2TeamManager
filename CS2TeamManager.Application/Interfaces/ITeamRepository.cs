@@ -18,4 +18,8 @@ public interface ITeamRepository
     Task<TeamInvite?> GetPendingInviteAsync(int teamId, string email);
     Task CreateInviteAsync(TeamInvite invite);
 
+    Task<List<TeamInvite>> GetUserPendingInvitesAsync(string userId);
+    Task<TeamInvite?> GetInviteByIdAsync(int inviteId);
+    Task UpdateInviteAsync(TeamInvite invite);
+    Task AddTeamMemberAsync(TeamMember member);
 }

@@ -14,5 +14,9 @@ public interface ITeamService
     Task<List<TeamMemberDto>> GetTeamMembersAsync(int teamId);
 
     Task<Result<string>> ChangeMemberRoleAsync(int teamId, string currentUserId, string targetMemberId, string newRoleStr);
+    Task<List<TeamInviteDto>> GetMyPendingInvitesAsync(string userId);
+    Task<Result<string>> RespondToInviteAsync(int inviteId, string userId, bool isAccepted);
+
+
 
 }

@@ -22,4 +22,12 @@ public class IdentityService : IIdentityService
 
         return (true, user.Id);
     }
+
+    public async Task<string> GetUsernameByIdAsync(string userId)
+    {
+        var user = await _userManager.FindByIdAsync(userId);
+
+        return user?.UserName ?? "Team Owner";
+    }
+
 }
