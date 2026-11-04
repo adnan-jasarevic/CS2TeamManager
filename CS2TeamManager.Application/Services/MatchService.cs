@@ -51,6 +51,7 @@ public class MatchService : IMatchService
             ScheduledDate = dto.ScheduledDate,
             PlayedDate = dto.PlayedDate,
             Status = dto.Status,
+            Type = dto.Type,
             OurScore = ourScore,
             OpponentScore = opponentScore,
             BestOf = dto.BestOf,
@@ -109,6 +110,7 @@ public class MatchService : IMatchService
             ScheduledDate = match.ScheduledDate,
             PlayedDate = match.PlayedDate,
             Status = match.Status.ToString(), // turns enum into string for easier display in the UI
+            Type = match.Type.ToString(),
             FinalScore = $"{match.OurScore} - {match.OpponentScore}",
             BestOf = match.BestOf,
             Maps = match.Maps

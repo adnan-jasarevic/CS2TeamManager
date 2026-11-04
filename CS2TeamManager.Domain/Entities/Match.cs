@@ -16,6 +16,7 @@ public class Match
     public DateTime ScheduledDate { get; set; }
     public DateTime? PlayedDate { get; set; }
     public MatchStatus Status { get; set; }  // Scheduled, Live, Finished
+    public MatchKind Type { get; set; }
 
     // Series score: rounds for a Bo1, maps won for a longer series
     public int OurScore { get; set; }
@@ -40,4 +41,10 @@ public enum MatchStatus
     Live,
     Finished,
     Cancelled
+}
+
+public enum MatchKind
+{
+    Official,
+    Scrim
 }

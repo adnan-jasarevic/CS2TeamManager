@@ -176,6 +176,7 @@ export default function Matches() {
                                     <p className="font-bold text-white">vs {match.opponentName}</p>
                                     <p className="text-xs text-gray-500">
                                         {formatDateTime(match.scheduledDate)}
+                                        {match.type === 'Scrim' && ' · Scrim'}
                                         {match.tournament && ` · ${match.tournament}`}
                                         {match.bestOf && ` · Bo${match.bestOf}`}
                                     </p>

@@ -8,6 +8,7 @@ public class MatchDto
     public DateTime ScheduledDate { get; set; }
     public DateTime? PlayedDate { get; set; }
     public string Status { get; set; } = string.Empty;
+    public string Type { get; set; } = string.Empty; // "Official", "Scrim"
     public string FinalScore { get; set; } = string.Empty;
     public int? BestOf { get; set; }
     public List<MatchMapDto> Maps { get; set; } = new List<MatchMapDto>();

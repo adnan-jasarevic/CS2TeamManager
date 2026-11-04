@@ -2,7 +2,7 @@ import { useState } from 'react';
 import api from '../services/api';
 import { getApiErrorMessage } from '../services/errors';
 import { MAP_POOL } from '../constants/maps';
-import { MatchStatus, type CreateMatchRequest, type MatchMap, type MatchStatusValue } from '../types';
+import { MatchKind, MatchStatus, type CreateMatchRequest, type MatchKindValue, type MatchMap, type MatchStatusValue } from '../types';
 
 interface AddMatchModalProps {
     teamId: number;
@@ -35,6 +35,7 @@ export default function AddMatchModal({ teamId, onClose, onCreated }: AddMatchMo
     const [tournament, setTournament] = useState('');
     const [scheduledDate, setScheduledDate] = useState('');
     const [status, setStatus] = useState<MatchStatusValue>(MatchStatus.Scheduled);
+    const [type, setType] = useState<MatchKindValue>(MatchKind.Official);
     const [ourScore, setOurScore] = useState(0);
     const [opponentScore, setOpponentScore] = useState(0);
     const [bestOf, setBestOf] = useState(1);
@@ -107,6 +108,7 @@ export default function AddMatchModal({ teamId, onClose, onCreated }: AddMatchMo
             scheduledDate: scheduledIso,
             playedDate: isFinished ? scheduledIso : undefined,
             status,
+            type,
             ourScore: isFinished ? ourScore : 0,
             opponentScore: isFinished ? opponentScore : 0,
             bestOf,
@@ -136,6 +138,25 @@ export default function AddMatchModal({ teamId, onClose, onCreated }: AddMatchMo
 
                 <form onSubmit={handleSubmit} className="p-6 flex flex-col gap-4">
                     {error && <div className="bg-red-500/10 border border-red-500 text-red-500 p-3 rounded text-sm">{error}</div>}
+
+                    <div>
+                        <label className={labelClass}>Type</label>
+                        <div className="flex gap-2">
+                            {([['Official', MatchKind.Official], ['Scrim', MatchKind.Scrim]] as const).map(([label, value]) => (
+                                <button
+                                    key={label}
+                                    type="button"
+                                    onClick={() => setType(value)}
+                                    className={`px-4 py-2 rounded-lg text-sm font-bold border transition-colors ${type === value
+                                        ? 'bg-[#ff6b4a] border-[#ff6b4a] text-white'
+                                        : 'bg-[#111322] border-gray-700 text-gray-400 hover:text-white'
+                                        }`}
+                                >
+                                    {label}
+                                </button>
+                            ))}
+                        </div>
+                    </div>
 
                     <div>
                         <label className={labelClass}>Opponent</label>

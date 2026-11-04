@@ -28,6 +28,9 @@ public class CreateMatchDtoValidator : AbstractValidator<CreateMatchDto>
         RuleFor(m => m.Status)
             .IsInEnum().WithMessage("Invalid match status.");
 
+        RuleFor(m => m.Type)
+            .IsInEnum().WithMessage("Invalid match type.");
+
         RuleFor(m => m.OurScore)
             .GreaterThanOrEqualTo(0).WithMessage("Scores cannot be negative.");
 

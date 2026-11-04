@@ -9,6 +9,7 @@ public class CreateMatchDto
     public DateTime ScheduledDate { get; set; }
     public DateTime? PlayedDate { get; set; }
     public MatchStatus Status { get; set; }
+    public MatchKind Type { get; set; }
     // Ignored when any map has a score: the series score is then worked out from the maps.
     public int OurScore { get; set; }
     public int OpponentScore { get; set; }

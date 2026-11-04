@@ -30,6 +30,7 @@ export interface Match {
     scheduledDate: string;
     playedDate?: string;
     status: string;
+    type: string;
     finalScore: string;
     bestOf?: number;
     maps: MatchMap[];
@@ -85,12 +86,21 @@ export const MatchStatus = {
 
 export type MatchStatusValue = typeof MatchStatus[keyof typeof MatchStatus];
 
+// Numeric values match the MatchKind enum in CS2TeamManager.Domain.
+export const MatchKind = {
+    Official: 0,
+    Scrim: 1,
+} as const;
+
+export type MatchKindValue = typeof MatchKind[keyof typeof MatchKind];
+
 export interface CreateMatchRequest {
     opponentName: string;
     tournament?: string;
     scheduledDate: string;
     playedDate?: string;
     status: MatchStatusValue;
+    type: MatchKindValue;
     ourScore: number;
     opponentScore: number;
     bestOf?: number;
