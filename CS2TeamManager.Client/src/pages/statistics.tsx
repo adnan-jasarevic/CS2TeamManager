@@ -20,7 +20,8 @@ import {
 import api from '../services/api';
 import { getApiErrorMessage } from '../services/errors';
 import { useLayoutContext } from '../components/layout-context';
-import { type Match, type Team } from '../types';
+import TeamCharts from '../components/team-charts';
+import { type Match, type Team, type TeamStats } from '../types';
 
 // Only the grid features this page uses, to keep the bundle small.
 ModuleRegistry.registerModules([
@@ -190,6 +191,7 @@ export default function Statistics() {
     const [teams, setTeams] = useState<Team[]>([]);
     const [selectedTeamId, setSelectedTeamId] = useState<number | null>(null);
     const [matches, setMatches] = useState<Match[]>([]);
+    const [stats, setStats] = useState<TeamStats | null>(null);
     const [typeFilter, setTypeFilter] = useState<TypeFilter>('all');
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
@@ -226,6 +228,16 @@ export default function Statistics() {
     useEffect(() => {
         if (selectedTeamId !== null) fetchMatches(selectedTeamId);
     }, [selectedTeamId, fetchMatches]);
+
+    // Map win rates are grouped on the server, so they're refetched when the type filter changes.
+    useEffect(() => {
+        if (selectedTeamId === null) return;
+        let cancelled = false;
+        api.get<TeamStats>(`/Matches/${selectedTeamId}/stats`, { params: typeFilter === 'all' ? {} : { type: typeFilter } })
+            .then(response => { if (!cancelled) setStats(response.data); })
+            .catch((err: unknown) => { if (!cancelled) setError(getApiErrorMessage(err, 'Failed to load statistics.')); });
+        return () => { cancelled = true; };
+    }, [selectedTeamId, typeFilter]);
 
     const rows = useMemo(() => {
         const all = toRows(matches);
@@ -264,7 +276,7 @@ export default function Statistics() {
     if (teams.length === 0) {
         return (
             <div className="p-8">
-                <h1 className="text-3xl font-bold text-white mb-2">Scrim Analytics</h1>
+                <h1 className="text-3xl font-bold text-white mb-2">Statistics</h1>
                 <p className="text-gray-400">You need to create or join a team first.</p>
             </div>
         );
@@ -274,8 +286,8 @@ export default function Statistics() {
         <div className="p-8">
             <div className="flex flex-col md:flex-row justify-between items-start md:items-end mb-8 gap-4">
                 <div>
-                    <h1 className="text-3xl font-bold text-white mb-2">Scrim Analytics</h1>
-                    <p className="text-gray-400">Every played map, one row each. Drag headers to reorder, filter under each header, and pick columns.</p>
+                    <h1 className="text-3xl font-bold text-white mb-2">Statistics</h1>
+                    <p className="text-gray-400">How your team performs, per map and over time.</p>
                 </div>
 
                 <div className="flex flex-col">
@@ -294,20 +306,27 @@ export default function Statistics() {
 
             {error && <div className="bg-red-500/10 border border-red-500 text-red-500 p-4 rounded mb-6">{error}</div>}
 
-            <div className="flex flex-wrap items-center justify-between gap-2 mb-4">
-                <div className="flex gap-2">
-                    {TYPE_FILTERS.map(f => (
-                        <button
-                            key={f.value}
-                            onClick={() => setTypeFilter(f.value)}
-                            className={`px-4 py-2 rounded-lg text-sm font-medium border transition-colors ${typeFilter === f.value
-                                ? 'bg-[#ff6b4a] border-[#ff6b4a] text-white'
-                                : 'bg-[#181a2d] border-gray-800 text-gray-400 hover:text-white'
-                                }`}
-                        >
-                            {f.label}
-                        </button>
-                    ))}
+            <div className="flex gap-2 mb-6">
+                {TYPE_FILTERS.map(f => (
+                    <button
+                        key={f.value}
+                        onClick={() => setTypeFilter(f.value)}
+                        className={`px-4 py-2 rounded-lg text-sm font-medium border transition-colors ${typeFilter === f.value
+                            ? 'bg-[#ff6b4a] border-[#ff6b4a] text-white'
+                            : 'bg-[#181a2d] border-gray-800 text-gray-400 hover:text-white'
+                            }`}
+                    >
+                        {f.label}
+                    </button>
+                ))}
+            </div>
+
+            {stats && <TeamCharts stats={stats} />}
+
+            <div className="flex flex-wrap items-end justify-between gap-2 mb-4">
+                <div>
+                    <h2 className="text-xl font-bold text-white">Scrim Analytics</h2>
+                    <p className="text-xs text-gray-500">Every played map, one row each. Drag headers to reorder, filter under each header, and pick columns.</p>
                 </div>
 
                 <div className="flex gap-2 relative">

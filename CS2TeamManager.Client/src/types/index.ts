@@ -142,3 +142,29 @@ export interface SaveTeamEventRequest {
     endTime: string;
     eventType: TeamEventTypeValue;
 }
+
+export interface MapStats {
+    mapName: string;
+    played: number;
+    wins: number;
+    losses: number;
+    draws: number;
+    roundsWon: number;
+    roundsLost: number;
+    winRatePercentage: number;
+}
+
+export interface FormPoint {
+    matchId: number;
+    date: string;
+    opponentName: string;
+    matchOutcome: string;
+    winRatePercentage: number;
+}
+
+export interface TeamStats {
+    matchesPlayed: number;
+    mapsPlayed: number;
+    maps: MapStats[];
+    form: FormPoint[];
+}

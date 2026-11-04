@@ -80,6 +80,50 @@ public class MatchService : IMatchService
         return Result<List<MatchDto>>.SuccessResult(dtoList);
     }
 
+    public async Task<Result<TeamStatsDto>> GetTeamStatsAsync(string userId, int teamId, MatchKind? type)
+    {
+        if (await _teamRepository.GetTeamMemberAsync(teamId, userId) == null)
+            return Result<TeamStatsDto>.Failure("You don't have access to the statistics of this team.");
+
+        var maps = await _matchRepository.GetMapStatsAsync(teamId, type);
+        foreach (var map in maps)
+            map.WinRatePercentage = Percentage(map.Wins, map.Played);
+
+        var finished = (await _matchRepository.GetMatchesByTeamIdAsync(teamId))
+            .Where(m => m.Status == MatchStatus.Finished && (!type.HasValue || m.Type == type.Value))
+            .OrderBy(m => m.PlayedDate ?? m.ScheduledDate)
+            .ToList();
+
+        var form = new List<FormPointDto>();
+        int wins = 0;
+        foreach (var match in finished)
+        {
+            if (match.OurScore > match.OpponentScore) wins++;
+            form.Add(new FormPointDto
+            {
+                MatchId = match.Id,
+                Date = match.PlayedDate ?? match.ScheduledDate,
+                OpponentName = match.OpponentName,
+                MatchOutcome = Outcome(match),
+                WinRatePercentage = Percentage(wins, form.Count + 1)
+            });
+        }
+
+        return Result<TeamStatsDto>.SuccessResult(new TeamStatsDto
+        {
+            MatchesPlayed = finished.Count,
+            MapsPlayed = maps.Sum(m => m.Played),
+            Maps = maps.OrderByDescending(m => m.Played).ThenBy(m => m.MapName).ToList(),
+            Form = form
+        });
+    }
+
+    private static int Percentage(int part, int total) =>
+        total == 0 ? 0 : (int)Math.Round((double)part / total * 100);
+
+    private static string Outcome(Match match) =>
+        match.OurScore > match.OpponentScore ? "Win" : match.OurScore < match.OpponentScore ? "Loss" : "Draw";
+
     // Works out the series score from the played maps: rounds for a Bo1, maps won otherwise.
     // Returns null when no map has a score, so the score entered for the match is used instead.
     private static (int Our, int Opponent)? SeriesScore(List<MatchMap> maps, int? bestOf)

@@ -1,5 +1,6 @@
 ﻿using CS2TeamManager.Application.DTOs;
 using CS2TeamManager.Application.Interfaces;
+using CS2TeamManager.Domain.Entities;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using System.Security.Claims;
@@ -43,6 +44,22 @@ public class MatchesController : ControllerBase
             return Unauthorized("Korisnički ID nije pronađen u tokenu.");
 
         var result = await _matchService.GetTeamMatchesAsync(userId, teamId);
+
+        if (!result.Success)
+            return BadRequest(new { message = result.ErrorMessage });
+
+        return Ok(result.Data);
+    }
+
+    // GET: /api/Matches/{teamId}/stats?type=Scrim
+    [HttpGet("{teamId}/stats")]
+    public async Task<IActionResult> GetTeamStats(int teamId, [FromQuery] MatchKind? type)
+    {
+        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (string.IsNullOrEmpty(userId))
+            return Unauthorized("User ID is not found in the token.");
+
+        var result = await _matchService.GetTeamStatsAsync(userId, teamId, type);
 
         if (!result.Success)
             return BadRequest(new { message = result.ErrorMessage });
