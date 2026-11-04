@@ -295,23 +295,19 @@ public class TeamService : ITeamService
         if (invite.Status != InviteStatus.Pending)
             return Result<string>.Failure("This invite has already been responded to.");
 
-        invite.RespondedAt = DateTime.UtcNow;
-
         if (!isAccepted)
         {
-            invite.Status = InviteStatus.Declined;
-            await _teamRepository.UpdateInviteAsync(invite);
+            if (!await _teamRepository.CompletePendingInviteAsync(inviteId, InviteStatus.Declined))
+                return Result<string>.Failure("This invite has already been responded to.");
+
             return Result<string>.SuccessResult("Invite declined successfully.");
         }
 
         if (await _teamRepository.IsUserInTeamAsync(invite.TeamId, userId))
         {
-            invite.Status = InviteStatus.Canceled;
-            await _teamRepository.UpdateInviteAsync(invite);
+            await _teamRepository.CompletePendingInviteAsync(inviteId, InviteStatus.Canceled);
             return Result<string>.Failure("You are already a member of this team.");
         }
-
-        invite.Status = InviteStatus.Accepted;
 
         var newMember = new TeamMember
         {
@@ -321,7 +317,8 @@ public class TeamService : ITeamService
             JoinedAt = DateTime.UtcNow
         };
 
-        await _teamRepository.AcceptInviteAsync(invite, newMember);
+        if (!await _teamRepository.CompletePendingInviteAsync(inviteId, InviteStatus.Accepted, newMember))
+            return Result<string>.Failure("This invite has already been responded to.");
 
         return Result<string>.SuccessResult("Welcome to the team!");
     }

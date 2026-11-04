@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import api from '../services/api';
 import { getApiErrorMessage } from '../services/errors';
+import { useLayoutContext } from '../components/layout-context';
 import AddMatchModal from '../components/add-match-modal';
 import { type Match, type Team } from '../types';
 
@@ -42,13 +43,14 @@ export default function Matches() {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
     const [isAddMatchOpen, setIsAddMatchOpen] = useState(false);
+    const { teamsVersion } = useLayoutContext();
 
     useEffect(() => {
         const fetchTeams = async () => {
             try {
                 const response = await api.get<Team[]>('/Teams/my-teams');
                 setTeams(response.data);
-                if (response.data.length > 0) setSelectedTeamId(response.data[0].id);
+                if (response.data.length > 0) setSelectedTeamId(prev => prev ?? response.data[0].id);
             } catch (err: unknown) {
                 setError(getApiErrorMessage(err, 'Failed to load teams.'));
             } finally {
@@ -56,7 +58,8 @@ export default function Matches() {
             }
         };
         fetchTeams();
-    }, []);
+        // teamsVersion changes when the user joins a team from the invite modal.
+    }, [teamsVersion]);
 
     const fetchMatches = useCallback(async (teamId: number) => {
         try {

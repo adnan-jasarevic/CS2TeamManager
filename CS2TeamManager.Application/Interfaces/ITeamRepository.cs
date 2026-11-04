@@ -1,4 +1,5 @@
 ﻿using CS2TeamManager.Domain.Entities;
+using CS2TeamManager.Domain.Enums;
 
 namespace CS2TeamManager.Application.Interfaces;
 
@@ -21,6 +22,5 @@ public interface ITeamRepository
 
     Task<List<TeamInvite>> GetUserPendingInvitesAsync(string userId);
     Task<TeamInvite?> GetInviteByIdAsync(int inviteId);
-    Task UpdateInviteAsync(TeamInvite invite);
-    Task AcceptInviteAsync(TeamInvite invite, TeamMember newMember);
+    Task<bool> CompletePendingInviteAsync(int inviteId, InviteStatus newStatus, TeamMember? newMember = null);
 }
