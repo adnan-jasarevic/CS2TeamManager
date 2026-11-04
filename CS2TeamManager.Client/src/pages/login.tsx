@@ -1,6 +1,7 @@
 ﻿import { Link, useNavigate } from 'react-router-dom';
 import React, { useState } from 'react';
 import api from '../services/api';
+import { getApiErrorMessage } from '../services/errors';
 import { type UserUser } from '../types';
 
 export default function Login() {
@@ -31,7 +32,7 @@ export default function Login() {
 
         } catch (err) {
             console.error('Error while trying to log in:', err);
-            setError('Wrong email or password. Try again.');
+            setError(getApiErrorMessage(err, 'Wrong email or password. Try again.'));
         }
     };
 

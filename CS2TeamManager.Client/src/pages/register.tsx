@@ -1,6 +1,7 @@
 ﻿import { Link, useNavigate } from 'react-router-dom';
 import React, { useState } from 'react';
 import api from '../services/api';
+import { getApiErrorMessage } from '../services/errors';
 import axios, { AxiosError } from 'axios';
 
 // Expected shape of the request sent to C# backend
@@ -81,7 +82,8 @@ export default function Register() {
                 }
             }
 
-            setError('Registration failed. Please try again.');
+            // Anything else, such as a validation error for an invalid email.
+            setError(getApiErrorMessage(err, 'Registration failed. Please try again.'));
         }
     };
 
