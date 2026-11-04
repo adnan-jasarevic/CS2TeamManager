@@ -214,33 +214,6 @@ namespace CS2TeamManager.Infrastructure.Migrations
                     b.ToTable("TeamMembers");
                 });
 
-            modelBuilder.Entity("CS2TeamManager.Domain.Entities.User", b =>
-                {
-                    b.Property<string>("Id")
-                        .HasColumnType("nvarchar(450)");
-
-                    b.Property<int?>("CurrentTeamId")
-                        .HasColumnType("int");
-
-                    b.Property<string>("Email")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<string>("SteamId")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<string>("Username")
-                        .IsRequired()
-                        .HasMaxLength(50)
-                        .HasColumnType("nvarchar(50)");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("CurrentTeamId");
-
-                    b.ToTable("User");
-                });
-
             modelBuilder.Entity("CS2TeamManager.Infrastructure.Identity.AppUser", b =>
                 {
                     b.Property<string>("Id")
@@ -457,15 +430,13 @@ namespace CS2TeamManager.Infrastructure.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
-                    b.HasOne("CS2TeamManager.Domain.Entities.User", "User")
+                    b.HasOne("CS2TeamManager.Infrastructure.Identity.AppUser", null)
                         .WithMany("MatchParticipations")
                         .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
                     b.Navigation("Match");
-
-                    b.Navigation("User");
                 });
 
             modelBuilder.Entity("CS2TeamManager.Domain.Entities.MatchStat", b =>
@@ -476,13 +447,11 @@ namespace CS2TeamManager.Infrastructure.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
-                    b.HasOne("CS2TeamManager.Domain.Entities.User", "User")
-                        .WithMany("PersonalStats")
+                    b.HasOne("CS2TeamManager.Infrastructure.Identity.AppUser", null)
+                        .WithMany("MatchStats")
                         .HasForeignKey("UserId");
 
                     b.Navigation("Match");
-
-                    b.Navigation("User");
                 });
 
             modelBuilder.Entity("CS2TeamManager.Domain.Entities.TeamInvite", b =>
@@ -511,15 +480,6 @@ namespace CS2TeamManager.Infrastructure.Migrations
                         .IsRequired();
 
                     b.Navigation("Team");
-                });
-
-            modelBuilder.Entity("CS2TeamManager.Domain.Entities.User", b =>
-                {
-                    b.HasOne("CS2TeamManager.Domain.Entities.Team", "CurrentTeam")
-                        .WithMany()
-                        .HasForeignKey("CurrentTeamId");
-
-                    b.Navigation("CurrentTeam");
                 });
 
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRoleClaim<string>", b =>
@@ -589,15 +549,12 @@ namespace CS2TeamManager.Infrastructure.Migrations
                     b.Navigation("Members");
                 });
 
-            modelBuilder.Entity("CS2TeamManager.Domain.Entities.User", b =>
+            modelBuilder.Entity("CS2TeamManager.Infrastructure.Identity.AppUser", b =>
                 {
                     b.Navigation("MatchParticipations");
 
-                    b.Navigation("PersonalStats");
-                });
+                    b.Navigation("MatchStats");
 
-            modelBuilder.Entity("CS2TeamManager.Infrastructure.Identity.AppUser", b =>
-                {
                     b.Navigation("TeamMemberships");
                 });
 #pragma warning restore 612, 618

@@ -52,6 +52,17 @@ public class AppDbContext : IdentityDbContext<AppUser>
             .WithMany(t => t.Members)
             .HasForeignKey(tm => tm.TeamId);
 
+        // Participations and stats point at the Identity user, the only user model.
+        builder.Entity<MatchParticipation>()
+            .HasOne<AppUser>()
+            .WithMany(u => u.MatchParticipations)
+            .HasForeignKey(p => p.UserId);
+
+        builder.Entity<MatchStat>()
+            .HasOne<AppUser>()
+            .WithMany(u => u.MatchStats)
+            .HasForeignKey(s => s.UserId);
+
         // Match config
         builder.Entity<Match>()
             .HasOne(m => m.Team)
