@@ -130,9 +130,10 @@ public class TeamRepository : ITeamRepository
         await _context.SaveChangesAsync();
     }
 
-    public async Task AddTeamMemberAsync(TeamMember member)
+    public async Task AcceptInviteAsync(TeamInvite invite, TeamMember newMember)
     {
-        await _context.TeamMembers.AddAsync(member);
+        _context.TeamInvites.Update(invite);
+        await _context.TeamMembers.AddAsync(newMember);
         await _context.SaveChangesAsync();
     }
 }

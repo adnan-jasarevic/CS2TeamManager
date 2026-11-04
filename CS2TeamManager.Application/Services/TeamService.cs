@@ -265,31 +265,35 @@ public class TeamService : ITeamService
         if (invite.Status != InviteStatus.Pending)
             return Result<string>.Failure("This invite has already been responded to.");
 
-        if (isAccepted)
-        {
-            invite.Status = InviteStatus.Accepted;
-            invite.RespondedAt = DateTime.UtcNow;
+        invite.RespondedAt = DateTime.UtcNow;
 
-            // Kreiraj novog člana tima!
-            var newMember = new TeamMember
-            {
-                TeamId = invite.TeamId,
-                UserId = userId,
-                Role = TeamRole.Player, 
-                JoinedAt = DateTime.UtcNow
-            };
-
-            await _teamRepository.AddTeamMemberAsync(newMember);
-        }
-        else
+        if (!isAccepted)
         {
             invite.Status = InviteStatus.Declined;
-            invite.RespondedAt = DateTime.UtcNow;
+            await _teamRepository.UpdateInviteAsync(invite);
+            return Result<string>.SuccessResult("Invite declined successfully.");
         }
 
-        await _teamRepository.UpdateInviteAsync(invite);
+        if (await _teamRepository.IsUserInTeamAsync(invite.TeamId, userId))
+        {
+            invite.Status = InviteStatus.Canceled;
+            await _teamRepository.UpdateInviteAsync(invite);
+            return Result<string>.Failure("You are already a member of this team.");
+        }
 
-        return Result<string>.SuccessResult(isAccepted ? "Welcome to the team!" : "Invite declined successfully.");
+        invite.Status = InviteStatus.Accepted;
+
+        var newMember = new TeamMember
+        {
+            TeamId = invite.TeamId,
+            UserId = userId,
+            Role = TeamRole.Player,
+            JoinedAt = DateTime.UtcNow
+        };
+
+        await _teamRepository.AcceptInviteAsync(invite, newMember);
+
+        return Result<string>.SuccessResult("Welcome to the team!");
     }
 
 
