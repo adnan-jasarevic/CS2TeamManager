@@ -2,6 +2,7 @@
 using CS2TeamManager.Application.DTOs;
 using CS2TeamManager.Application.Interfaces;
 using CS2TeamManager.Domain.Entities;
+using CS2TeamManager.Domain.Enums;
 
 namespace CS2TeamManager.Application.Services;
 
@@ -22,8 +23,9 @@ public class MatchService : IMatchService
         if (team == null)
             return Result<MatchDto>.Failure("Team was not found.");
 
-        if (!team.Members.Any(m => m.UserId == userId))
-            return Result<MatchDto>.Failure("You don't have permission to add matches for this team.");
+        var member = team.Members.FirstOrDefault(m => m.UserId == userId);
+        if (member == null || (member.Role != TeamRole.Owner && member.Role != TeamRole.Captain))
+            return Result<MatchDto>.Failure("Only Team Owners or Captains can add matches.");
 
         var newMatch = new Match
         {

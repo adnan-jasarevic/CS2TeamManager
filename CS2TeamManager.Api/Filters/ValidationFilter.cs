@@ -8,11 +8,9 @@ public class ValidationFilter : IAsyncActionFilter
 {
     public async Task OnActionExecutionAsync(ActionExecutingContext context, ActionExecutionDelegate next)
     {
-        var argument = context.ActionArguments.Values.FirstOrDefault(v => v != null);
-
-        if (argument != null)
+        foreach (var argument in context.ActionArguments.Values.Where(v => v != null))
         {
-            var validatorType = typeof(IValidator<>).MakeGenericType(argument.GetType());
+            var validatorType = typeof(IValidator<>).MakeGenericType(argument!.GetType());
             var validator = context.HttpContext.RequestServices.GetService(validatorType) as IValidator;
 
             if (validator != null)
