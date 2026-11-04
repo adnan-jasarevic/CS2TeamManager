@@ -219,12 +219,13 @@ public class TeamService : ITeamService
         if (targetMember.Role == TeamRole.Owner)
             return Result<string>.Failure("Cannot change the role of the Owner. Use transfer ownership instead.");
 
-        if (!Enum.TryParse(typeof(TeamRole), newRoleStr, out var parsedRole))
+        if (!Enum.TryParse<TeamRole>(newRoleStr, ignoreCase: true, out var newRole) || !Enum.IsDefined(newRole))
             return Result<string>.Failure("Invalid role provided.");
 
-        var newRoleEnum = (TeamRole)parsedRole;
+        if (newRole == TeamRole.Owner)
+            return Result<string>.Failure("A member cannot be made Owner here. Use transfer ownership instead.");
 
-        targetMember.Role = newRoleEnum;
+        targetMember.Role = newRole;
         await _teamRepository.UpdateTeamMemberAsync(targetMember);
 
         return Result<string>.SuccessResult("Role updated successfully.");
