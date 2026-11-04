@@ -24,6 +24,7 @@ public class MatchRepository : IMatchRepository
     public async Task<List<Match>> GetMatchesByTeamIdAsync(int teamId)
     {
         return await _context.Matches
+            .Include(m => m.Maps)
             .Where(m => m.TeamId == teamId)
             .OrderByDescending(m => m.ScheduledDate)
             .ToListAsync();

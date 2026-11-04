@@ -12,6 +12,7 @@ public class AppDbContext : IdentityDbContext<AppUser>
 
     public DbSet<Team> Teams { get; set; }
     public DbSet<Match> Matches { get; set; }
+    public DbSet<MatchMap> MatchMaps { get; set; }
     public DbSet<TeamMember> TeamMembers { get; set; }
     public DbSet<TeamInvite> TeamInvites { get; set; }
 
@@ -69,6 +70,21 @@ public class AppDbContext : IdentityDbContext<AppUser>
             .WithMany(t => t.Matches)
             .HasForeignKey(m => m.TeamId)
             .OnDelete(DeleteBehavior.SetNull);
+
+        builder.Entity<MatchMap>(map =>
+        {
+            map.HasOne(mm => mm.Match)
+                .WithMany(m => m.Maps)
+                .HasForeignKey(mm => mm.MatchId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            map.Property(mm => mm.MapName)
+                .IsRequired()
+                .HasMaxLength(50);
+
+            map.HasIndex(mm => new { mm.MatchId, mm.Order })
+                .IsUnique();
+        });
 
         builder.Entity<Team>()
             .Property(t => t.Name)

@@ -3,7 +3,7 @@ import api from '../services/api';
 import { getApiErrorMessage } from '../services/errors';
 import { useLayoutContext } from '../components/layout-context';
 import AddMatchModal from '../components/add-match-modal';
-import { type Match, type Team } from '../types';
+import { type Match, type MatchMap, type Team } from '../types';
 
 type Filter = 'all' | 'upcoming' | 'results';
 
@@ -33,6 +33,16 @@ const formatDateTime = (dateString: string) =>
         hour: '2-digit',
         minute: '2-digit',
     });
+
+// "7-5, 6-6 +OT" style summary of a map's halves, or empty when halves weren't recorded.
+const halvesText = (map: MatchMap) => {
+    if (map.ourFirstHalf == null || map.opponentFirstHalf == null || map.ourSecondHalf == null || map.opponentSecondHalf == null)
+        return '';
+    const regulation = map.ourFirstHalf + map.ourSecondHalf + map.opponentFirstHalf + map.opponentSecondHalf;
+    const total = (map.ourScore ?? 0) + (map.opponentScore ?? 0);
+    const overtime = total > regulation ? ' +OT' : '';
+    return `${map.ourFirstHalf}-${map.opponentFirstHalf}, ${map.ourSecondHalf}-${map.opponentSecondHalf}${overtime}`;
+};
 
 export default function Matches() {
     const [teams, setTeams] = useState<Team[]>([]);
@@ -176,8 +186,18 @@ export default function Matches() {
                                 {match.maps.length > 0 && (
                                     <div className="flex flex-wrap gap-1">
                                         {match.maps.map((map, i) => (
-                                            <span key={`${map}-${i}`} className="px-2 py-0.5 rounded bg-[#111322] border border-gray-800 text-xs text-gray-400">
-                                                {map}
+                                            <span
+                                                key={`${map.mapName}-${i}`}
+                                                className="px-2 py-0.5 rounded bg-[#111322] border border-gray-800 text-xs text-gray-400"
+                                                title={halvesText(map)}
+                                            >
+                                                {map.mapName}
+                                                {map.ourScore != null && map.opponentScore != null && (
+                                                    <span className={`ml-1 font-bold ${map.ourScore > map.opponentScore ? 'text-green-400' : map.ourScore < map.opponentScore ? 'text-red-400' : 'text-gray-300'}`}>
+                                                        {map.ourScore}-{map.opponentScore}
+                                                    </span>
+                                                )}
+                                                {halvesText(map) && <span className="ml-1 text-gray-500">({halvesText(map)})</span>}
                                             </span>
                                         ))}
                                     </div>

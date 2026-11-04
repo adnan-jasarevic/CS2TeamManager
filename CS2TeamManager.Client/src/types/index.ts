@@ -13,6 +13,16 @@ export interface Team {
     currentUserRole: string; // "Owner", "Player"
 }
 
+export interface MatchMap {
+    mapName: string;
+    ourScore?: number | null;
+    opponentScore?: number | null;
+    ourFirstHalf?: number | null;
+    opponentFirstHalf?: number | null;
+    ourSecondHalf?: number | null;
+    opponentSecondHalf?: number | null;
+}
+
 export interface Match {
     id: number;
     opponentName: string;
@@ -22,7 +32,7 @@ export interface Match {
     status: string;
     finalScore: string;
     bestOf?: number;
-    maps: string[];
+    maps: MatchMap[];
     matchOutcome: string;
     notes?: string;
 }
@@ -84,6 +94,6 @@ export interface CreateMatchRequest {
     ourScore: number;
     opponentScore: number;
     bestOf?: number;
-    maps: string[];
+    maps: MatchMap[];
     notes?: string;
 }

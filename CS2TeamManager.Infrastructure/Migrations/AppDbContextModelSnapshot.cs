@@ -33,10 +33,6 @@ namespace CS2TeamManager.Infrastructure.Migrations
                     b.Property<int?>("BestOf")
                         .HasColumnType("int");
 
-                    b.Property<string>("Maps")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
                     b.Property<string>("Notes")
                         .HasColumnType("nvarchar(max)");
 
@@ -71,6 +67,51 @@ namespace CS2TeamManager.Infrastructure.Migrations
                     b.HasIndex("TeamId");
 
                     b.ToTable("Matches");
+                });
+
+            modelBuilder.Entity("CS2TeamManager.Domain.Entities.MatchMap", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("MapName")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<int>("MatchId")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("OpponentFirstHalf")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("OpponentScore")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("OpponentSecondHalf")
+                        .HasColumnType("int");
+
+                    b.Property<int>("Order")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("OurFirstHalf")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("OurScore")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("OurSecondHalf")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("MatchId", "Order")
+                        .IsUnique();
+
+                    b.ToTable("MatchMaps");
                 });
 
             modelBuilder.Entity("CS2TeamManager.Domain.Entities.MatchParticipation", b =>
@@ -422,6 +463,17 @@ namespace CS2TeamManager.Infrastructure.Migrations
                     b.Navigation("Team");
                 });
 
+            modelBuilder.Entity("CS2TeamManager.Domain.Entities.MatchMap", b =>
+                {
+                    b.HasOne("CS2TeamManager.Domain.Entities.Match", "Match")
+                        .WithMany("Maps")
+                        .HasForeignKey("MatchId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Match");
+                });
+
             modelBuilder.Entity("CS2TeamManager.Domain.Entities.MatchParticipation", b =>
                 {
                     b.HasOne("CS2TeamManager.Domain.Entities.Match", "Match")
@@ -535,6 +587,8 @@ namespace CS2TeamManager.Infrastructure.Migrations
 
             modelBuilder.Entity("CS2TeamManager.Domain.Entities.Match", b =>
                 {
+                    b.Navigation("Maps");
+
                     b.Navigation("Participations");
 
                     b.Navigation("TeamStats");

@@ -17,13 +17,13 @@ public class Match
     public DateTime? PlayedDate { get; set; }
     public MatchStatus Status { get; set; }  // Scheduled, Live, Finished
 
-    // Scores (CS2 best-of format)
+    // Series score: rounds for a Bo1, maps won for a longer series
     public int OurScore { get; set; }
     public int OpponentScore { get; set; }
 
     public int? BestOf { get; set; }  // e.g., 3
 
-    public string Maps { get; set; } = string.Empty;  // JSON or comma: "Dust2,Mirage,Inferno"
+    public ICollection<MatchMap> Maps { get; set; } = new List<MatchMap>();
 
     public string? Notes { get; set; }
 

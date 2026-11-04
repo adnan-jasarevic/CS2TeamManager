@@ -10,7 +10,7 @@ public class MatchDto
     public string Status { get; set; } = string.Empty;
     public string FinalScore { get; set; } = string.Empty;
     public int? BestOf { get; set; }
-    public List<string> Maps { get; set; } = new List<string>();
+    public List<MatchMapDto> Maps { get; set; } = new List<MatchMapDto>();
     public string MatchOutcome { get; set; } = string.Empty; // "Win", "Loss", "Draw"
     public string? Notes { get; set; }
 }
