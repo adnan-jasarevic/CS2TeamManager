@@ -84,9 +84,10 @@ export default function TopNavigation({ onInviteAccepted }: TopNavigationProps) 
             console.error('Failed to respond to invite', err);
             setFeedback({ type: 'error', text: getApiErrorMessage(err, 'Failed to process your response. Please try again.') });
 
-            // A 400 means the invite is no longer answerable (already answered, already a member...),
-            // so reload the list instead of leaving a stale invite on screen.
-            if (axios.isAxiosError(err) && err.response?.status === 400) fetchInvites();
+            // A 400, 403 or 404 means the invite is no longer answerable (already answered, already a
+            // member, deleted...), so reload the list instead of leaving a stale invite on screen.
+            const status = axios.isAxiosError(err) ? err.response?.status : undefined;
+            if (status === 400 || status === 403 || status === 404) fetchInvites();
         } finally {
             respondingRef.current.delete(invite.inviteId);
             setRespondingIds(ids => ids.filter(id => id !== invite.inviteId));
