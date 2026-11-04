@@ -379,7 +379,7 @@ export default function TeamRoster() {
                     </div>
                     <div className="p-6">
                         <p className="text-gray-300 mb-4 text-sm">
-                            You are about to transfer full team ownership to <strong className="text-white">{actionState.member.username}</strong>. You will be demoted to a standard Member and will lose Owner privileges.
+                            You are about to transfer full team ownership to <strong className="text-white">{actionState.member.username}</strong>. You will become a Player and lose Owner privileges, including managing roles and the roster.
                         </p>
                         <p className="text-gray-400 text-xs mb-2">Type <strong>CONFIRM</strong> below to proceed.</p>
                         <input
