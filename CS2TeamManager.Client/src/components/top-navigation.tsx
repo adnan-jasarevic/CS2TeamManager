@@ -2,6 +2,7 @@
 import { useLocation } from 'react-router-dom';
 import axios from 'axios';
 import api from '../services/api';
+import { getApiErrorMessage } from '../services/errors';
 import { type TeamInvite } from '../types';
 
 interface TopNavigationProps {
@@ -9,15 +10,6 @@ interface TopNavigationProps {
 }
 
 type Feedback = { type: 'success' | 'error'; text: string } | null;
-
-function getErrorMessage(err: unknown): string {
-    if (axios.isAxiosError(err)) {
-        const message = (err.response?.data as { message?: unknown } | undefined)?.message;
-        if (typeof message === 'string' && message) return message;
-        if (!err.response) return 'Could not reach the server. Please try again.';
-    }
-    return 'Failed to process your response. Please try again.';
-}
 
 export default function TopNavigation({ onInviteAccepted }: TopNavigationProps) {
     const location = useLocation();
@@ -90,7 +82,7 @@ export default function TopNavigation({ onInviteAccepted }: TopNavigationProps) 
             if (isAccepted) onInviteAccepted();
         } catch (err) {
             console.error('Failed to respond to invite', err);
-            setFeedback({ type: 'error', text: getErrorMessage(err) });
+            setFeedback({ type: 'error', text: getApiErrorMessage(err, 'Failed to process your response. Please try again.') });
 
             // A 400 means the invite is no longer answerable (already answered, already a member...),
             // so reload the list instead of leaving a stale invite on screen.
