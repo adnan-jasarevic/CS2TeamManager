@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import api from '../services/api';
 import axios from 'axios';
 import { type Team, type TeamDashboardData } from '../types';
+import AddMatchModal from '../components/add-match-modal';
 
 export default function Dashboard() {
     const navigate = useNavigate();
@@ -16,6 +17,7 @@ export default function Dashboard() {
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [newTeamName, setNewTeamName] = useState('');
     const [isCreating, setIsCreating] = useState(false);
+    const [isAddMatchOpen, setIsAddMatchOpen] = useState(false);
 
     const fetchTeams = useCallback(async () => {
         try {
@@ -83,6 +85,9 @@ export default function Dashboard() {
         }
     };
 
+    const selectedTeam = teams.find(t => t.id === selectedTeamId);
+    const canManageMatches = selectedTeam?.currentUserRole === 'Owner' || selectedTeam?.currentUserRole === 'Captain';
+
     if (loading) return <div className="text-gray-400 p-8">Loading dashboard...</div>;
 
     // scenario 1: user has no teams - show empty state with option to create team
@@ -145,6 +150,14 @@ export default function Dashboard() {
                 </div>
 
                 <div className="flex items-end gap-4">
+                    {canManageMatches && (
+                        <button
+                            onClick={() => setIsAddMatchOpen(true)}
+                            className="bg-[#ff6b4a] hover:bg-[#e5593c] px-4 py-2 rounded-lg font-bold text-white transition-colors shadow-lg"
+                        >
+                            + Add Match
+                        </button>
+                    )}
 
                     <div className="flex flex-col">
                         <label className="text-xs text-gray-500 mb-1">Select Team:</label>
@@ -238,7 +251,14 @@ export default function Dashboard() {
 
                             <div className="flex-1 flex flex-col gap-4">
                                 {dashboardData.upcomingMatches.length === 0 ? (
-                                    <p className="text-gray-500 text-center py-8">No upcoming matches scheduled.</p>
+                                    <p className="text-gray-500 text-center py-8">
+                                        No upcoming matches scheduled.
+                                        {canManageMatches && (
+                                            <button onClick={() => setIsAddMatchOpen(true)} className="block mx-auto mt-2 text-[#ff6b4a] hover:underline">
+                                                Schedule one
+                                            </button>
+                                        )}
+                                    </p>
                                 ) : (
                                     dashboardData.upcomingMatches.map(match => (
                                         <div key={match.id} className="flex items-center justify-between p-4 bg-[#111322] rounded-lg border border-gray-800">
@@ -257,6 +277,14 @@ export default function Dashboard() {
                         </div>
                     </div>
                 </>
+            )}
+
+            {isAddMatchOpen && selectedTeamId !== null && (
+                <AddMatchModal
+                    teamId={selectedTeamId}
+                    onClose={() => setIsAddMatchOpen(false)}
+                    onCreated={() => fetchDashboardStats(selectedTeamId)}
+                />
             )}
 
             {isModalOpen && (

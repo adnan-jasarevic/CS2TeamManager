@@ -64,3 +64,26 @@ export interface TeamInvite {
     createdAt: string;
 }
 
+
+// Numeric values match the MatchStatus enum in CS2TeamManager.Domain.
+export const MatchStatus = {
+    Scheduled: 0,
+    Live: 1,
+    Finished: 2,
+    Cancelled: 3,
+} as const;
+
+export type MatchStatusValue = typeof MatchStatus[keyof typeof MatchStatus];
+
+export interface CreateMatchRequest {
+    opponentName: string;
+    tournament?: string;
+    scheduledDate: string;
+    playedDate?: string;
+    status: MatchStatusValue;
+    ourScore: number;
+    opponentScore: number;
+    bestOf?: number;
+    maps: string[];
+    notes?: string;
+}
