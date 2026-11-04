@@ -12,11 +12,21 @@ using System.Text;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// CORS Config
+// HMAC-SHA256 needs a key of at least 256 bits; fail at startup instead of on the first login.
+var jwtKey = builder.Configuration["Jwt:Key"];
+if (string.IsNullOrWhiteSpace(jwtKey) || Encoding.UTF8.GetByteCount(jwtKey) < 32)
+{
+    throw new InvalidOperationException(
+        "Jwt:Key is missing or shorter than 32 bytes. Set it with: " +
+        "dotnet user-secrets set \"Jwt:Key\" \"<at least 32 random characters>\" --project CS2TeamManager.Api");
+}
+
+// CORS: only the frontend origins listed under Cors:AllowedOrigins may call the API.
+var allowedOrigins = builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>() ?? Array.Empty<string>();
 builder.Services.AddCors(options =>
 {
     options.AddDefaultPolicy(p =>
-        p.AllowAnyOrigin()
+        p.WithOrigins(allowedOrigins)
          .AllowAnyMethod()
          .AllowAnyHeader());
 });
@@ -46,7 +56,7 @@ builder.Services.AddAuthentication(options =>
         ValidateIssuerSigningKey = true,
         ValidIssuer = builder.Configuration["Jwt:Issuer"],
         ValidAudience = builder.Configuration["Jwt:Audience"],
-        IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(builder.Configuration["Jwt:Key"]!))
+        IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtKey))
     };
 });
 

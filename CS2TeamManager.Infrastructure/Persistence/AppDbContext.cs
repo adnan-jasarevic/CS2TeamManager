@@ -2,6 +2,7 @@
 using CS2TeamManager.Infrastructure.Identity;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 namespace CS2TeamManager.Infrastructure.Persistence;
 
@@ -14,6 +15,24 @@ public class AppDbContext : IdentityDbContext<AppUser>
     public DbSet<TeamMember> TeamMembers { get; set; }
     public DbSet<TeamInvite> TeamInvites { get; set; }
 
+
+    protected override void ConfigureConventions(ModelConfigurationBuilder configurationBuilder)
+    {
+        // All DateTime values are stored in UTC. Reading them back as DateTimeKind.Utc makes the API
+        // serialize them with a trailing "Z", so the browser converts them to the user's local time.
+        configurationBuilder.Properties<DateTime>().HaveConversion<UtcDateTimeConverter>();
+        configurationBuilder.Properties<DateTime?>().HaveConversion<UtcDateTimeConverter>();
+    }
+
+    private class UtcDateTimeConverter : ValueConverter<DateTime, DateTime>
+    {
+        public UtcDateTimeConverter()
+            : base(
+                v => v.Kind == DateTimeKind.Local ? v.ToUniversalTime() : DateTime.SpecifyKind(v, DateTimeKind.Utc),
+                v => DateTime.SpecifyKind(v, DateTimeKind.Utc))
+        {
+        }
+    }
 
     protected override void OnModelCreating(ModelBuilder builder)
     {
