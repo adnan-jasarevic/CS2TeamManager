@@ -79,6 +79,7 @@ builder.Services.AddSwaggerGen();
 builder.Services.AddScoped<ITeamRepository, TeamRepository>();
 builder.Services.AddScoped<ITeamService, TeamService>();
 builder.Services.AddScoped<IIdentityService, CS2TeamManager.Infrastructure.Services.IdentityService>();
+builder.Services.AddScoped<IAuthService, CS2TeamManager.Infrastructure.Services.AuthService>();
 builder.Services.AddScoped<IMatchRepository, MatchRepository>();
 builder.Services.AddScoped<IMatchService, MatchService>();
 

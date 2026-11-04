@@ -3,7 +3,6 @@ using CS2TeamManager.Application.DTOs;
 using CS2TeamManager.Application.Interfaces;
 using CS2TeamManager.Domain.Entities;
 using CS2TeamManager.Domain.Enums;
-using Microsoft.AspNetCore.Identity;
 
 
 namespace CS2TeamManager.Application.Services;
