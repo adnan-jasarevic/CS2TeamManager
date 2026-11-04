@@ -1,6 +1,6 @@
 ﻿import axios from 'axios';
 
-const API_BASE_URL = 'https://localhost:7185/api';
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? 'https://localhost:7185/api';
 
 const api = axios.create({
     baseURL: API_BASE_URL,
@@ -16,5 +16,21 @@ api.interceptors.request.use((config) => {
     }
     return config;
 });
+
+// An expired or invalid token: clear it and send the user back to the login page.
+// The login request itself is skipped so wrong credentials still show their own error.
+api.interceptors.response.use(
+    (response) => response,
+    (error) => {
+        const isLoginRequest = error.config?.url?.includes('/Auth/login');
+        if (error.response?.status === 401 && !isLoginRequest) {
+            localStorage.removeItem('jwt_token');
+            if (window.location.pathname !== '/login') {
+                window.location.assign('/login');
+            }
+        }
+        return Promise.reject(error);
+    }
+);
 
 export default api;

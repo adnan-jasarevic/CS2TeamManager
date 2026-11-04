@@ -12,11 +12,12 @@ using System.Text;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// CORS Config
+// CORS: only the frontend origins listed under Cors:AllowedOrigins may call the API.
+var allowedOrigins = builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>() ?? Array.Empty<string>();
 builder.Services.AddCors(options =>
 {
     options.AddDefaultPolicy(p =>
-        p.AllowAnyOrigin()
+        p.WithOrigins(allowedOrigins)
          .AllowAnyMethod()
          .AllowAnyHeader());
 });
