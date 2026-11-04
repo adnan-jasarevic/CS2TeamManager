@@ -97,7 +97,10 @@ public class TeamsController : ControllerBase
         if (string.IsNullOrEmpty(userId))
             return Unauthorized();
 
-        var members = await _teamService.GetTeamMembersAsync(teamId);
+        var members = await _teamService.GetTeamMembersAsync(teamId, userId);
+
+        if (members == null)
+            return StatusCode(StatusCodes.Status403Forbidden, new { message = "You are not a member of this team." });
 
         return Ok(members);
     }
