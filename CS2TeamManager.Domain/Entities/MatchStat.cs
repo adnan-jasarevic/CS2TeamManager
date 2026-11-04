@@ -12,7 +12,6 @@ namespace CS2TeamManager.Domain.Entities
         public double Value { get; set; }
 
         public string? UserId { get; set; }  // Null for team aggregate
-        public User? User { get; set; }
 
         public int MatchId { get; set; }
         public Match Match { get; set; } = null!;

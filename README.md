@@ -97,7 +97,6 @@ Planned features:
 
 Planned cleanup:
 
-- Merge the two user models (Identity `AppUser` and the unused Domain `User`)
 - Consistent `Result<T>` responses and status codes across services
 - Validators for all request DTOs
 - Store match maps as structured data instead of a comma-separated string
