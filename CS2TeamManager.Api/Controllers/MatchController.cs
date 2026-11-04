@@ -1,16 +1,14 @@
-﻿using CS2TeamManager.Application.DTOs;
+using CS2TeamManager.Application.DTOs;
 using CS2TeamManager.Application.Interfaces;
 using CS2TeamManager.Domain.Entities;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using System.Security.Claims;
 
 namespace CS2TeamManager.Api.Controllers;
 
 [Authorize]
-[ApiController]
 [Route("api/[controller]")]
-public class MatchesController : ControllerBase
+public class MatchesController : ApiControllerBase
 {
     private readonly IMatchService _matchService;
 
@@ -22,48 +20,15 @@ public class MatchesController : ControllerBase
     // POST: /api/Matches/{teamId}
     [HttpPost("{teamId}")]
     public async Task<IActionResult> AddMatch(int teamId, [FromBody] CreateMatchDto dto)
-    {
-        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
-        if (string.IsNullOrEmpty(userId))
-            return Unauthorized("User ID is not found in the token.");
-
-        var result = await _matchService.AddMatchAsync(userId, teamId, dto);
-
-        if (!result.Success)
-            return BadRequest(new { message = result.ErrorMessage });
-
-        return Ok(result.Data);
-    }
+        => ToActionResult(await _matchService.AddMatchAsync(UserId, teamId, dto));
 
     // GET: /api/Matches/{teamId}
     [HttpGet("{teamId}")]
     public async Task<IActionResult> GetTeamMatches(int teamId)
-    {
-        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
-        if (string.IsNullOrEmpty(userId))
-            return Unauthorized("Korisnički ID nije pronađen u tokenu.");
-
-        var result = await _matchService.GetTeamMatchesAsync(userId, teamId);
-
-        if (!result.Success)
-            return BadRequest(new { message = result.ErrorMessage });
-
-        return Ok(result.Data);
-    }
+        => ToActionResult(await _matchService.GetTeamMatchesAsync(UserId, teamId));
 
     // GET: /api/Matches/{teamId}/stats?type=Scrim
     [HttpGet("{teamId}/stats")]
     public async Task<IActionResult> GetTeamStats(int teamId, [FromQuery] MatchKind? type)
-    {
-        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
-        if (string.IsNullOrEmpty(userId))
-            return Unauthorized("User ID is not found in the token.");
-
-        var result = await _matchService.GetTeamStatsAsync(userId, teamId, type);
-
-        if (!result.Success)
-            return BadRequest(new { message = result.ErrorMessage });
-
-        return Ok(result.Data);
-    }
+        => ToActionResult(await _matchService.GetTeamStatsAsync(UserId, teamId, type));
 }

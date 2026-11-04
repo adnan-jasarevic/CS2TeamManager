@@ -98,6 +98,7 @@ Planned features:
 Planned cleanup:
 
 - Consistent `Result<T>` responses and status codes across services
+- Validators for all request DTOs
 - Store match maps as structured data instead of a comma-separated string
 - Responsive layout and frontend cleanup
 - Tests and CI
