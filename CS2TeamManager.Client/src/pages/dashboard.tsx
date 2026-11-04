@@ -240,7 +240,10 @@ export default function Dashboard() {
                                     ))
                                 )}
                             </div>
-                            <button className="w-full mt-6 py-3 bg-[#111322] hover:bg-gray-800 text-sm font-medium rounded-lg transition-colors border border-gray-800 text-white">
+                            <button
+                                onClick={() => navigate('/matches')}
+                                className="w-full mt-6 py-3 bg-[#111322] hover:bg-gray-800 text-sm font-medium rounded-lg transition-colors border border-gray-800 text-white"
+                            >
                                 View All Matches
                             </button>
                         </div>
