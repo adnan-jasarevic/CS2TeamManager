@@ -23,6 +23,11 @@ A full-stack web application I am currently developing to manage CS2 teams, matc
 
 ## Running the Project
 
+**JWT key:** The API needs a signing key of at least 32 characters, which is not committed. Set it once with user secrets:
+```bash
+dotnet user-secrets set "Jwt:Key" "<at least 32 random characters>" --project CS2TeamManager.Api
+```
+
 **Backend:** Open in Visual Studio, set `CS2TeamManager.Api` as startup project and press F5.  
 **Frontend:** In a separate terminal, navigate to `CS2TeamManager.Client` and run:
 ```bash
