@@ -190,8 +190,11 @@ public class TeamService : ITeamService
         return dashboard;
     }
 
-    public async Task<List<TeamMemberDto>> GetTeamMembersAsync(int teamId)
+    public async Task<List<TeamMemberDto>?> GetTeamMembersAsync(int teamId, string userId)
     {
+        var isMember = await _teamRepository.IsUserInTeamAsync(teamId, userId);
+        if (!isMember) return null;
+
         var membersData = await _teamRepository.GetTeamMembersWithUserDetailsAsync(teamId);
 
         var dtoList = membersData.Select(data => new TeamMemberDto
