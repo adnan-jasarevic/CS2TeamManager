@@ -2,10 +2,12 @@
 import { useNavigate } from 'react-router-dom';
 import api from '../services/api';
 import axios from 'axios';
+import { useLayoutContext } from '../components/layout-context';
 import { type Team, type TeamDashboardData } from '../types';
 
 export default function Dashboard() {
     const navigate = useNavigate();
+    const { teamsVersion } = useLayoutContext();
 
     const [teams, setTeams] = useState<Team[]>([]);
     const [selectedTeamId, setSelectedTeamId] = useState<number | null>(null);
@@ -50,9 +52,10 @@ export default function Dashboard() {
         }
     };
 
+    // teamsVersion changes when the user joins a team from the invite modal.
     useEffect(() => {
         fetchTeams();
-    }, [fetchTeams]);
+    }, [fetchTeams, teamsVersion]);
 
     useEffect(() => {
         if (selectedTeamId !== null) {

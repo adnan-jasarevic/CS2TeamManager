@@ -124,16 +124,42 @@ public class TeamRepository : ITeamRepository
             .FirstOrDefaultAsync(i => i.Id == inviteId);
     }
 
-    public async Task UpdateInviteAsync(TeamInvite invite)
+    // Moves a Pending invite to newStatus and, if given, adds the new member, all in one transaction.
+    // The status change only applies while the invite is still Pending, so when two requests race,
+    // exactly one wins and the other gets false.
+    public async Task<bool> CompletePendingInviteAsync(int inviteId, InviteStatus newStatus, TeamMember? newMember = null)
     {
-        _context.TeamInvites.Update(invite);
-        await _context.SaveChangesAsync();
-    }
+        await using var transaction = await _context.Database.BeginTransactionAsync();
 
-    public async Task AcceptInviteAsync(TeamInvite invite, TeamMember newMember)
-    {
-        _context.TeamInvites.Update(invite);
-        await _context.TeamMembers.AddAsync(newMember);
-        await _context.SaveChangesAsync();
+        var updated = await _context.TeamInvites
+            .Where(i => i.Id == inviteId && i.Status == InviteStatus.Pending)
+            .ExecuteUpdateAsync(setters => setters
+                .SetProperty(i => i.Status, newStatus)
+                .SetProperty(i => i.RespondedAt, DateTime.UtcNow));
+
+        if (updated == 0)
+        {
+            await transaction.RollbackAsync();
+            return false;
+        }
+
+        if (newMember != null)
+        {
+            _context.TeamMembers.Add(newMember);
+            try
+            {
+                await _context.SaveChangesAsync();
+            }
+            catch (DbUpdateException)
+            {
+                // The (UserId, TeamId) key already exists, so the user joined some other way.
+                _context.Entry(newMember).State = EntityState.Detached;
+                await transaction.RollbackAsync();
+                return false;
+            }
+        }
+
+        await transaction.CommitAsync();
+        return true;
     }
 }
