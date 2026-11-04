@@ -98,6 +98,12 @@ public class TeamRepository : ITeamRepository
         await _context.SaveChangesAsync();
     }
 
+    public async Task UpdateTeamMembersAsync(IEnumerable<TeamMember> members)
+    {
+        _context.TeamMembers.UpdateRange(members);
+        await _context.SaveChangesAsync();
+    }
+
     public async Task<TeamInvite?> GetPendingInviteAsync(int teamId, string email)
     {
         return await _context.TeamInvites

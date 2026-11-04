@@ -230,6 +230,32 @@ public class TeamService : ITeamService
         return Result<string>.SuccessResult("Role updated successfully.");
     }
 
+    public async Task<Result<string>> TransferOwnershipAsync(int teamId, string currentOwnerId, string newOwnerId)
+    {
+        var currentOwner = await _teamRepository.GetTeamMemberAsync(teamId, currentOwnerId);
+        if (currentOwner == null || currentOwner.Role != TeamRole.Owner)
+            return Result<string>.Failure("Only the team owner can transfer ownership.");
+
+        if (currentOwnerId == newOwnerId)
+            return Result<string>.Failure("You already own this team.");
+
+        var newOwner = await _teamRepository.GetTeamMemberAsync(teamId, newOwnerId);
+        if (newOwner == null)
+            return Result<string>.Failure("Member not found in the team.");
+
+        int ownedCount = await _teamRepository.GetOwnedTeamsCountAsync(newOwnerId);
+        if (ownedCount >= 3)
+            return Result<string>.Failure("This member already owns 3 teams and cannot take ownership of another.");
+
+        newOwner.Role = TeamRole.Owner;
+        currentOwner.Role = TeamRole.Player;
+
+        // Single save so the team is never left with zero or two owners.
+        await _teamRepository.UpdateTeamMembersAsync(new[] { newOwner, currentOwner });
+
+        return Result<string>.SuccessResult("Ownership transferred successfully.");
+    }
+
     public async Task<List<TeamInviteDto>> GetMyPendingInvitesAsync(string userId)
     {
         var invites = await _teamRepository.GetUserPendingInvitesAsync(userId);

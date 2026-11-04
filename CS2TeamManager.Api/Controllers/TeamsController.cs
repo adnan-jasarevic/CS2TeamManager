@@ -114,6 +114,18 @@ public class TeamsController : ControllerBase
         return Ok(new { message = result.Data });
     }
 
+    [HttpPut("{teamId}/transfer-ownership")]
+    public async Task<IActionResult> TransferOwnership(int teamId, [FromBody] TransferOwnershipDto dto)
+    {
+        var currentUserId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (string.IsNullOrEmpty(currentUserId)) return Unauthorized();
+
+        var result = await _teamService.TransferOwnershipAsync(teamId, currentUserId, dto.NewOwnerId);
+
+        if (!result.Success) return BadRequest(new { message = result.ErrorMessage });
+        return Ok(new { message = result.Data });
+    }
+
     [HttpGet("my-invites")]
     public async Task<IActionResult> GetMyPendingInvites()
     {
