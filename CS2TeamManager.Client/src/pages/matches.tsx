@@ -3,7 +3,7 @@ import api from '../services/api';
 import { getApiErrorMessage } from '../services/errors';
 import { useLayoutContext } from '../components/layout-context';
 import AddMatchModal from '../components/add-match-modal';
-import { type Match, type MatchMap, type Team } from '../types';
+import { type Match, type MatchMap, type Team, canManageTeam } from '../types';
 
 type Filter = 'all' | 'upcoming' | 'results';
 
@@ -86,7 +86,7 @@ export default function Matches() {
     }, [selectedTeamId, fetchMatches]);
 
     const selectedTeam = teams.find(t => t.id === selectedTeamId);
-    const canManageMatches = selectedTeam?.currentUserRole === 'Owner' || selectedTeam?.currentUserRole === 'Captain';
+    const canManageMatches = canManageTeam(selectedTeam?.currentUserRole);
 
     // The API returns matches newest first.
     const visibleMatches = matches.filter(m => {

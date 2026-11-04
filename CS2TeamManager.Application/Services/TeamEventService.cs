@@ -1,4 +1,4 @@
-using CS2TeamManager.Application.Common;
+﻿using CS2TeamManager.Application.Common;
 using CS2TeamManager.Application.DTOs;
 using CS2TeamManager.Application.Interfaces;
 using CS2TeamManager.Domain.Entities;
@@ -37,7 +37,7 @@ public class TeamEventService : ITeamEventService
     public async Task<Result<TeamEventDto>> CreateEventAsync(string userId, int teamId, SaveTeamEventDto dto)
     {
         if (!await CanManageAsync(teamId, userId))
-            return Result<TeamEventDto>.Failure("Only Team Owners or Captains can add events.");
+            return Result<TeamEventDto>.Failure("Only the team Owner, Captain or Officers can add events.");
 
         var teamEvent = new TeamEvent
         {
@@ -53,7 +53,7 @@ public class TeamEventService : ITeamEventService
     public async Task<Result<TeamEventDto>> UpdateEventAsync(string userId, int teamId, int eventId, SaveTeamEventDto dto)
     {
         if (!await CanManageAsync(teamId, userId))
-            return Result<TeamEventDto>.Failure("Only Team Owners or Captains can edit events.");
+            return Result<TeamEventDto>.Failure("Only the team Owner, Captain or Officers can edit events.");
 
         var teamEvent = await _eventRepository.GetByIdAsync(teamId, eventId);
         if (teamEvent == null)
@@ -67,7 +67,7 @@ public class TeamEventService : ITeamEventService
     public async Task<Result<string>> DeleteEventAsync(string userId, int teamId, int eventId)
     {
         if (!await CanManageAsync(teamId, userId))
-            return Result<string>.Failure("Only Team Owners or Captains can delete events.");
+            return Result<string>.Failure("Only the team Owner, Captain or Officers can delete events.");
 
         var teamEvent = await _eventRepository.GetByIdAsync(teamId, eventId);
         if (teamEvent == null)
@@ -80,7 +80,7 @@ public class TeamEventService : ITeamEventService
     private async Task<bool> CanManageAsync(int teamId, string userId)
     {
         var member = await _teamRepository.GetTeamMemberAsync(teamId, userId);
-        return member != null && (member.Role == TeamRole.Owner || member.Role == TeamRole.Captain);
+        return member != null && member.Role.CanManageTeam();
     }
 
     private static void Apply(TeamEvent teamEvent, SaveTeamEventDto dto)

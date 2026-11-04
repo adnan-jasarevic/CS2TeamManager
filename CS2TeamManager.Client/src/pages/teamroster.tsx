@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import api from '../services/api';
 import axios from 'axios';
 import { useLayoutContext } from '../components/layout-context';
-import { type Team, type TeamMember } from '../types';
+import { type Team, type TeamMember, canManageTeam } from '../types';
 
 export default function TeamRoster() {
     const navigate = useNavigate();
@@ -24,7 +24,7 @@ export default function TeamRoster() {
     const [activeDropdown, setActiveDropdown] = useState<string | null>(null);
     const [actionState, setActionState] = useState<{ type: 'kick' | 'role' | 'transfer' | null, member: TeamMember | null }>({ type: null, member: null });
     const [transferConfirmText, setTransferConfirmText] = useState('');
-    const [newRole, setNewRole] = useState('Member');
+    const [newRole, setNewRole] = useState('Player');
 
     const fetchTeams = useCallback(async () => {
         try {
@@ -177,7 +177,7 @@ export default function TeamRoster() {
                 </div>
 
                 <div className="flex items-end gap-4 relative z-20">
-                    {isOwner && (
+                    {canManageTeam(currentTeam?.currentUserRole) && (
                         <button
                             onClick={() => setIsAddModalOpen(true)}
                             className="bg-[#ff6b4a] hover:bg-[#e5593c] text-white font-bold px-4 py-2 rounded-lg transition-colors shadow-lg"
@@ -234,6 +234,8 @@ export default function TeamRoster() {
 
                         <div className="col-span-4 md:col-span-3">
                             <span className={`px-3 py-1 rounded text-xs font-bold ${member.role === 'Owner' ? 'bg-[#ff6b4a]/20 text-[#ff6b4a] border border-[#ff6b4a]/30' :
+                                member.role === 'Captain' ? 'bg-yellow-500/15 text-yellow-400 border border-yellow-500/30' :
+                                member.role === 'Officer' ? 'bg-blue-500/15 text-blue-300 border border-blue-500/30' :
                                 'bg-gray-700/30 text-gray-300'
                                 }`}>
                                 {member.role}
@@ -265,12 +267,18 @@ export default function TeamRoster() {
                                             >
                                                 Change Role
                                             </button>
-                                            <button
-                                                onClick={() => { setActionState({ type: 'transfer', member }); setActiveDropdown(null); }}
-                                                className="w-full text-left px-4 py-2 text-sm text-yellow-500 hover:bg-gray-700"
-                                            >
-                                                Transfer Ownership
-                                            </button>
+                                            {member.role === 'Officer' ? (
+                                                <button
+                                                    onClick={() => { setActionState({ type: 'transfer', member }); setActiveDropdown(null); }}
+                                                    className="w-full text-left px-4 py-2 text-sm text-yellow-500 hover:bg-gray-700"
+                                                >
+                                                    Transfer Ownership
+                                                </button>
+                                            ) : (
+                                                <p className="px-4 py-2 text-xs text-gray-500" title="Ownership can only go to an Officer">
+                                                    Make them an Officer to transfer ownership
+                                                </p>
+                                            )}
                                             <div className="h-px bg-gray-700 my-1"></div>
                                             <button
                                                 onClick={() => { setActionState({ type: 'kick', member }); setActiveDropdown(null); }}
@@ -357,8 +365,12 @@ export default function TeamRoster() {
                         className="w-full bg-[#111322] border border-gray-700 text-white px-4 py-3 rounded-lg focus:outline-none focus:border-[#ff6b4a] mb-6"
                         >
                         <option value="Player">Player</option>
+                        <option value="Officer">Officer</option>
                         <option value="Captain">Captain</option>
                         </select>
+                        <p className="text-xs text-gray-500 -mt-4 mb-6">
+                            A team has one Captain and any number of Officers. Ownership can only be transferred to an Officer.
+                        </p>
 
                         <div className="flex justify-end gap-3">
                             <button onClick={closeModals} className="px-4 py-2 text-gray-400 hover:text-white">Cancel</button>
@@ -382,7 +394,7 @@ export default function TeamRoster() {
                     </div>
                     <div className="p-6">
                         <p className="text-gray-300 mb-4 text-sm">
-                            You are about to transfer full team ownership to <strong className="text-white">{actionState.member.username}</strong>. You will become a Player and lose Owner privileges, including managing roles and the roster.
+                            You are about to transfer full team ownership to <strong className="text-white">{actionState.member.username}</strong>. You will become an Officer and lose Owner privileges, including managing roles and the roster.
                         </p>
                         <p className="text-gray-400 text-xs mb-2">Type <strong>CONFIRM</strong> below to proceed.</p>
                         <input

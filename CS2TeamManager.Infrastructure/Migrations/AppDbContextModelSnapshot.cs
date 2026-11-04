@@ -299,6 +299,10 @@ namespace CS2TeamManager.Infrastructure.Migrations
 
                     b.HasIndex("TeamId");
 
+                    b.HasIndex(new[] { "TeamId" }, "IX_TeamMembers_OneCaptainPerTeam")
+                        .IsUnique()
+                        .HasFilter("[Role] = 1");
+
                     b.ToTable("TeamMembers");
                 });
 

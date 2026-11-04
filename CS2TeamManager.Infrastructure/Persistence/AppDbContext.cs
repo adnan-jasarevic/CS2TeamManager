@@ -44,6 +44,16 @@ public class AppDbContext : IdentityDbContext<AppUser>
         builder.Entity<TeamMember>()
             .HasKey(tm => new { tm.UserId, tm.TeamId }); // Composite key
 
+        // Plain index for the Team foreign key, kept alongside the filtered one below.
+        builder.Entity<TeamMember>()
+            .HasIndex(tm => tm.TeamId);
+
+        // At most one Captain per team, enforced by the database as well as the service.
+        builder.Entity<TeamMember>()
+            .HasIndex(tm => tm.TeamId, "IX_TeamMembers_OneCaptainPerTeam")
+            .IsUnique()
+            .HasFilter("[Role] = 1");
+
         builder.Entity<TeamMember>()
             .HasOne<AppUser>()
             .WithMany(u => u.TeamMemberships)

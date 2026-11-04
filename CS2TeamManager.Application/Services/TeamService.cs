@@ -75,8 +75,8 @@ public class TeamService : ITeamService
             return Result<string>.Failure("You cannot invite yourself to the team.");
 
         var sender = await _teamRepository.GetTeamMemberAsync(teamId, senderUserId);
-        if (sender == null || (sender.Role != TeamRole.Owner && sender.Role != TeamRole.Captain))
-            return Result<string>.Failure("Only Team Owners or Captains can invite new players.");
+        if (sender == null || !sender.Role.CanManageTeam())
+            return Result<string>.Failure("Only the team Owner, Captain or Officers can invite new players.");
 
         var existingMember = await _teamRepository.GetTeamMemberAsync(teamId, targetUserId);
         if (existingMember != null)
@@ -227,6 +227,14 @@ public class TeamService : ITeamService
         if (newRole == TeamRole.Owner)
             return Result<string>.Failure("A member cannot be made Owner here. Use transfer ownership instead.");
 
+        if (newRole == TeamRole.Captain && targetMember.Role != TeamRole.Captain)
+        {
+            var members = await _teamRepository.GetTeamMembersWithUserDetailsAsync(teamId);
+            var captain = members.FirstOrDefault(m => m.Member.Role == TeamRole.Captain);
+            if (captain.Member != null)
+                return Result<string>.Failure($"This team already has a Captain ({captain.Username}). Change their role first.");
+        }
+
         targetMember.Role = newRole;
         await _teamRepository.UpdateTeamMemberAsync(targetMember);
 
@@ -246,12 +254,16 @@ public class TeamService : ITeamService
         if (newOwner == null)
             return Result<string>.Failure("Member not found in the team.");
 
+        if (newOwner.Role != TeamRole.Officer)
+            return Result<string>.Failure("Ownership can only be transferred to an Officer. Make them an Officer first.");
+
         int ownedCount = await _teamRepository.GetOwnedTeamsCountAsync(newOwnerId);
         if (ownedCount >= 3)
             return Result<string>.Failure("This member already owns 3 teams and cannot take ownership of another.");
 
+        // The two swap places: the old Owner stays on as an Officer.
         newOwner.Role = TeamRole.Owner;
-        currentOwner.Role = TeamRole.Player;
+        currentOwner.Role = TeamRole.Officer;
 
         // Single save so the team is never left with zero or two owners.
         await _teamRepository.UpdateTeamMembersAsync(new[] { newOwner, currentOwner });

@@ -168,3 +168,6 @@ export interface TeamStats {
     maps: MapStats[];
     form: FormPoint[];
 }
+
+// Owner, Captain and Officers can invite players and manage matches and the calendar.
+export const canManageTeam = (role?: string) => role === 'Owner' || role === 'Captain' || role === 'Officer';

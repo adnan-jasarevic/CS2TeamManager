@@ -8,7 +8,7 @@ import api from '../services/api';
 import { getApiErrorMessage } from '../services/errors';
 import { useLayoutContext } from '../components/layout-context';
 import EventModal from '../components/event-modal';
-import { EVENT_TYPE_LABELS, type Match, type Team, type TeamEvent } from '../types';
+import { EVENT_TYPE_LABELS, type Match, type Team, type TeamEvent, canManageTeam } from '../types';
 
 // Weeks start on Monday.
 const localizer = dateFnsLocalizer({
@@ -119,7 +119,7 @@ export default function CalendarPage() {
     }, [fetchEvents]);
 
     const selectedTeam = teams.find(t => t.id === selectedTeamId);
-    const canManage = selectedTeam?.currentUserRole === 'Owner' || selectedTeam?.currentUserRole === 'Captain';
+    const canManage = canManageTeam(selectedTeam?.currentUserRole);
 
     const items = useMemo<CalendarItem[]>(() => [
         ...events.map(e => ({

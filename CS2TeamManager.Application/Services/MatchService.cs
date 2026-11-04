@@ -24,8 +24,8 @@ public class MatchService : IMatchService
             return Result<MatchDto>.Failure("Team was not found.");
 
         var member = team.Members.FirstOrDefault(m => m.UserId == userId);
-        if (member == null || (member.Role != TeamRole.Owner && member.Role != TeamRole.Captain))
-            return Result<MatchDto>.Failure("Only Team Owners or Captains can add matches.");
+        if (member == null || !member.Role.CanManageTeam())
+            return Result<MatchDto>.Failure("Only the team Owner, Captain or Officers can add matches.");
 
         var maps = (dto.Maps ?? new List<MatchMapDto>())
             .Select((map, index) => new MatchMap
