@@ -1,6 +1,5 @@
 ﻿using CS2TeamManager.Application.DTOs;
 using CS2TeamManager.Application.Interfaces;
-using CS2TeamManager.Domain.Entities;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using System.Security.Claims;
