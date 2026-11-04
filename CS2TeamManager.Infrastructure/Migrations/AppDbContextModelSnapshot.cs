@@ -199,6 +199,50 @@ namespace CS2TeamManager.Infrastructure.Migrations
                     b.ToTable("Teams");
                 });
 
+            modelBuilder.Entity("CS2TeamManager.Domain.Entities.TeamEvent", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("CreatedByUserId")
+                        .IsRequired()
+                        .HasMaxLength(450)
+                        .HasColumnType("nvarchar(450)");
+
+                    b.Property<string>("Description")
+                        .HasMaxLength(1000)
+                        .HasColumnType("nvarchar(1000)");
+
+                    b.Property<DateTime>("EndTime")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int>("EventType")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime>("StartTime")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int>("TeamId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("TeamId", "StartTime");
+
+                    b.ToTable("TeamEvents");
+                });
+
             modelBuilder.Entity("CS2TeamManager.Domain.Entities.TeamInvite", b =>
                 {
                     b.Property<int>("Id")
@@ -507,6 +551,17 @@ namespace CS2TeamManager.Infrastructure.Migrations
                         .HasForeignKey("UserId");
 
                     b.Navigation("Match");
+                });
+
+            modelBuilder.Entity("CS2TeamManager.Domain.Entities.TeamEvent", b =>
+                {
+                    b.HasOne("CS2TeamManager.Domain.Entities.Team", "Team")
+                        .WithMany()
+                        .HasForeignKey("TeamId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Team");
                 });
 
             modelBuilder.Entity("CS2TeamManager.Domain.Entities.TeamInvite", b =>

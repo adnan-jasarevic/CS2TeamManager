@@ -107,3 +107,38 @@ export interface CreateMatchRequest {
     maps: MatchMap[];
     notes?: string;
 }
+
+// Numeric values match the TeamEventType enum in CS2TeamManager.Domain.
+export const TeamEventType = {
+    Pracc: 0,
+    OfficialMatch: 1,
+    VodReview: 2,
+    Other: 3,
+} as const;
+
+export type TeamEventTypeValue = typeof TeamEventType[keyof typeof TeamEventType];
+
+export const EVENT_TYPE_LABELS: Record<keyof typeof TeamEventType, string> = {
+    Pracc: 'Pracc',
+    OfficialMatch: 'Official Match',
+    VodReview: 'VOD Review',
+    Other: 'Other',
+};
+
+export interface TeamEvent {
+    id: number;
+    teamId: number;
+    title: string;
+    description?: string | null;
+    startTime: string;
+    endTime: string;
+    eventType: keyof typeof TeamEventType;
+}
+
+export interface SaveTeamEventRequest {
+    title: string;
+    description?: string;
+    startTime: string;
+    endTime: string;
+    eventType: TeamEventTypeValue;
+}

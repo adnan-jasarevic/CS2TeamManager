@@ -15,6 +15,7 @@ public class AppDbContext : IdentityDbContext<AppUser>
     public DbSet<MatchMap> MatchMaps { get; set; }
     public DbSet<TeamMember> TeamMembers { get; set; }
     public DbSet<TeamInvite> TeamInvites { get; set; }
+    public DbSet<TeamEvent> TeamEvents { get; set; }
 
 
     protected override void ConfigureConventions(ModelConfigurationBuilder configurationBuilder)
@@ -70,6 +71,27 @@ public class AppDbContext : IdentityDbContext<AppUser>
             .WithMany(t => t.Matches)
             .HasForeignKey(m => m.TeamId)
             .OnDelete(DeleteBehavior.SetNull);
+
+        builder.Entity<TeamEvent>(e =>
+        {
+            e.HasOne(te => te.Team)
+                .WithMany()
+                .HasForeignKey(te => te.TeamId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            e.Property(te => te.Title)
+                .IsRequired()
+                .HasMaxLength(100);
+
+            e.Property(te => te.Description)
+                .HasMaxLength(1000);
+
+            e.Property(te => te.CreatedByUserId)
+                .IsRequired()
+                .HasMaxLength(450);
+
+            e.HasIndex(te => new { te.TeamId, te.StartTime });
+        });
 
         builder.Entity<MatchMap>(map =>
         {
