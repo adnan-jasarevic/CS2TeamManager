@@ -190,8 +190,11 @@ public class TeamService : ITeamService
         return dashboard;
     }
 
-    public async Task<List<TeamMemberDto>> GetTeamMembersAsync(int teamId)
+    public async Task<List<TeamMemberDto>?> GetTeamMembersAsync(int teamId, string userId)
     {
+        var isMember = await _teamRepository.IsUserInTeamAsync(teamId, userId);
+        if (!isMember) return null;
+
         var membersData = await _teamRepository.GetTeamMembersWithUserDetailsAsync(teamId);
 
         var dtoList = membersData.Select(data => new TeamMemberDto
@@ -219,15 +222,42 @@ public class TeamService : ITeamService
         if (targetMember.Role == TeamRole.Owner)
             return Result<string>.Failure("Cannot change the role of the Owner. Use transfer ownership instead.");
 
-        if (!Enum.TryParse(typeof(TeamRole), newRoleStr, out var parsedRole))
+        if (!Enum.TryParse<TeamRole>(newRoleStr, ignoreCase: true, out var newRole) || !Enum.IsDefined(newRole))
             return Result<string>.Failure("Invalid role provided.");
 
-        var newRoleEnum = (TeamRole)parsedRole;
+        if (newRole == TeamRole.Owner)
+            return Result<string>.Failure("A member cannot be made Owner here. Use transfer ownership instead.");
 
-        targetMember.Role = newRoleEnum;
+        targetMember.Role = newRole;
         await _teamRepository.UpdateTeamMemberAsync(targetMember);
 
         return Result<string>.SuccessResult("Role updated successfully.");
+    }
+
+    public async Task<Result<string>> TransferOwnershipAsync(int teamId, string currentOwnerId, string newOwnerId)
+    {
+        var currentOwner = await _teamRepository.GetTeamMemberAsync(teamId, currentOwnerId);
+        if (currentOwner == null || currentOwner.Role != TeamRole.Owner)
+            return Result<string>.Failure("Only the team owner can transfer ownership.");
+
+        if (currentOwnerId == newOwnerId)
+            return Result<string>.Failure("You already own this team.");
+
+        var newOwner = await _teamRepository.GetTeamMemberAsync(teamId, newOwnerId);
+        if (newOwner == null)
+            return Result<string>.Failure("Member not found in the team.");
+
+        int ownedCount = await _teamRepository.GetOwnedTeamsCountAsync(newOwnerId);
+        if (ownedCount >= 3)
+            return Result<string>.Failure("This member already owns 3 teams and cannot take ownership of another.");
+
+        newOwner.Role = TeamRole.Owner;
+        currentOwner.Role = TeamRole.Player;
+
+        // Single save so the team is never left with zero or two owners.
+        await _teamRepository.UpdateTeamMembersAsync(new[] { newOwner, currentOwner });
+
+        return Result<string>.SuccessResult("Ownership transferred successfully.");
     }
 
     public async Task<List<TeamInviteDto>> GetMyPendingInvitesAsync(string userId)
