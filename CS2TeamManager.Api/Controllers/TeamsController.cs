@@ -84,7 +84,7 @@ public class TeamsController : ControllerBase
         var dashboardData = await _teamService.GetTeamDashboardAsync(teamId, userId);
 
         if (dashboardData == null)
-            return Forbid("You do not have access to this team's dashboard.");
+            return StatusCode(StatusCodes.Status403Forbidden, new { message = "You do not have access to this team's dashboard." });
 
         return Ok(dashboardData);
     }
