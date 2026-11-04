@@ -28,6 +28,9 @@ public class CreateMatchDtoValidator : AbstractValidator<CreateMatchDto>
         RuleFor(m => m.Status)
             .IsInEnum().WithMessage("Invalid match status.");
 
+        RuleFor(m => m.Type)
+            .IsInEnum().WithMessage("Invalid match type.");
+
         RuleFor(m => m.OurScore)
             .GreaterThanOrEqualTo(0).WithMessage("Scores cannot be negative.");
 
@@ -46,8 +49,12 @@ public class CreateMatchDtoValidator : AbstractValidator<CreateMatchDto>
             .WithMessage("Best of must be 1, 2, 3 or 5.");
 
         RuleForEach(m => m.Maps)
-            .NotEmpty().WithMessage("Map names cannot be empty.")
-            .Must(map => !map.Contains(',')).WithMessage("Map names cannot contain commas.");
+            .SetValidator(new MatchMapDtoValidator());
+
+        RuleFor(m => m.Maps)
+            .Must(maps => maps.All(map => !map.OurScore.HasValue))
+            .When(m => m.Status == MatchStatus.Scheduled && m.Maps != null)
+            .WithMessage("A scheduled match cannot have map scores yet.");
 
         RuleFor(m => m.Maps)
             .Must((m, maps) => maps.Count <= m.BestOf!.Value)

@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import api from '../services/api';
 import axios from 'axios';
 import { useLayoutContext } from '../components/layout-context';
-import { type Team, type TeamDashboardData } from '../types';
+import { type Team, type TeamDashboardData, canManageTeam } from '../types';
 import AddMatchModal from '../components/add-match-modal';
 
 export default function Dashboard() {
@@ -89,7 +89,7 @@ export default function Dashboard() {
     };
 
     const selectedTeam = teams.find(t => t.id === selectedTeamId);
-    const canManageMatches = selectedTeam?.currentUserRole === 'Owner' || selectedTeam?.currentUserRole === 'Captain';
+    const canManageMatches = canManageTeam(selectedTeam?.currentUserRole);
 
     if (loading) return <div className="text-gray-400 p-8">Loading dashboard...</div>;
 
@@ -277,7 +277,10 @@ export default function Dashboard() {
                                     ))
                                 )}
                             </div>
-                            <button className="w-full mt-6 py-3 bg-[#111322] hover:bg-gray-800 text-sm font-medium rounded-lg transition-colors border border-gray-800 text-white">
+                            <button
+                                onClick={() => navigate('/calendar')}
+                                className="w-full mt-6 py-3 bg-[#111322] hover:bg-gray-800 text-sm font-medium rounded-lg transition-colors border border-gray-800 text-white"
+                            >
                                 View Calendar
                             </button>
                         </div>

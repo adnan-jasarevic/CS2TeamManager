@@ -1,4 +1,4 @@
-using CS2TeamManager.Application.Interfaces;
+﻿using CS2TeamManager.Application.Interfaces;
 using CS2TeamManager.Application.Services;
 using CS2TeamManager.Infrastructure.Identity;
 using CS2TeamManager.Infrastructure.Persistence;
@@ -82,6 +82,8 @@ builder.Services.AddScoped<IIdentityService, CS2TeamManager.Infrastructure.Servi
 builder.Services.AddScoped<IAuthService, CS2TeamManager.Infrastructure.Services.AuthService>();
 builder.Services.AddScoped<IMatchRepository, MatchRepository>();
 builder.Services.AddScoped<IMatchService, MatchService>();
+builder.Services.AddScoped<ITeamEventRepository, TeamEventRepository>();
+builder.Services.AddScoped<ITeamEventService, TeamEventService>();
 
 var app = builder.Build();
 app.UseExceptionHandler();

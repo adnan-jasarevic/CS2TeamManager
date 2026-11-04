@@ -12,8 +12,10 @@ public class AppDbContext : IdentityDbContext<AppUser>
 
     public DbSet<Team> Teams { get; set; }
     public DbSet<Match> Matches { get; set; }
+    public DbSet<MatchMap> MatchMaps { get; set; }
     public DbSet<TeamMember> TeamMembers { get; set; }
     public DbSet<TeamInvite> TeamInvites { get; set; }
+    public DbSet<TeamEvent> TeamEvents { get; set; }
 
 
     protected override void ConfigureConventions(ModelConfigurationBuilder configurationBuilder)
@@ -42,6 +44,16 @@ public class AppDbContext : IdentityDbContext<AppUser>
         builder.Entity<TeamMember>()
             .HasKey(tm => new { tm.UserId, tm.TeamId }); // Composite key
 
+        // Plain index for the Team foreign key, kept alongside the filtered one below.
+        builder.Entity<TeamMember>()
+            .HasIndex(tm => tm.TeamId);
+
+        // At most one Captain per team, enforced by the database as well as the service.
+        builder.Entity<TeamMember>()
+            .HasIndex(tm => tm.TeamId, "IX_TeamMembers_OneCaptainPerTeam")
+            .IsUnique()
+            .HasFilter("[Role] = 1");
+
         builder.Entity<TeamMember>()
             .HasOne<AppUser>()
             .WithMany(u => u.TeamMemberships)
@@ -69,6 +81,42 @@ public class AppDbContext : IdentityDbContext<AppUser>
             .WithMany(t => t.Matches)
             .HasForeignKey(m => m.TeamId)
             .OnDelete(DeleteBehavior.SetNull);
+
+        builder.Entity<TeamEvent>(e =>
+        {
+            e.HasOne(te => te.Team)
+                .WithMany()
+                .HasForeignKey(te => te.TeamId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            e.Property(te => te.Title)
+                .IsRequired()
+                .HasMaxLength(100);
+
+            e.Property(te => te.Description)
+                .HasMaxLength(1000);
+
+            e.Property(te => te.CreatedByUserId)
+                .IsRequired()
+                .HasMaxLength(450);
+
+            e.HasIndex(te => new { te.TeamId, te.StartTime });
+        });
+
+        builder.Entity<MatchMap>(map =>
+        {
+            map.HasOne(mm => mm.Match)
+                .WithMany(m => m.Maps)
+                .HasForeignKey(mm => mm.MatchId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            map.Property(mm => mm.MapName)
+                .IsRequired()
+                .HasMaxLength(50);
+
+            map.HasIndex(mm => new { mm.MatchId, mm.Order })
+                .IsUnique();
+        });
 
         builder.Entity<Team>()
             .Property(t => t.Name)

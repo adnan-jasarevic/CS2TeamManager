@@ -24,8 +24,24 @@ public class MatchService : IMatchService
             return Result<MatchDto>.Failure("Team was not found.");
 
         var member = team.Members.FirstOrDefault(m => m.UserId == userId);
-        if (member == null || (member.Role != TeamRole.Owner && member.Role != TeamRole.Captain))
-            return Result<MatchDto>.Failure("Only Team Owners or Captains can add matches.");
+        if (member == null || !member.Role.CanManageTeam())
+            return Result<MatchDto>.Failure("Only the team Owner, Captain or Officers can add matches.");
+
+        var maps = (dto.Maps ?? new List<MatchMapDto>())
+            .Select((map, index) => new MatchMap
+            {
+                Order = index + 1,
+                MapName = map.MapName.Trim(),
+                OurScore = map.OurScore,
+                OpponentScore = map.OpponentScore,
+                OurFirstHalf = map.OurFirstHalf,
+                OpponentFirstHalf = map.OpponentFirstHalf,
+                OurSecondHalf = map.OurSecondHalf,
+                OpponentSecondHalf = map.OpponentSecondHalf
+            })
+            .ToList();
+
+        var (ourScore, opponentScore) = SeriesScore(maps, dto.BestOf) ?? (dto.OurScore, dto.OpponentScore);
 
         var newMatch = new Match
         {
@@ -35,11 +51,11 @@ public class MatchService : IMatchService
             ScheduledDate = dto.ScheduledDate,
             PlayedDate = dto.PlayedDate,
             Status = dto.Status,
-            OurScore = dto.OurScore,
-            OpponentScore = dto.OpponentScore,
+            Type = dto.Type,
+            OurScore = ourScore,
+            OpponentScore = opponentScore,
             BestOf = dto.BestOf,
-            // turn list into string and divide it with commas for easier storage in the database
-            Maps = dto.Maps != null && dto.Maps.Any() ? string.Join(",", dto.Maps) : string.Empty,
+            Maps = maps,
             Notes = dto.Notes
         };
 
@@ -64,6 +80,66 @@ public class MatchService : IMatchService
         return Result<List<MatchDto>>.SuccessResult(dtoList);
     }
 
+    public async Task<Result<TeamStatsDto>> GetTeamStatsAsync(string userId, int teamId, MatchKind? type)
+    {
+        if (await _teamRepository.GetTeamMemberAsync(teamId, userId) == null)
+            return Result<TeamStatsDto>.Failure("You don't have access to the statistics of this team.");
+
+        var maps = await _matchRepository.GetMapStatsAsync(teamId, type);
+        foreach (var map in maps)
+            map.WinRatePercentage = Percentage(map.Wins, map.Played);
+
+        var finished = (await _matchRepository.GetMatchesByTeamIdAsync(teamId))
+            .Where(m => m.Status == MatchStatus.Finished && (!type.HasValue || m.Type == type.Value))
+            .OrderBy(m => m.PlayedDate ?? m.ScheduledDate)
+            .ToList();
+
+        var form = new List<FormPointDto>();
+        int wins = 0;
+        foreach (var match in finished)
+        {
+            if (match.OurScore > match.OpponentScore) wins++;
+            form.Add(new FormPointDto
+            {
+                MatchId = match.Id,
+                Date = match.PlayedDate ?? match.ScheduledDate,
+                OpponentName = match.OpponentName,
+                MatchOutcome = Outcome(match),
+                WinRatePercentage = Percentage(wins, form.Count + 1)
+            });
+        }
+
+        return Result<TeamStatsDto>.SuccessResult(new TeamStatsDto
+        {
+            MatchesPlayed = finished.Count,
+            MapsPlayed = maps.Sum(m => m.Played),
+            Maps = maps.OrderByDescending(m => m.Played).ThenBy(m => m.MapName).ToList(),
+            Form = form
+        });
+    }
+
+    private static int Percentage(int part, int total) =>
+        total == 0 ? 0 : (int)Math.Round((double)part / total * 100);
+
+    private static string Outcome(Match match) =>
+        match.OurScore > match.OpponentScore ? "Win" : match.OurScore < match.OpponentScore ? "Loss" : "Draw";
+
+    // Works out the series score from the played maps: rounds for a Bo1, maps won otherwise.
+    // Returns null when no map has a score, so the score entered for the match is used instead.
+    private static (int Our, int Opponent)? SeriesScore(List<MatchMap> maps, int? bestOf)
+    {
+        var played = maps.Where(m => m.OurScore.HasValue && m.OpponentScore.HasValue).ToList();
+        if (played.Count == 0)
+            return null;
+
+        if ((bestOf ?? 1) == 1 && played.Count == 1)
+            return (played[0].OurScore!.Value, played[0].OpponentScore!.Value);
+
+        return (
+            played.Count(m => m.OurScore > m.OpponentScore),
+            played.Count(m => m.OpponentScore > m.OurScore));
+    }
+
     private MatchDto MapToDto(Match match)
     {
         string outcome = "Draw";
@@ -78,9 +154,22 @@ public class MatchService : IMatchService
             ScheduledDate = match.ScheduledDate,
             PlayedDate = match.PlayedDate,
             Status = match.Status.ToString(), // turns enum into string for easier display in the UI
+            Type = match.Type.ToString(),
             FinalScore = $"{match.OurScore} - {match.OpponentScore}",
             BestOf = match.BestOf,
-            Maps = string.IsNullOrEmpty(match.Maps) ? new List<string>() : match.Maps.Split(',').ToList(),
+            Maps = match.Maps
+                .OrderBy(m => m.Order)
+                .Select(m => new MatchMapDto
+                {
+                    MapName = m.MapName,
+                    OurScore = m.OurScore,
+                    OpponentScore = m.OpponentScore,
+                    OurFirstHalf = m.OurFirstHalf,
+                    OpponentFirstHalf = m.OpponentFirstHalf,
+                    OurSecondHalf = m.OurSecondHalf,
+                    OpponentSecondHalf = m.OpponentSecondHalf
+                })
+                .ToList(),
             MatchOutcome = outcome,
             Notes = match.Notes
         };

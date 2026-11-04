@@ -1,0 +1,110 @@
+/* Dark theme for react-big-calendar, scoped to the team calendar page. */
+.team-calendar .rbc-calendar {
+    color: #e5e7eb;
+}
+
+.team-calendar .rbc-toolbar {
+    margin-bottom: 16px;
+    gap: 8px;
+}
+
+.team-calendar .rbc-toolbar .rbc-toolbar-label {
+    font-weight: 700;
+    font-size: 1.1rem;
+}
+
+.team-calendar .rbc-toolbar button {
+    color: #9ca3af;
+    background: #111322;
+    border-color: #374151;
+}
+
+.team-calendar .rbc-toolbar button:hover,
+.team-calendar .rbc-toolbar button:focus {
+    color: #fff;
+    background: #1f2937;
+    border-color: #374151;
+}
+
+.team-calendar .rbc-toolbar button.rbc-active,
+.team-calendar .rbc-toolbar button.rbc-active:hover {
+    color: #fff;
+    background: #ff6b4a;
+    border-color: #ff6b4a;
+    box-shadow: none;
+}
+
+.team-calendar .rbc-month-view,
+.team-calendar .rbc-time-view,
+.team-calendar .rbc-agenda-view table.rbc-agenda-table,
+.team-calendar .rbc-header,
+.team-calendar .rbc-month-row + .rbc-month-row,
+.team-calendar .rbc-day-bg + .rbc-day-bg,
+.team-calendar .rbc-time-header-content,
+.team-calendar .rbc-time-content,
+.team-calendar .rbc-time-content > * + * > *,
+.team-calendar .rbc-timeslot-group,
+.team-calendar .rbc-day-slot .rbc-time-slot,
+.team-calendar .rbc-agenda-view table.rbc-agenda-table tbody > tr > td + td,
+.team-calendar .rbc-agenda-view table.rbc-agenda-table tbody > tr + tr,
+.team-calendar .rbc-agenda-view table.rbc-agenda-table thead > tr > th {
+    border-color: #1f2937;
+}
+
+.team-calendar .rbc-header {
+    padding: 8px 4px;
+    color: #9ca3af;
+    font-weight: 600;
+}
+
+.team-calendar .rbc-off-range-bg {
+    background: #111322;
+}
+
+.team-calendar .rbc-off-range {
+    color: #4b5563;
+}
+
+.team-calendar .rbc-today {
+    background: rgba(255, 107, 74, 0.08);
+}
+
+.team-calendar .rbc-current-time-indicator {
+    background-color: #ff6b4a;
+}
+
+.team-calendar .rbc-time-gutter,
+.team-calendar .rbc-label {
+    color: #6b7280;
+}
+
+.team-calendar .rbc-event {
+    border-radius: 4px;
+    font-size: 0.8rem;
+}
+
+.team-calendar .rbc-event.rbc-selected {
+    filter: brightness(1.15);
+}
+
+.team-calendar .rbc-slot-selection {
+    background: rgba(255, 107, 74, 0.35);
+}
+
+.team-calendar .rbc-show-more {
+    background: transparent;
+    color: #ff6b4a;
+}
+
+.team-calendar .rbc-overlay {
+    background: #111322;
+    border-color: #374151;
+}
+
+.team-calendar .rbc-overlay-header {
+    border-color: #374151;
+}
+
+.team-calendar .rbc-agenda-empty {
+    color: #6b7280;
+}
