@@ -84,7 +84,7 @@ public class TeamsController : ControllerBase
         var dashboardData = await _teamService.GetTeamDashboardAsync(teamId, userId);
 
         if (dashboardData == null)
-            return Forbid("You do not have access to this team's dashboard.");
+            return StatusCode(StatusCodes.Status403Forbidden, new { message = "You do not have access to this team's dashboard." });
 
         return Ok(dashboardData);
     }
@@ -97,7 +97,10 @@ public class TeamsController : ControllerBase
         if (string.IsNullOrEmpty(userId))
             return Unauthorized();
 
-        var members = await _teamService.GetTeamMembersAsync(teamId);
+        var members = await _teamService.GetTeamMembersAsync(teamId, userId);
+
+        if (members == null)
+            return StatusCode(StatusCodes.Status403Forbidden, new { message = "You are not a member of this team." });
 
         return Ok(members);
     }
@@ -109,6 +112,18 @@ public class TeamsController : ControllerBase
         if (string.IsNullOrEmpty(currentUserId)) return Unauthorized();
 
         var result = await _teamService.ChangeMemberRoleAsync(teamId, currentUserId, memberId, dto.NewRole);
+
+        if (!result.Success) return BadRequest(new { message = result.ErrorMessage });
+        return Ok(new { message = result.Data });
+    }
+
+    [HttpPut("{teamId}/transfer-ownership")]
+    public async Task<IActionResult> TransferOwnership(int teamId, [FromBody] TransferOwnershipDto dto)
+    {
+        var currentUserId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (string.IsNullOrEmpty(currentUserId)) return Unauthorized();
+
+        var result = await _teamService.TransferOwnershipAsync(teamId, currentUserId, dto.NewOwnerId);
 
         if (!result.Success) return BadRequest(new { message = result.ErrorMessage });
         return Ok(new { message = result.Data });

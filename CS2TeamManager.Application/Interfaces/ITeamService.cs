@@ -11,9 +11,10 @@ public interface ITeamService
 
     Task<Result<string>> RemoveMemberAsync(int teamId, string ownerId, string memberIdToRemove);
     Task<TeamDashboardDto?> GetTeamDashboardAsync(int teamId, string userId);
-    Task<List<TeamMemberDto>> GetTeamMembersAsync(int teamId);
+    Task<List<TeamMemberDto>?> GetTeamMembersAsync(int teamId, string userId);
 
     Task<Result<string>> ChangeMemberRoleAsync(int teamId, string currentUserId, string targetMemberId, string newRoleStr);
+    Task<Result<string>> TransferOwnershipAsync(int teamId, string currentOwnerId, string newOwnerId);
     Task<List<TeamInviteDto>> GetMyPendingInvitesAsync(string userId);
     Task<Result<string>> RespondToInviteAsync(int inviteId, string userId, bool isAccepted);
 
