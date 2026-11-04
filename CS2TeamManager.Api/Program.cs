@@ -21,11 +21,12 @@ if (string.IsNullOrWhiteSpace(jwtKey) || Encoding.UTF8.GetByteCount(jwtKey) < 32
         "dotnet user-secrets set \"Jwt:Key\" \"<at least 32 random characters>\" --project CS2TeamManager.Api");
 }
 
-// CORS Config
+// CORS: only the frontend origins listed under Cors:AllowedOrigins may call the API.
+var allowedOrigins = builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>() ?? Array.Empty<string>();
 builder.Services.AddCors(options =>
 {
     options.AddDefaultPolicy(p =>
-        p.AllowAnyOrigin()
+        p.WithOrigins(allowedOrigins)
          .AllowAnyMethod()
          .AllowAnyHeader());
 });
