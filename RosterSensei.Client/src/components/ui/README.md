@@ -88,7 +88,8 @@ Import everything from `components/ui`.
 `Select` takes its choices as `options` and calls `onChange` with the new value, not an event. The
 value type is inferred from the options. It's a controlled button, so it doesn't submit with a form.
 An option's `hint` is a smaller second line in the open list. The closed control shows only the
-label, so keep the part people need to recognise a choice in `label`.
+label, so keep the part people need to recognise a choice in `label`. Use `size="sm"` in dense places
+like table filters, with `aria-label` when there's no `Field` around it.
 
 ```tsx
 <Field label="Role">

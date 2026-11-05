@@ -4,7 +4,7 @@ import { useCreateAtom } from '@tanstack/react-store';
 import { ArrowDown, ArrowUp, ChevronDown, ChevronUp, ChevronsUpDown, Columns3, FilterX, RotateCcw } from 'lucide-react';
 import { type Resource } from '../hooks/use-resource';
 import { cx } from '../lib/cx';
-import { Button, Card, Checkbox, ErrorState, IconButton, Popover } from './ui';
+import { Button, Card, Checkbox, ErrorState, IconButton, Popover, Select } from './ui';
 import { type Match } from '../types';
 import { DEFAULT_LAYOUT, columns, features, loadLayout, saveLayout, toRows, type MapRow } from './scrim-analytics-model';
 
@@ -325,10 +325,14 @@ function ColumnFilter({ column }: { column: Column<ScrimFeatures, MapRow, unknow
 
     if (meta.filter === 'select') {
         return (
-            <select aria-label={label} value={value} onChange={event => column.setFilterValue(event.target.value || undefined)} className={classes}>
-                <option value="">All</option>
-                {meta.options?.map(option => <option key={option} value={option}>{option}</option>)}
-            </select>
+            <Select
+                size="sm"
+                aria-label={label}
+                value={value}
+                onChange={next => column.setFilterValue(next || undefined)}
+                options={[{ value: '', label: 'All' }, ...(meta.options ?? []).map(option => ({ value: option, label: option }))]}
+                className="rounded! bg-canvas!"
+            />
         );
     }
 

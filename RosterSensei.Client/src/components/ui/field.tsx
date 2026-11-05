@@ -99,6 +99,8 @@ export interface SelectProps<T extends string | number> extends Omit<ComponentPr
     options: readonly SelectOption<T>[];
     onChange: (value: T) => void;
     required?: boolean;
+    /** `sm` is for dense places like table filters. */
+    size?: 'sm' | 'md';
 }
 
 /**
@@ -106,7 +108,7 @@ export interface SelectProps<T extends string | number> extends Omit<ComponentPr
  * can't be themed reliably. Follows the ARIA combobox and listbox patterns: arrows, Home and End
  * move, typing jumps to a match, Enter or Space selects, Esc closes, Tab leaves.
  */
-export function Select<T extends string | number>({ id, required, className, value, options, onChange, 'aria-describedby': describedBy, ...props }: SelectProps<T>) {
+export function Select<T extends string | number>({ id, required, className, value, options, onChange, size = 'md', 'aria-describedby': describedBy, ...props }: SelectProps<T>) {
     const { required: isRequired, ...control } = useFieldControl(id, required, describedBy);
     const field = useContext(FieldContext);
     const typeahead = useRef({ text: '', time: 0 });
@@ -172,7 +174,8 @@ export function Select<T extends string | number>({ id, required, className, val
                     }}
                     className={cx(
                         controlClasses,
-                        'group flex h-11 cursor-pointer items-center justify-between gap-2 px-3 text-left aria-expanded:border-fg',
+                        'group flex cursor-pointer items-center justify-between gap-2 text-left aria-expanded:border-fg',
+                        size === 'sm' ? 'h-8 px-2' : 'h-11 px-3',
                         className,
                     )}
                 >
