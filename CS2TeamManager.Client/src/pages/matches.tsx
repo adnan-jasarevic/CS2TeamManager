@@ -1,9 +1,16 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useState } from 'react';
+import { CalendarPlus, Swords } from 'lucide-react';
 import api from '../services/api';
-import { getApiErrorMessage } from '../services/errors';
-import { useLayoutContext } from '../components/layout-context';
+import { useResource, type ResourceLoader } from '../hooks/use-resource';
+import { cx } from '../lib/cx';
+import { formatDateTime } from '../lib/format';
+import { type Match, type MatchMap, type Team, canManageTeam } from '../types';
 import AddMatchModal from '../components/add-match-modal';
-import { type Match, type MatchMap, type Team, canManageTeam, roleLabel } from '../types';
+import { MatchStatusBadge, OutcomeBadge } from '../components/domain-badges';
+import PageHeader, { PageContainer } from '../components/page-header';
+import { ListSkeleton } from '../components/page-skeletons';
+import TeamGate from '../components/team-gate';
+import { Alert, Button, Card, EmptyState, ErrorState, SegmentedControl } from '../components/ui';
 
 type Filter = 'all' | 'upcoming' | 'results';
 
@@ -13,26 +20,11 @@ const FILTERS: { value: Filter; label: string }[] = [
     { value: 'results', label: 'Results' },
 ];
 
-const outcomeClass = (outcome: string) => {
-    if (outcome === 'Win') return 'bg-emerald-500/20 text-emerald-400';
-    if (outcome === 'Loss') return 'bg-red-500/20 text-red-400';
-    return 'bg-gray-500/20 text-gray-400';
+const EMPTY_TITLES: Record<Filter, string> = {
+    all: 'No matches yet',
+    upcoming: 'Nothing scheduled',
+    results: 'No results yet',
 };
-
-const statusClass = (status: string) => {
-    if (status === 'Live') return 'bg-[#ff6b4a]/20 text-[#ff6b4a]';
-    if (status === 'Cancelled') return 'bg-gray-500/20 text-gray-500 line-through';
-    return 'bg-blue-500/20 text-blue-400';
-};
-
-const formatDateTime = (dateString: string) =>
-    new Date(dateString).toLocaleString('en-US', {
-        month: 'short',
-        day: 'numeric',
-        year: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit',
-    });
 
 // "7-5, 6-6 +OT" style summary of a map's halves, or empty when halves weren't recorded.
 const halvesText = (map: MatchMap) => {
@@ -45,180 +37,114 @@ const halvesText = (map: MatchMap) => {
 };
 
 export default function Matches() {
-    const [teams, setTeams] = useState<Team[]>([]);
-    const [selectedTeamId, setSelectedTeamId] = useState<number | null>(null);
-    const [matches, setMatches] = useState<Match[]>([]);
+    return (
+        <TeamGate title="Matches">
+            {team => <MatchesContent key={team.id} team={team} />}
+        </TeamGate>
+    );
+}
+
+function MatchesContent({ team }: { team: Team }) {
+    const load = useCallback<ResourceLoader<Match[]>>(
+        signal => api.get<Match[]>(`/Matches/${team.id}`, { signal }).then(response => response.data),
+        [team.id],
+    );
+    const { data: matches, error, isLoading, isFetching, reload } = useResource(load, 'Failed to load matches.');
     const [filter, setFilter] = useState<Filter>('all');
-
-    const [loading, setLoading] = useState(true);
-    const [error, setError] = useState('');
     const [isAddMatchOpen, setIsAddMatchOpen] = useState(false);
-    const { teamsVersion } = useLayoutContext();
-
-    useEffect(() => {
-        const fetchTeams = async () => {
-            try {
-                const response = await api.get<Team[]>('/Teams/my-teams');
-                setTeams(response.data);
-                if (response.data.length > 0) setSelectedTeamId(prev => prev ?? response.data[0].id);
-            } catch (err: unknown) {
-                setError(getApiErrorMessage(err, 'Failed to load teams.'));
-            } finally {
-                setLoading(false);
-            }
-        };
-        fetchTeams();
-        // teamsVersion changes when the user joins a team from the invite modal.
-    }, [teamsVersion]);
-
-    const fetchMatches = useCallback(async (teamId: number) => {
-        try {
-            setError('');
-            const response = await api.get<Match[]>(`/Matches/${teamId}`);
-            setMatches(response.data);
-        } catch (err: unknown) {
-            setError(getApiErrorMessage(err, 'Failed to load matches.'));
-        }
-    }, []);
-
-    useEffect(() => {
-        if (selectedTeamId !== null) fetchMatches(selectedTeamId);
-    }, [selectedTeamId, fetchMatches]);
-
-    const selectedTeam = teams.find(t => t.id === selectedTeamId);
-    const canManageMatches = canManageTeam(selectedTeam);
+    const canManageMatches = canManageTeam(team);
 
     // The API returns matches newest first.
-    const visibleMatches = matches.filter(m => {
+    const visibleMatches = (matches ?? []).filter(m => {
         if (filter === 'upcoming') return m.status === 'Scheduled' || m.status === 'Live';
         if (filter === 'results') return m.status === 'Finished';
         return true;
     });
 
-    if (loading) return <div className="text-gray-400 p-8">Loading matches...</div>;
+    return (
+        <PageContainer>
+            <PageHeader
+                title="Matches"
+                description="Every match your team has scheduled or played."
+                actions={canManageMatches && (
+                    <Button onClick={() => setIsAddMatchOpen(true)} leftIcon={<Swords className="size-4" aria-hidden="true" />}>Add match</Button>
+                )}
+            />
 
-    if (teams.length === 0) {
-        return (
-            <div className="p-4 md:p-8">
-                <h1 className="text-3xl font-bold text-white mb-2">Matches</h1>
-                <p className="text-gray-400">You need to create or join a team first.</p>
-            </div>
-        );
-    }
+            <SegmentedControl label="Show" hideLabel value={filter} options={FILTERS} onChange={setFilter} className="mb-4" />
+
+            {error && matches && <Alert tone="danger" className="mb-4">{error}</Alert>}
+
+            <Card className="overflow-hidden">
+                {isLoading ? (
+                    <ListSkeleton rows={6} label="Loading matches" />
+                ) : error && !matches ? (
+                    <ErrorState title="Couldn't load matches" message={error} onRetry={reload} retrying={isFetching} />
+                ) : visibleMatches.length === 0 ? (
+                    <EmptyState
+                        icon={<CalendarPlus />}
+                        title={EMPTY_TITLES[filter]}
+                        description="Matches appear here once they've been added."
+                        action={canManageMatches ? <Button variant="secondary" onClick={() => setIsAddMatchOpen(true)}>Add a match</Button> : undefined}
+                    />
+                ) : (
+                    <ul className="divide-y divide-line">
+                        {visibleMatches.map(match => <MatchRow key={match.id} match={match} />)}
+                    </ul>
+                )}
+            </Card>
+
+            {isAddMatchOpen && <AddMatchModal teamId={team.id} onClose={() => setIsAddMatchOpen(false)} onCreated={reload} />}
+        </PageContainer>
+    );
+}
+
+function MatchRow({ match }: { match: Match }) {
+    const isFinished = match.status === 'Finished';
+    const details = [
+        formatDateTime(match.scheduledDate),
+        match.type === 'Scrim' && 'Scrim',
+        match.tournament,
+        match.bestOf && `Bo${match.bestOf}`,
+    ].filter(Boolean).join(' · ');
 
     return (
-        <div className="p-4 md:p-8">
-            <div className="flex flex-col md:flex-row justify-between items-start md:items-end mb-8 gap-4">
-                <div>
-                    <h1 className="text-3xl font-bold text-white mb-2">Matches</h1>
-                    <p className="text-gray-400">Every match your team has scheduled or played.</p>
+        <li className="flex flex-col gap-3 p-4 md:flex-row md:items-center md:justify-between lg:px-5">
+            <div className="flex min-w-0 items-center gap-3">
+                <span className="shrink-0">
+                    {isFinished ? <OutcomeBadge outcome={match.matchOutcome} /> : <MatchStatusBadge status={match.status} />}
+                </span>
+                <div className="min-w-0">
+                    <p className="truncate font-semibold text-fg">vs {match.opponentName}</p>
+                    <p className="text-xs break-words text-fg-subtle">{details}</p>
                 </div>
-
-                <div className="flex items-end gap-4">
-                    {canManageMatches && (
-                        <button
-                            onClick={() => setIsAddMatchOpen(true)}
-                            className="bg-[#ff6b4a] hover:bg-[#e5593c] px-4 py-2 rounded-lg font-bold text-white transition-colors shadow-lg"
-                        >
-                            + Add Match
-                        </button>
-                    )}
-
-                    <div className="flex flex-col">
-                        <label className="text-xs text-gray-500 mb-1">Select Team:</label>
-                        <select
-                            className="bg-[#181a2d] border border-gray-700 text-white px-4 py-2 rounded-lg focus:outline-none focus:border-[#ff6b4a]"
-                            value={selectedTeamId || ''}
-                            onChange={(e) => setSelectedTeamId(Number(e.target.value))}
-                        >
-                            {teams.map(t => (
-                                <option key={t.id} value={t.id}>{t.name} ({roleLabel(t)})</option>
-                            ))}
-                        </select>
-                    </div>
-                </div>
+                {isFinished && <span className="ml-auto shrink-0 pl-2 font-display text-lg font-black whitespace-nowrap text-fg tabular-nums md:hidden">{match.finalScore}</span>}
             </div>
 
-            {error && <div className="bg-red-500/10 border border-red-500 text-red-500 p-4 rounded mb-6">{error}</div>}
-
-            <div className="flex gap-2 mb-6">
-                {FILTERS.map(f => (
-                    <button
-                        key={f.value}
-                        onClick={() => setFilter(f.value)}
-                        className={`px-4 py-2 rounded-lg text-sm font-medium border transition-colors ${filter === f.value
-                            ? 'bg-[#ff6b4a] border-[#ff6b4a] text-white'
-                            : 'bg-[#181a2d] border-gray-800 text-gray-400 hover:text-white'
-                            }`}
-                    >
-                        {f.label}
-                    </button>
-                ))}
-            </div>
-
-            <div className="bg-[#181a2d] rounded-xl border border-gray-800 shadow-md overflow-hidden">
-                {visibleMatches.length === 0 ? (
-                    <p className="text-gray-500 text-center py-12">No matches here yet.</p>
-                ) : (
-                    visibleMatches.map(match => (
-                        <div key={match.id} className="flex flex-col md:flex-row md:items-center justify-between gap-3 p-5 border-b border-gray-800 last:border-b-0">
-                            <div className="flex items-center gap-4">
-                                {match.status === 'Finished' ? (
-                                    <span className={`px-3 py-1 rounded text-xs font-bold w-24 text-center uppercase ${outcomeClass(match.matchOutcome)}`}>
-                                        {match.matchOutcome}
-                                    </span>
-                                ) : (
-                                    <span className={`px-3 py-1 rounded text-xs font-bold w-24 text-center uppercase ${statusClass(match.status)}`}>
-                                        {match.status}
-                                    </span>
-                                )}
-                                <div>
-                                    <p className="font-bold text-white">vs {match.opponentName}</p>
-                                    <p className="text-xs text-gray-500">
-                                        {formatDateTime(match.scheduledDate)}
-                                        {match.type === 'Scrim' && ' · Scrim'}
-                                        {match.tournament && ` · ${match.tournament}`}
-                                        {match.bestOf && ` · Bo${match.bestOf}`}
-                                    </p>
-                                </div>
-                            </div>
-
-                            <div className="flex items-center gap-4 md:justify-end">
-                                {match.maps.length > 0 && (
-                                    <div className="flex flex-wrap gap-1">
-                                        {match.maps.map((map, i) => (
-                                            <span
-                                                key={`${map.mapName}-${i}`}
-                                                className="px-2 py-0.5 rounded bg-[#111322] border border-gray-800 text-xs text-gray-400"
-                                                title={halvesText(map)}
-                                            >
-                                                {map.mapName}
-                                                {map.ourScore != null && map.opponentScore != null && (
-                                                    <span className={`ml-1 font-bold ${map.ourScore > map.opponentScore ? 'text-green-400' : map.ourScore < map.opponentScore ? 'text-red-400' : 'text-gray-300'}`}>
-                                                        {map.ourScore}-{map.opponentScore}
-                                                    </span>
-                                                )}
-                                                {halvesText(map) && <span className="ml-1 text-gray-500">({halvesText(map)})</span>}
-                                            </span>
-                                        ))}
-                                    </div>
-                                )}
-                                {match.status === 'Finished' && (
-                                    <span className="font-bold text-white text-lg w-16 text-right">{match.finalScore}</span>
-                                )}
-                            </div>
-                        </div>
-                    ))
+            <div className="flex min-w-0 items-center gap-4 md:justify-end">
+                {match.maps.length > 0 && (
+                    <ul className="flex flex-wrap gap-1.5 md:justify-end">
+                        {match.maps.map((map, index) => <MapChip key={`${map.mapName}-${index}`} map={map} />)}
+                    </ul>
                 )}
+                {isFinished && <span className="hidden min-w-14 shrink-0 text-right font-display text-lg font-black whitespace-nowrap text-fg tabular-nums md:block">{match.finalScore}</span>}
             </div>
+        </li>
+    );
+}
 
-            {isAddMatchOpen && selectedTeamId !== null && (
-                <AddMatchModal
-                    teamId={selectedTeamId}
-                    onClose={() => setIsAddMatchOpen(false)}
-                    onCreated={() => fetchMatches(selectedTeamId)}
-                />
-            )}
-        </div>
+function MapChip({ map }: { map: MatchMap }) {
+    const played = map.ourScore != null && map.opponentScore != null;
+    const halves = halvesText(map);
+    const scoreClass = !played || map.ourScore === map.opponentScore
+        ? 'text-fg-muted'
+        : map.ourScore! > map.opponentScore! ? 'text-success' : 'text-danger';
+
+    return (
+        <li className="rounded border border-line bg-sunken px-2 py-1 text-xs text-fg-muted">
+            {map.mapName}
+            {played && <span className={cx('ml-1.5 font-bold tabular-nums', scoreClass)}>{map.ourScore}-{map.opponentScore}</span>}
+            {halves && <span className="ml-1.5 text-fg-subtle tabular-nums">({halves})</span>}
+        </li>
     );
 }

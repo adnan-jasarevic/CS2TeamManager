@@ -1,257 +1,173 @@
-﻿import { useEffect, useState, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
+﻿import { useCallback, useState } from 'react';
+import { CalendarDays, CalendarPlus, Percent, Plus, Swords, Trophy, Users } from 'lucide-react';
 import api from '../services/api';
-import { getApiErrorMessage } from '../services/errors';
-import { useLayoutContext } from '../components/layout-context';
-import { type Team, type TeamDashboardData, canManageTeam, roleLabel } from '../types';
+import { useResource, type ResourceLoader } from '../hooks/use-resource';
+import { formatDate, formatTime } from '../lib/format';
+import { type MatchResponse, type Team, type TeamDashboardData, canManageTeam } from '../types';
 import AddMatchModal from '../components/add-match-modal';
 import CreateTeamModal from '../components/create-team-modal';
+import { OutcomeBadge } from '../components/domain-badges';
+import { useLayoutContext } from '../components/layout-context';
+import PageHeader, { PageContainer } from '../components/page-header';
+import { ListSkeleton, StatsSkeleton } from '../components/page-skeletons';
+import TeamGate from '../components/team-gate';
+import { Alert, Button, Card, CardHeader, EmptyState, ErrorState, LinkButton, StatGrid, StatTile, useToast } from '../components/ui';
 
 export default function Dashboard() {
-    const navigate = useNavigate();
-    const { teamsVersion } = useLayoutContext();
-
-    const [teams, setTeams] = useState<Team[]>([]);
-    const [selectedTeamId, setSelectedTeamId] = useState<number | null>(null);
-    const [dashboardData, setDashboardData] = useState<TeamDashboardData | null>(null);
-
-    const [loading, setLoading] = useState(true);
-    const [error, setError] = useState('');
-    const [isModalOpen, setIsModalOpen] = useState(false);
-    const [isAddMatchOpen, setIsAddMatchOpen] = useState(false);
-
-    const fetchTeams = useCallback(async () => {
-        try {
-            const response = await api.get<Team[]>('/Teams/my-teams');
-            setTeams(response.data);
-
-            if (response.data.length > 0 && selectedTeamId === null) {
-                setSelectedTeamId(response.data[0].id);
-            }
-        } catch (err: unknown) {
-            // A 401 is handled by the API client, which sends the user back to the login page.
-            setError(getApiErrorMessage(err, 'Failed to load teams.'));
-        } finally {
-            setLoading(false);
-        }
-    }, [selectedTeamId]);
-
-
-    const fetchDashboardStats = async (teamId: number) => {
-        try {
-            setError('');
-            const response = await api.get<TeamDashboardData>(`/Teams/${teamId}/dashboard`);
-            setDashboardData(response.data);
-        } catch (err: unknown) {
-            setError(getApiErrorMessage(err, 'Failed to load team statistics.'));
-        }
-    };
-
-    // teamsVersion changes when the user joins a team from the invite modal.
-    useEffect(() => {
-        fetchTeams();
-    }, [fetchTeams, teamsVersion]);
-
-    useEffect(() => {
-        if (selectedTeamId !== null) {
-            fetchDashboardStats(selectedTeamId);
-        }
-    }, [selectedTeamId]);
-
-    const formatDate = (dateString: string) => {
-        return new Date(dateString).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
-    };
-
-    const formatTime = (dateString: string) => {
-        return new Date(dateString).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
-    };
-
-    const selectedTeam = teams.find(t => t.id === selectedTeamId);
-    const canManageMatches = canManageTeam(selectedTeam);
-
-    if (loading) return <div className="text-gray-400 p-8">Loading dashboard...</div>;
-
-    // No teams yet: offer to create one.
-    if (teams.length === 0) {
-        return (
-            <div className="p-4 md:p-8">
-                <div className="mb-8">
-                    <h1 className="text-3xl font-bold text-white mb-2">Dashboard</h1>
-                    <p className="text-gray-400">Welcome! Get started by creating your first team.</p>
-                </div>
-
-                <div className="text-center py-16 bg-[#181a2d] rounded-xl border border-gray-800">
-                    <h2 className="text-xl text-gray-300 mb-6">You are not in any team yet.</h2>
-                    <button
-                        onClick={() => setIsModalOpen(true)}
-                        className="bg-[#ff6b4a] hover:bg-[#e5593c] px-6 py-3 rounded-lg font-bold transition-colors shadow-lg"
-                    >
-                        Create a Team
-                    </button>
-                </div>
-
-                {isModalOpen && (
-                    <CreateTeamModal onClose={() => setIsModalOpen(false)} onCreated={fetchTeams} />
-                )}
-            </div>
-        );
-    }
+    const { selectTeam, reloadTeams } = useLayoutContext();
+    const toast = useToast();
+    const [isCreateOpen, setIsCreateOpen] = useState(false);
 
     return (
-        <div className="p-4 md:p-8 relative">
-            <div className="flex flex-col md:flex-row justify-between items-start md:items-end mb-8 gap-4">
-                <div>
-                    <h1 className="text-3xl font-bold text-white mb-2">Dashboard</h1>
-                    <p className="text-gray-400">Welcome back! Here's your team overview.</p>
-                </div>
+        <>
+            <TeamGate
+                title="Dashboard"
+                noTeams={
+                    <PageContainer>
+                        <PageHeader title="Dashboard" description="Welcome! Get started by creating your first team." />
+                        <Card>
+                            <EmptyState
+                                icon={<Users />}
+                                title="You're not on a team yet"
+                                description="Create a team and invite your players, or accept an invite from a teammate."
+                                action={<Button size="lg" onClick={() => setIsCreateOpen(true)} leftIcon={<Plus className="size-5" aria-hidden="true" />}>Create a team</Button>}
+                            />
+                        </Card>
+                    </PageContainer>
+                }
+            >
+                {team => <DashboardContent key={team.id} team={team} onCreateTeam={() => setIsCreateOpen(true)} />}
+            </TeamGate>
 
-                <div className="flex items-end gap-4">
-                    {canManageMatches && (
-                        <button
-                            onClick={() => setIsAddMatchOpen(true)}
-                            className="bg-[#ff6b4a] hover:bg-[#e5593c] px-4 py-2 rounded-lg font-bold text-white transition-colors shadow-lg"
-                        >
-                            + Add Match
-                        </button>
-                    )}
-
-                    <div className="flex flex-col">
-                        <label className="text-xs text-gray-500 mb-1">Select Team:</label>
-                        <select
-                            className="bg-[#181a2d] border border-gray-700 text-white px-4 py-2 rounded-lg focus:outline-none focus:border-[#ff6b4a]"
-                            value={selectedTeamId || ''}
-                            onChange={(e) => setSelectedTeamId(Number(e.target.value))}
-                        >
-                            {teams.map(t => (
-                                <option key={t.id} value={t.id}>{t.name} ({roleLabel(t)})</option>
-                            ))}
-                        </select>
-                    </div>
-                </div>
-            </div>
-
-            {error && <div className="bg-red-500/10 border border-red-500 text-red-500 p-4 rounded mb-6">{error}</div>}
-
-            {dashboardData && (
-                <>
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-                        <div className="bg-[#181a2d] p-6 rounded-xl border border-gray-800 shadow-md">
-                            <div className="flex justify-between items-start mb-4">
-                                <span className="text-gray-400 font-medium">Total Matches</span>
-                                <span>🏆</span>
-                            </div>
-                            <h2 className="text-3xl font-bold text-white mb-1">{dashboardData.totalMatches}</h2>
-                        </div>
-
-                        <div className="bg-[#181a2d] p-6 rounded-xl border border-gray-800 shadow-md">
-                            <div className="flex justify-between items-start mb-4">
-                                <span className="text-gray-400 font-medium">Win Rate</span>
-                                <span className="text-[#ff6b4a]">📈</span>
-                            </div>
-                            <h2 className="text-3xl font-bold text-white mb-1">{dashboardData.winRatePercentage}%</h2>
-                        </div>
-
-                        <div className="bg-[#181a2d] p-6 rounded-xl border border-gray-800 shadow-md">
-                            <div className="flex justify-between items-start mb-4">
-                                <span className="text-gray-400 font-medium">Team Members</span>
-                                <span>👥</span>
-                            </div>
-                            <h2 className="text-3xl font-bold text-white mb-1">{dashboardData.totalMembers}</h2>
-                        </div>
-
-                        <div className="bg-[#181a2d] p-6 rounded-xl border border-gray-800 shadow-md">
-                            <div className="flex justify-between items-start mb-4">
-                                <span className="text-gray-400 font-medium">Upcoming</span>
-                                <span>📅</span>
-                            </div>
-                            <h2 className="text-3xl font-bold text-white mb-1">{dashboardData.upcomingMatchesCount}</h2>
-                        </div>
-                    </div>
-
-                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
-                        {/* RECENT MATCHES */}
-                        <div className="bg-[#181a2d] p-6 rounded-xl border border-gray-800 shadow-md flex flex-col">
-                            <h3 className="text-lg font-bold mb-6 text-white">Recent Matches</h3>
-
-                            <div className="flex-1 flex flex-col gap-4">
-                                {dashboardData.recentMatches.length === 0 ? (
-                                    <p className="text-gray-500 text-center py-8">No recent matches played yet.</p>
-                                ) : (
-                                    dashboardData.recentMatches.map(match => (
-                                        <div key={match.id} className="flex items-center justify-between p-4 bg-[#111322] rounded-lg border border-gray-800">
-                                            <div className="flex items-center gap-4">
-                                                <span className={`px-3 py-1 rounded text-xs font-bold w-14 text-center ${match.matchOutcome === 'WIN' ? 'bg-emerald-500/20 text-emerald-400' :
-                                                        match.matchOutcome === 'LOSS' ? 'bg-red-500/20 text-red-400' :
-                                                            'bg-gray-500/20 text-gray-400'
-                                                    }`}>
-                                                    {match.matchOutcome}
-                                                </span>
-                                                <div>
-                                                    <p className="font-bold text-white">vs {match.opponentName}</p>
-                                                    <p className="text-xs text-gray-500">{formatDate(match.scheduledDate)}</p>
-                                                </div>
-                                            </div>
-                                            <span className="font-bold text-white">{match.finalScore}</span>
-                                        </div>
-                                    ))
-                                )}
-                            </div>
-                            <button
-                                onClick={() => navigate('/matches')}
-                                className="w-full mt-6 py-3 bg-[#111322] hover:bg-gray-800 text-sm font-medium rounded-lg transition-colors border border-gray-800 text-white"
-                            >
-                                View All Matches
-                            </button>
-                        </div>
-
-                        {/* UPCOMING MATCHES */}
-                        <div className="bg-[#181a2d] p-6 rounded-xl border border-gray-800 shadow-md flex flex-col">
-                            <h3 className="text-lg font-bold mb-6 text-white">Upcoming Matches</h3>
-
-                            <div className="flex-1 flex flex-col gap-4">
-                                {dashboardData.upcomingMatches.length === 0 ? (
-                                    <p className="text-gray-500 text-center py-8">
-                                        No upcoming matches scheduled.
-                                        {canManageMatches && (
-                                            <button onClick={() => setIsAddMatchOpen(true)} className="block mx-auto mt-2 text-[#ff6b4a] hover:underline">
-                                                Schedule one
-                                            </button>
-                                        )}
-                                    </p>
-                                ) : (
-                                    dashboardData.upcomingMatches.map(match => (
-                                        <div key={match.id} className="flex items-center justify-between p-4 bg-[#111322] rounded-lg border border-gray-800">
-                                            <div>
-                                                <p className="font-bold text-white">vs {match.opponentName}</p>
-                                                <p className="text-xs text-gray-500">{formatDate(match.scheduledDate)}</p>
-                                            </div>
-                                            <span className="text-sm font-bold text-[#ff6b4a]">{formatTime(match.scheduledDate)}</span>
-                                        </div>
-                                    ))
-                                )}
-                            </div>
-                            <button
-                                onClick={() => navigate('/calendar')}
-                                className="w-full mt-6 py-3 bg-[#111322] hover:bg-gray-800 text-sm font-medium rounded-lg transition-colors border border-gray-800 text-white"
-                            >
-                                View Calendar
-                            </button>
-                        </div>
-                    </div>
-                </>
-            )}
-
-            {isAddMatchOpen && selectedTeamId !== null && (
-                <AddMatchModal
-                    teamId={selectedTeamId}
-                    onClose={() => setIsAddMatchOpen(false)}
-                    onCreated={() => fetchDashboardStats(selectedTeamId)}
+            {isCreateOpen && (
+                <CreateTeamModal
+                    onClose={() => setIsCreateOpen(false)}
+                    onCreated={team => {
+                        selectTeam(team.id);
+                        reloadTeams();
+                        toast.success(`${team.name} is ready. Invite your players next.`);
+                    }}
                 />
             )}
+        </>
+    );
+}
 
-            {isModalOpen && (
-                <CreateTeamModal onClose={() => setIsModalOpen(false)} onCreated={fetchTeams} />
+function DashboardContent({ team, onCreateTeam }: { team: Team; onCreateTeam: () => void }) {
+    const load = useCallback<ResourceLoader<TeamDashboardData>>(
+        signal => api.get<TeamDashboardData>(`/Teams/${team.id}/dashboard`, { signal }).then(response => response.data),
+        [team.id],
+    );
+    const { data, error, isLoading, isFetching, reload } = useResource(load, 'Failed to load team statistics.');
+    const [isAddMatchOpen, setIsAddMatchOpen] = useState(false);
+    const canManageMatches = canManageTeam(team);
+
+    return (
+        <PageContainer>
+            <PageHeader
+                title="Dashboard"
+                description={<>Here's how <span className="font-semibold text-fg">{team.name}</span> is doing.</>}
+                actions={
+                    <>
+                        <Button variant="secondary" onClick={onCreateTeam} leftIcon={<Plus className="size-4" aria-hidden="true" />}>New team</Button>
+                        {canManageMatches && (
+                            <Button onClick={() => setIsAddMatchOpen(true)} leftIcon={<Swords className="size-4" aria-hidden="true" />}>Add match</Button>
+                        )}
+                    </>
+                }
+            />
+
+            {isLoading && (
+                <div className="flex flex-col gap-6">
+                    <StatsSkeleton />
+                    <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+                        <Card><ListSkeleton label="Loading recent matches" /></Card>
+                        <Card><ListSkeleton label="Loading upcoming matches" /></Card>
+                    </div>
+                </div>
             )}
-        </div>
+
+            {error && !data && (
+                <Card>
+                    <ErrorState title="Couldn't load this team" message={error} onRetry={reload} retrying={isFetching} />
+                </Card>
+            )}
+
+            {data && (
+                <div className="flex flex-col gap-6">
+                    {error && <Alert tone="danger">{error}</Alert>}
+
+                    <StatGrid>
+                        <StatTile label="Total matches" value={data.totalMatches} icon={<Trophy />} />
+                        <StatTile label="Win rate" value={`${data.winRatePercentage}%`} icon={<Percent />} />
+                        <StatTile label="Team members" value={data.totalMembers} icon={<Users />} />
+                        <StatTile label="Upcoming" value={data.upcomingMatchesCount} icon={<CalendarDays />} />
+                    </StatGrid>
+
+                    <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+                        <MatchListCard
+                            title="Recent matches"
+                            matches={data.recentMatches}
+                            emptyState={<EmptyState compact icon={<Swords />} title="No matches played yet" description="Finished matches show up here with their result." />}
+                            renderLeading={match => <OutcomeBadge outcome={match.matchOutcome} />}
+                            renderTrailing={match => <span className="font-display text-lg font-black whitespace-nowrap text-fg tabular-nums">{match.finalScore}</span>}
+                            footerLink={<LinkButton to="/matches" fullWidth>View all matches</LinkButton>}
+                        />
+
+                        <MatchListCard
+                            title="Upcoming matches"
+                            matches={data.upcomingMatches}
+                            emptyState={
+                                <EmptyState
+                                    compact
+                                    icon={<CalendarPlus />}
+                                    title="Nothing scheduled"
+                                    description="Upcoming matches show up here with their start time."
+                                    action={canManageMatches ? <Button size="sm" variant="secondary" onClick={() => setIsAddMatchOpen(true)}>Schedule a match</Button> : undefined}
+                                />
+                            }
+                            renderTrailing={match => <span className="text-sm font-bold text-accent-text tabular-nums">{formatTime(match.scheduledDate)}</span>}
+                            footerLink={<LinkButton to="/calendar" fullWidth>View calendar</LinkButton>}
+                        />
+                    </div>
+                </div>
+            )}
+
+            {isAddMatchOpen && <AddMatchModal teamId={team.id} onClose={() => setIsAddMatchOpen(false)} onCreated={reload} />}
+        </PageContainer>
+    );
+}
+
+interface MatchListCardProps {
+    title: string;
+    matches: MatchResponse[];
+    emptyState: React.ReactNode;
+    renderLeading?: (match: MatchResponse) => React.ReactNode;
+    renderTrailing: (match: MatchResponse) => React.ReactNode;
+    footerLink: React.ReactNode;
+}
+
+function MatchListCard({ title, matches, emptyState, renderLeading, renderTrailing, footerLink }: MatchListCardProps) {
+    return (
+        <Card className="flex flex-col">
+            <CardHeader title={title} className="pb-2" />
+            <div className="flex-1">
+                {matches.length === 0 ? emptyState : (
+                    <ul className="divide-y divide-line">
+                        {matches.map(match => (
+                            <li key={match.id} className="flex items-center gap-3 px-5 py-3">
+                                {renderLeading?.(match)}
+                                <div className="min-w-0 flex-1">
+                                    <p className="truncate font-semibold text-fg">vs {match.opponentName}</p>
+                                    <p className="text-xs text-fg-subtle">{formatDate(match.scheduledDate)}</p>
+                                </div>
+                                <div className="shrink-0">{renderTrailing(match)}</div>
+                            </li>
+                        ))}
+                    </ul>
+                )}
+            </div>
+            <div className="p-5 pt-3">{footerLink}</div>
+        </Card>
     );
 }

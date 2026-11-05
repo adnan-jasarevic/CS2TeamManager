@@ -1,1 +1,110 @@
-@import "tailwindcss";
+@import 'tailwindcss';
+@import './styles/tokens.css';
+
+@layer base {
+    html,
+    body,
+    #root {
+        height: 100%;
+    }
+
+    body {
+        background: var(--rs-canvas);
+        color: var(--rs-fg);
+        font-family: var(--font-sans);
+        font-feature-settings: 'cv11', 'ss03';
+        -webkit-font-smoothing: antialiased;
+    }
+
+    h1,
+    h2,
+    h3 {
+        font-family: var(--font-display);
+    }
+
+    /* One visible focus style everywhere; components don't restyle it. */
+    :focus-visible {
+        outline: 2px solid var(--rs-focus);
+        outline-offset: 2px;
+    }
+
+    /* Main takes focus after a route change for screen readers; it isn't a control to ring. */
+    main:focus {
+        outline: none;
+    }
+
+    ::selection {
+        background: var(--rs-accent);
+        color: var(--rs-on-accent);
+    }
+
+    button:not(:disabled),
+    summary,
+    label[for] {
+        cursor: pointer;
+    }
+}
+
+@layer components {
+    /* Reserves the scrollbar's space so opening a dialog (which locks scrolling) can't shift the page. */
+    [data-scroll-root] {
+        scrollbar-gutter: stable;
+    }
+
+    body:has(dialog[open]) [data-scroll-root] {
+        overflow: hidden;
+    }
+
+    .rs-skeleton {
+        background: var(--rs-neutral-soft);
+        animation: rs-pulse 1.6s ease-in-out infinite;
+    }
+
+    .rs-dialog {
+        opacity: 1;
+        transform: none;
+        transition:
+            opacity 160ms ease-out,
+            transform 200ms cubic-bezier(0.16, 1, 0.3, 1);
+
+        @starting-style {
+            opacity: 0;
+            transform: translateY(10px);
+        }
+    }
+
+    .rs-dialog::backdrop {
+        background: var(--rs-scrim);
+    }
+
+    /* Seigaiha, the traditional overlapping-wave pattern, as quiet texture on the brand panel. */
+    .rs-seigaiha {
+        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='80' height='40' viewBox='0 0 80 40'%3E%3Cg fill='none' stroke='%23888' stroke-width='1'%3E%3Cg id='a'%3E%3Ccircle cx='40' cy='40' r='38'/%3E%3Ccircle cx='40' cy='40' r='28'/%3E%3Ccircle cx='40' cy='40' r='18'/%3E%3C/g%3E%3Ccircle cx='0' cy='20' r='38'/%3E%3Ccircle cx='0' cy='20' r='28'/%3E%3Ccircle cx='0' cy='20' r='18'/%3E%3Ccircle cx='80' cy='20' r='38'/%3E%3Ccircle cx='80' cy='20' r='28'/%3E%3Ccircle cx='80' cy='20' r='18'/%3E%3C/g%3E%3C/svg%3E");
+        background-size: 80px 40px;
+    }
+}
+
+@keyframes rs-pulse {
+    50% {
+        opacity: 0.45;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+        scroll-behavior: auto !important;
+    }
+}
+
+/* Windows High Contrast drops backgrounds, so state needs an outline to stay visible. */
+@media (forced-colors: active) {
+    [aria-current='page'],
+    [aria-pressed='true'] {
+        outline: 2px solid Highlight;
+    }
+}

@@ -1,24 +1,26 @@
-import React, { useState } from 'react';
+import { useState, type FormEvent } from 'react';
 import api from '../services/api';
 import { getApiErrorMessage } from '../services/errors';
+import { type Team } from '../types';
+import { Alert, Button, Field, Input, Modal } from './ui';
 
-type CreateTeamModalProps = {
+interface CreateTeamModalProps {
     onClose: () => void;
-    onCreated: () => void;
-};
+    onCreated: (team: Team) => void;
+}
 
 export default function CreateTeamModal({ onClose, onCreated }: CreateTeamModalProps) {
     const [name, setName] = useState('');
     const [isCreating, setIsCreating] = useState(false);
     const [error, setError] = useState('');
 
-    const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+    const handleSubmit = async (e: FormEvent) => {
         e.preventDefault();
         setIsCreating(true);
         setError('');
         try {
-            await api.post('/Teams', { name });
-            onCreated();
+            const response = await api.post<Team>('/Teams', { name: name.trim() });
+            onCreated(response.data);
             onClose();
         } catch (err) {
             // For example the 3-team limit, or a name with characters that aren't allowed.
@@ -29,34 +31,26 @@ export default function CreateTeamModal({ onClose, onCreated }: CreateTeamModalP
     };
 
     return (
-        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
-            <div className="bg-gray-800 rounded-xl shadow-xl border border-gray-700 w-full max-w-md overflow-hidden">
-                <div className="p-6 border-b border-gray-700 flex justify-between items-center">
-                    <h2 className="text-xl font-bold text-white">Create New Team</h2>
-                    <button onClick={onClose} className="text-gray-400 hover:text-white text-2xl" aria-label="Close">&times;</button>
-                </div>
-                <form onSubmit={handleSubmit} className="p-6">
-                    <label className="block text-gray-400 text-sm mb-2" htmlFor="team-name">Team Name</label>
-                    <input
-                        id="team-name"
-                        type="text"
-                        value={name}
-                        onChange={(e) => setName(e.target.value)}
-                        className="w-full px-4 py-3 bg-[#111322] border border-gray-700 rounded-lg text-white focus:outline-none focus:border-[#ff6b4a]"
-                        placeholder="e.g. Natus Vincere"
-                        autoFocus
-                    />
-                    {error && (
-                        <p role="alert" className="mt-3 text-sm text-red-400">{error}</p>
-                    )}
-                    <div className="mt-6 flex justify-end gap-3">
-                        <button type="button" onClick={onClose} className="px-4 py-2 text-gray-400 hover:text-white">Cancel</button>
-                        <button type="submit" disabled={isCreating || !name.trim()} className="bg-[#ff6b4a] hover:bg-[#e5593c] px-6 py-2 rounded-lg font-bold text-white transition-colors disabled:opacity-50">
-                            {isCreating ? 'Creating...' : 'Create Team'}
-                        </button>
-                    </div>
-                </form>
-            </div>
-        </div>
+        <Modal
+            open
+            onClose={onClose}
+            title="Create a new team"
+            size="sm"
+            busy={isCreating}
+            closeOnBackdrop={false}
+            footer={
+                <>
+                    <Button variant="ghost" onClick={onClose} disabled={isCreating}>Cancel</Button>
+                    <Button type="submit" form="create-team-form" disabled={!name.trim()} loading={isCreating} loadingText="Creating...">Create team</Button>
+                </>
+            }
+        >
+            <form id="create-team-form" onSubmit={handleSubmit} className="flex flex-col gap-4">
+                {error && <Alert tone="danger">{error}</Alert>}
+                <Field label="Team name">
+                    <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Tokyo Ronin" maxLength={100} autoComplete="off" data-autofocus />
+                </Field>
+            </form>
+        </Modal>
     );
 }

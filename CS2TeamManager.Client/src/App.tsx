@@ -12,6 +12,9 @@ import AppLayout from './components/app-layout';
 const Statistics = lazy(() => import('./pages/statistics'));
 const CalendarPage = lazy(() => import('./pages/calendar'));
 
+// A live gallery of the design system. Vite strips it, and the page's code, from production builds.
+const UiKit = import.meta.env.DEV ? lazy(() => import('./pages/ui-kit')) : null;
+
 function App() {
     return (
         <BrowserRouter>
@@ -20,6 +23,7 @@ function App() {
                 <Route path="/" element={<Navigate to="/login" replace />} />
                 <Route path="/login" element={<Login />} />
                 <Route path="/register" element={<Register />} />
+                {UiKit && <Route path="/ui-kit" element={<Suspense><UiKit /></Suspense>} />}
 
                 {/* private routes */}
                 <Route
@@ -32,14 +36,8 @@ function App() {
                     <Route path="/dashboard" element={<Dashboard />} />
                     <Route path="/team" element={<TeamRoster />} />
                     <Route path="/matches" element={<Matches />} />
-                    <Route
-                        path="/calendar"
-                        element={<Suspense fallback={<div className="text-gray-400 p-8">Loading calendar...</div>}><CalendarPage /></Suspense>}
-                    />
-                    <Route
-                        path="/statistics"
-                        element={<Suspense fallback={<div className="text-gray-400 p-8">Loading analytics...</div>}><Statistics /></Suspense>}
-                    />
+                    <Route path="/calendar" element={<CalendarPage />} />
+                    <Route path="/statistics" element={<Statistics />} />
 
                     {/* fallback */}
                     <Route path="*" element={<Navigate to="/dashboard" replace />} />
