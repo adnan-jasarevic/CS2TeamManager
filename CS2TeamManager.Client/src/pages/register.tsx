@@ -71,7 +71,6 @@ export default function Register() {
             }, 2000);
 
         } catch (err: unknown) {
-            console.error('Error while trying to register:', err);
 
             if (isAxiosError<IdentityError[]>(err)) {
                 const errors = err.response?.data;
