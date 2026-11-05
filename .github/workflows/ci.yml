@@ -5,6 +5,10 @@ on:
     branches: [master]
   pull_request:
 
+# Least privilege for the GITHUB_TOKEN: the jobs only need to read the repository.
+permissions:
+  contents: read
+
 concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: true
