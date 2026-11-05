@@ -1,7 +1,0 @@
-<Solution>
-  <Project Path="CS2TeamManager.Api/CS2TeamManager.Api.csproj" />
-  <Project Path="CS2TeamManager.Application/CS2TeamManager.Application.csproj" />
-  <Project Path="CS2TeamManager.Domain/CS2TeamManager.Domain.csproj" />
-  <Project Path="CS2TeamManager.Infrastructure/CS2TeamManager.Infrastructure.csproj" />
-  <Project Path="CS2TeamManager.Tests/CS2TeamManager.Tests.csproj" />
-</Solution>

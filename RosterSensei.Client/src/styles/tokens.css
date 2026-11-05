@@ -1,0 +1,145 @@
+/*
+ * Roster Sensei design tokens.
+ *
+ * Components only ever use the semantic names below (bg-surface, text-fg-muted...), never raw
+ * colours, so a theme is nothing more than a new value for each token. Dark is the default.
+ *
+ * Palette: Hinomaru crimson on washi paper white (light) and sumi ink black (dark).
+ * Green and gold exist only as status colours, so a win never has to be told apart from the
+ * brand red. Contrast is checked against WCAG AA; see src/components/ui/README.md.
+ */
+:root,
+[data-theme='dark'] {
+    color-scheme: dark;
+
+    --rs-canvas: #0e0b0c;
+    --rs-surface: #171314;
+    --rs-raised: #211b1d;
+    --rs-sunken: #0a0809;
+    --rs-line: #2e2629;
+    --rs-line-strong: #766a6f;
+
+    --rs-fg: #f7f3ef;
+    --rs-fg-muted: #bdb3b5;
+    --rs-fg-subtle: #a0959a;
+
+    --rs-accent: #d4002f;
+    --rs-accent-hover: #e8103f;
+    --rs-on-accent: #ffffff;
+    --rs-accent-text: #ff8496;
+    --rs-accent-soft: rgb(212 0 47 / 0.18);
+
+    --rs-focus: #ffffff;
+    --rs-hover: rgb(247 243 239 / 0.07);
+    --rs-scrim: rgb(5 3 4 / 0.78);
+    --rs-shadow: 0 16px 40px rgb(0 0 0 / 0.5);
+
+    --rs-success-text: #5fd3a8;
+    --rs-success-soft: rgb(95 211 168 / 0.13);
+    --rs-warning-text: #e8bc62;
+    --rs-warning-soft: rgb(232 188 98 / 0.13);
+    --rs-danger-text: #ff8f8f;
+    --rs-danger-soft: rgb(255 143 143 / 0.13);
+    --rs-neutral-soft: rgb(247 243 239 / 0.09);
+
+    /* One series per chart, in ink rather than red: red already means "loss" in this app. */
+    --rs-chart-series: #ede7e2;
+    --rs-chart-grid: #2e2629;
+
+    --rs-event-pracc: #ede7e2;
+    --rs-event-pracc-fg: #1c1518;
+    --rs-event-official: #e0243f;
+    --rs-event-official-fg: #ffffff;
+    --rs-event-vod: #d9a441;
+    --rs-event-vod-fg: #1c1518;
+    --rs-event-match: #4fa3e0;
+    --rs-event-match-fg: #0e0b0c;
+    --rs-event-other: #6e6468;
+    --rs-event-other-fg: #ffffff;
+}
+
+[data-theme='light'] {
+    color-scheme: light;
+
+    --rs-canvas: #faf7f4;
+    --rs-surface: #ffffff;
+    --rs-raised: #ffffff;
+    --rs-sunken: #f3eeea;
+    --rs-line: #e6dfda;
+    --rs-line-strong: #8a7e83;
+
+    --rs-fg: #1c1518;
+    --rs-fg-muted: #5b5055;
+    --rs-fg-subtle: #6a5f63;
+
+    --rs-accent: #bc002d;
+    --rs-accent-hover: #9c0025;
+    --rs-on-accent: #ffffff;
+    --rs-accent-text: #b0002a;
+    --rs-accent-soft: rgb(188 0 45 / 0.08);
+
+    --rs-focus: #1c1518;
+    --rs-hover: rgb(28 21 24 / 0.05);
+    --rs-scrim: rgb(28 21 24 / 0.55);
+    --rs-shadow: 0 16px 40px rgb(28 21 24 / 0.16);
+
+    --rs-success-text: #0a6f52;
+    --rs-success-soft: rgb(10 111 82 / 0.1);
+    --rs-warning-text: #7f5300;
+    --rs-warning-soft: rgb(138 90 0 / 0.11);
+    --rs-danger-text: #a80028;
+    --rs-danger-soft: rgb(179 0 42 / 0.08);
+    --rs-neutral-soft: rgb(28 21 24 / 0.06);
+
+    --rs-chart-series: #2a2326;
+    --rs-chart-grid: #e6dfda;
+
+    --rs-event-pracc: #2a2326;
+    --rs-event-pracc-fg: #ffffff;
+    --rs-event-official: #bc002d;
+    --rs-event-official-fg: #ffffff;
+    --rs-event-vod: #8f6200;
+    --rs-event-vod-fg: #ffffff;
+    --rs-event-match: #1a73b8;
+    --rs-event-match-fg: #ffffff;
+    --rs-event-other: #d8d0cc;
+    --rs-event-other-fg: #1c1518;
+}
+
+/* Exposes the tokens to Tailwind as utilities: bg-surface, text-fg-muted, border-line... */
+@theme inline {
+    --color-canvas: var(--rs-canvas);
+    --color-surface: var(--rs-surface);
+    --color-raised: var(--rs-raised);
+    --color-sunken: var(--rs-sunken);
+    --color-line: var(--rs-line);
+    --color-line-strong: var(--rs-line-strong);
+    --color-hover: var(--rs-hover);
+    --color-scrim: var(--rs-scrim);
+
+    --color-fg: var(--rs-fg);
+    --color-fg-muted: var(--rs-fg-muted);
+    --color-fg-subtle: var(--rs-fg-subtle);
+
+    --color-accent: var(--rs-accent);
+    --color-accent-hover: var(--rs-accent-hover);
+    --color-on-accent: var(--rs-on-accent);
+    --color-accent-text: var(--rs-accent-text);
+    --color-accent-soft: var(--rs-accent-soft);
+
+    --color-success: var(--rs-success-text);
+    --color-success-soft: var(--rs-success-soft);
+    --color-warning: var(--rs-warning-text);
+    --color-warning-soft: var(--rs-warning-soft);
+    --color-danger: var(--rs-danger-text);
+    --color-danger-soft: var(--rs-danger-soft);
+    --color-neutral-soft: var(--rs-neutral-soft);
+
+    --font-sans: 'Inter Variable', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
+    --font-display: 'Zen Kaku Gothic New', 'Inter Variable', ui-sans-serif, system-ui, sans-serif;
+
+    --shadow-overlay: var(--rs-shadow);
+
+    --radius-md: 0.375rem;
+    --radius-lg: 0.625rem;
+}
