@@ -16,6 +16,7 @@ public class MatchResponseDto
     public int Id { get; set; }
     public string OpponentName { get; set; } = string.Empty;
     public DateTime ScheduledDate { get; set; }
+    public DateTime? PlayedDate { get; set; }
     public string Status { get; set; } = string.Empty; // "Scheduled", "Finished"
 
     public string FinalScore { get; set; } = string.Empty;

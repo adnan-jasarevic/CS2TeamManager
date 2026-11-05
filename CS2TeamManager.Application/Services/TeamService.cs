@@ -196,11 +196,11 @@ public class TeamService : ITeamService
         var upcoming = allMatches
             .Where(m => m.Status == MatchStatus.Scheduled && m.ScheduledDate > DateTime.UtcNow)
             .OrderBy(m => m.ScheduledDate)
-            .Take(5)
             .ToList();
 
+        // The tile counts every upcoming match; the list only shows the next five.
         dashboard.UpcomingMatchesCount = upcoming.Count;
-        dashboard.UpcomingMatches = upcoming.Select(m => new MatchResponseDto
+        dashboard.UpcomingMatches = upcoming.Take(5).Select(m => new MatchResponseDto
         {
             Id = m.Id,
             OpponentName = m.OpponentName,
@@ -208,8 +208,9 @@ public class TeamService : ITeamService
             Status = m.Status.ToString()
         }).ToList();
 
+        // Most recently played first, like the statistics page, falling back to the scheduled date.
         var recent = finishedMatches
-            .OrderByDescending(m => m.ScheduledDate)
+            .OrderByDescending(m => m.PlayedDate ?? m.ScheduledDate)
             .Take(5)
             .ToList();
 
@@ -218,6 +219,7 @@ public class TeamService : ITeamService
             Id = m.Id,
             OpponentName = m.OpponentName,
             ScheduledDate = m.ScheduledDate,
+            PlayedDate = m.PlayedDate,
             Status = m.Status.ToString(),
             FinalScore = m.FinalScore,
             MatchOutcome = m.Outcome.ToString()

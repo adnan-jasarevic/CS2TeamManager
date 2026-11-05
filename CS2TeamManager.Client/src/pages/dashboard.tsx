@@ -159,7 +159,7 @@ function MatchListCard({ title, matches, emptyState, renderLeading, renderTraili
                                 {renderLeading?.(match)}
                                 <div className="min-w-0 flex-1">
                                     <p className="truncate font-semibold text-fg">vs {match.opponentName}</p>
-                                    <p className="text-xs text-fg-subtle">{formatDate(match.scheduledDate)}</p>
+                                    <p className="text-xs text-fg-subtle">{formatDate(match.playedDate ?? match.scheduledDate)}</p>
                                 </div>
                                 <div className="shrink-0">{renderTrailing(match)}</div>
                             </li>
