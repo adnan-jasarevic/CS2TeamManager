@@ -12,6 +12,6 @@ public class MatchDto
     public string FinalScore { get; set; } = string.Empty;
     public int? BestOf { get; set; }
     public List<MatchMapDto> Maps { get; set; } = new List<MatchMapDto>();
-    public string MatchOutcome { get; set; } = string.Empty; // "Win", "Loss", "Draw"
+    public string MatchOutcome { get; set; } = string.Empty; // "Win", "Loss" or "Draw"
     public string? Notes { get; set; }
 }

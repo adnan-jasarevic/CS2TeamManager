@@ -26,7 +26,7 @@ public class FormPointDto
     public int MatchId { get; set; }
     public DateTime Date { get; set; }
     public string OpponentName { get; set; } = string.Empty;
-    public string MatchOutcome { get; set; } = string.Empty;
+    public string MatchOutcome { get; set; } = string.Empty; // "Win", "Loss" or "Draw"
     // Win rate over every match up to and including this one.
     public int WinRatePercentage { get; set; }
 }

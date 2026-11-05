@@ -24,6 +24,9 @@ export interface MatchMap {
     opponentSecondHalf?: number | null;
 }
 
+/** Every endpoint sends match results in this exact form. */
+export type MatchOutcome = 'Win' | 'Loss' | 'Draw';
+
 export interface Match {
     id: number;
     opponentName: string;
@@ -35,7 +38,7 @@ export interface Match {
     finalScore: string;
     bestOf?: number;
     maps: MatchMap[];
-    matchOutcome: string;
+    matchOutcome: MatchOutcome;
     notes?: string;
 }
 export interface MatchResponse {
@@ -44,7 +47,7 @@ export interface MatchResponse {
     scheduledDate: string;
     status: string;
     finalScore?: string;
-    matchOutcome?: string; // "WIN", "LOSS" or "DRAW"
+    matchOutcome?: MatchOutcome;
 }
 
 export interface TeamDashboardData {
@@ -160,7 +163,7 @@ export interface FormPoint {
     matchId: number;
     date: string;
     opponentName: string;
-    matchOutcome: string;
+    matchOutcome: MatchOutcome;
     winRatePercentage: number;
 }
 

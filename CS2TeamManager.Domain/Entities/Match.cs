@@ -24,6 +24,14 @@ public class Match
 
     public int? BestOf { get; set; }  // e.g., 3
 
+    // Worked out from the series score, so every endpoint reports results the same way.
+    public MatchOutcome Outcome =>
+        OurScore > OpponentScore ? MatchOutcome.Win
+        : OurScore < OpponentScore ? MatchOutcome.Loss
+        : MatchOutcome.Draw;
+
+    public string FinalScore => $"{OurScore} - {OpponentScore}";
+
     public ICollection<MatchMap> Maps { get; set; } = new List<MatchMap>();
 
     public string? Notes { get; set; }

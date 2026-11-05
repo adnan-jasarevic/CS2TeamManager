@@ -20,5 +20,5 @@ public class MatchResponseDto
 
     public string FinalScore { get; set; } = string.Empty;
 
-    public string MatchOutcome { get; set; } = string.Empty;
+    public string MatchOutcome { get; set; } = string.Empty; // "Win", "Loss" or "Draw"
 }

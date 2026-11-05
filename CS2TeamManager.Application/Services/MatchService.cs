@@ -98,13 +98,13 @@ public class MatchService : IMatchService
         int wins = 0;
         foreach (var match in finished)
         {
-            if (match.OurScore > match.OpponentScore) wins++;
+            if (match.Outcome == MatchOutcome.Win) wins++;
             form.Add(new FormPointDto
             {
                 MatchId = match.Id,
                 Date = match.PlayedDate ?? match.ScheduledDate,
                 OpponentName = match.OpponentName,
-                MatchOutcome = Outcome(match),
+                MatchOutcome = match.Outcome.ToString(),
                 WinRatePercentage = Percentage(wins, form.Count + 1)
             });
         }
@@ -120,9 +120,6 @@ public class MatchService : IMatchService
 
     private static int Percentage(int part, int total) =>
         total == 0 ? 0 : (int)Math.Round((double)part / total * 100);
-
-    private static string Outcome(Match match) =>
-        match.OurScore > match.OpponentScore ? "Win" : match.OurScore < match.OpponentScore ? "Loss" : "Draw";
 
     // Works out the series score from the played maps: rounds for a Bo1, maps won otherwise.
     // Returns null when no map has a score, so the score entered for the match is used instead.
@@ -142,10 +139,6 @@ public class MatchService : IMatchService
 
     private MatchDto MapToDto(Match match)
     {
-        string outcome = "Draw";
-        if (match.OurScore > match.OpponentScore) outcome = "Win";
-        else if (match.OurScore < match.OpponentScore) outcome = "Loss";
-
         return new MatchDto
         {
             Id = match.Id,
@@ -155,7 +148,7 @@ public class MatchService : IMatchService
             PlayedDate = match.PlayedDate,
             Status = match.Status.ToString(), // turns enum into string for easier display in the UI
             Type = match.Type.ToString(),
-            FinalScore = $"{match.OurScore} - {match.OpponentScore}",
+            FinalScore = match.FinalScore,
             BestOf = match.BestOf,
             Maps = match.Maps
                 .OrderBy(m => m.Order)
@@ -170,7 +163,7 @@ public class MatchService : IMatchService
                     OpponentSecondHalf = m.OpponentSecondHalf
                 })
                 .ToList(),
-            MatchOutcome = outcome,
+            MatchOutcome = match.Outcome.ToString(),
             Notes = match.Notes
         };
     }
