@@ -9,6 +9,8 @@ namespace RosterSensei.Application.Services;
 
 public class TeamService : ITeamService
 {
+    private const int MaxOwnedTeams = 3;
+
     private readonly ITeamRepository _teamRepository;
     private readonly IIdentityService _identityService;
 
@@ -20,10 +22,6 @@ public class TeamService : ITeamService
 
     public async Task<Result<TeamDto>> CreateTeamAsync(string userId, CreateTeamDto dto)
     {
-        int ownedCount = await _teamRepository.GetOwnedTeamsCountAsync(userId);
-        if (ownedCount >= 3)
-            return Result<TeamDto>.Failure("You cannot own more than 3 teams.");
-
         var newTeam = new Team
         {
             Name = dto.Name,
@@ -39,13 +37,17 @@ public class TeamService : ITeamService
             JoinedAt = DateTime.UtcNow
         });
 
-        var savedTeam = await _teamRepository.AddAsync(newTeam);
+        var outcome = await _teamRepository.AddOwnedTeamAsync(newTeam, MaxOwnedTeams);
+        if (outcome == WriteOutcome.Rejected)
+            return Result<TeamDto>.Failure($"You cannot own more than {MaxOwnedTeams} teams.");
+        if (outcome == WriteOutcome.Conflict)
+            return Result<TeamDto>.Failure("Another team was created for you at the same time. Refresh and try again.");
 
         var teamDto = new TeamDto
         {
-            Id = savedTeam.Id,
-            Name = savedTeam.Name,
-            CreatedAt = savedTeam.CreatedAt,
+            Id = newTeam.Id,
+            Name = newTeam.Name,
+            CreatedAt = newTeam.CreatedAt,
             CurrentUserRole = TeamRole.Captain.ToString(),
             IsOwner = true
         };
@@ -124,8 +126,9 @@ public class TeamService : ITeamService
         if (team.OwnerId == memberIdToRemove)
             return Result<string>.Failure("The Owner cannot be removed. Transfer ownership to an Officer or delete the team first.");
 
-        team.Members.Remove(memberToRemove);
-        await _teamRepository.UpdateAsync(team);
+        // The checks above give clear messages; the delete repeats them so a concurrent ownership change can't slip through.
+        if (!await _teamRepository.RemoveMemberAsync(teamId, memberIdToRemove, ownerId))
+            return Result<string>.Failure("The team changed while removing this player. Refresh and try again.");
 
         return Result<string>.SuccessResult("The User has been successfully removed from the team.");
     }
@@ -140,7 +143,7 @@ public class TeamService : ITeamService
         if (member.IsOwner)
             return Result<string>.Failure("You own this team. Transfer ownership to an Officer or delete the team before leaving.");
 
-        if (!await _teamRepository.RemoveNonOwnerMemberAsync(teamId, userId))
+        if (!await _teamRepository.RemoveMemberAsync(teamId, userId, userId))
             return Result<string>.Failure("You became the Owner of this team in the meantime. Refresh and try again.");
 
         return Result<string>.SuccessResult($"You left {member.Team.Name}.");
@@ -275,9 +278,11 @@ public class TeamService : ITeamService
                 return Result<string>.Failure($"This team already has a Captain ({captain.Username}). Change their role first.");
         }
 
-        targetMember.Role = newRole;
-        if (!await _teamRepository.UpdateTeamMemberAsync(targetMember))
+        var outcome = await _teamRepository.ChangeMemberRoleAsync(teamId, currentUserId, targetMemberId, newRole);
+        if (outcome == WriteOutcome.Rejected)
             return Result<string>.Failure("This team already has a Captain. Change their role first.");
+        if (outcome == WriteOutcome.Conflict)
+            return Result<string>.Failure("The team changed while updating this role. Refresh and try again.");
 
         return Result<string>.SuccessResult("Role updated successfully.");
     }
@@ -298,12 +303,11 @@ public class TeamService : ITeamService
         if (newOwner.Role != TeamRole.Officer)
             return Result<string>.Failure("Ownership can only be transferred to an Officer. Make them an Officer first.");
 
-        int ownedCount = await _teamRepository.GetOwnedTeamsCountAsync(newOwnerId);
-        if (ownedCount >= 3)
-            return Result<string>.Failure("This member already owns 3 teams and cannot take ownership of another.");
-
         // Only ownership moves: both keep their roles, so the old Owner stays on as Captain, Officer or Player.
-        if (!await _teamRepository.TransferOwnershipAsync(teamId, currentOwnerId, newOwnerId))
+        var outcome = await _teamRepository.TransferOwnershipAsync(teamId, currentOwnerId, newOwnerId, MaxOwnedTeams);
+        if (outcome == WriteOutcome.Rejected)
+            return Result<string>.Failure($"This member already owns {MaxOwnedTeams} teams and cannot take ownership of another.");
+        if (outcome == WriteOutcome.Conflict)
             return Result<string>.Failure("The roles changed while transferring ownership. Refresh and try again.");
 
         return Result<string>.SuccessResult("Ownership transferred successfully.");

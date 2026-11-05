@@ -7,22 +7,29 @@ public interface ITeamRepository
 {
     Task<Team?> GetByIdAsync(int id);
     Task<List<Team>> GetTeamsByUserIdAsync(string userId);
-    Task<int> GetOwnedTeamsCountAsync(string userId);
-    Task<Team> AddAsync(Team team);
-    Task UpdateAsync(Team team);
+
+    // Saves a new team owned by team.OwnerId unless they already own maxOwnedTeams.
+    // The count and the insert run in one serializable transaction, so two requests at once can't both get past the limit.
+    // Rejected: the limit is reached. Conflict: a concurrent request for the same user won.
+    Task<WriteOutcome> AddOwnedTeamAsync(Team team, int maxOwnedTeams);
+
     Task<bool> IsUserInTeamAsync(int teamId, string userId);
     Task<int> GetTeamMemberCountAsync(int teamId);
     Task<List<Match>> GetTeamMatchesAsync(int teamId);
     Task<List<(TeamMember Member, string Email, string Username)>> GetTeamMembersWithUserDetailsAsync(int teamId);
     Task<TeamMember?> GetTeamMemberAsync(int teamId, string userId);
-    // Returns false when the database rejects the change (for example a second Captain added at the same time).
-    Task<bool> UpdateTeamMemberAsync(TeamMember member);
 
-    // Makes an Officer the Owner. Returns false if the Owner or the Officer's role changed meanwhile.
-    Task<bool> TransferOwnershipAsync(int teamId, string currentOwnerId, string newOwnerId);
+    // Sets a member's role, only while ownerId still owns the team.
+    // Rejected: the team already has a Captain. Conflict: ownership changed or the member left meanwhile.
+    Task<WriteOutcome> ChangeMemberRoleAsync(int teamId, string ownerId, string memberId, TeamRole newRole);
 
-    // Removes a member who doesn't own the team. Returns false if they aren't a member or own the team.
-    Task<bool> RemoveNonOwnerMemberAsync(int teamId, string userId);
+    // Makes an Officer the Owner, unless they already own maxOwnedTeams.
+    // Rejected: the limit is reached. Conflict: the Owner or the Officer's role changed meanwhile.
+    Task<WriteOutcome> TransferOwnershipAsync(int teamId, string currentOwnerId, string newOwnerId, int maxOwnedTeams);
+
+    // Removes a member who doesn't own the team, when requesterId is the team's Owner or the member themselves.
+    // Checked in the delete itself, so a concurrent ownership change can't slip through. Returns false if nothing was removed.
+    Task<bool> RemoveMemberAsync(int teamId, string memberId, string requesterId);
 
     // Deletes the team with its matches, events, members and invites in one transaction.
     // Returns false if ownerId no longer owns the team.
