@@ -31,11 +31,9 @@ builder.Services.AddCors(options =>
          .AllowAnyHeader());
 });
 
-// dbcontext registration
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
 
-// identity sys registration
 builder.Services.AddIdentity<AppUser, IdentityRole>()
     .AddEntityFrameworkStores<AppDbContext>()
     .AddDefaultTokenProviders();
@@ -60,7 +58,6 @@ builder.Services.AddAuthentication(options =>
     };
 });
 
-// controllers
 builder.Services.AddControllers(options =>
 {
     options.Filters.Add<CS2TeamManager.Api.Filters.ValidationFilter>();
@@ -75,7 +72,6 @@ builder.Services.AddProblemDetails();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
-// DEPENDENCY INJECTION FOR REPOS & SERVICES (HEAVEN/HELL ON EARTH)
 builder.Services.AddScoped<ITeamRepository, TeamRepository>();
 builder.Services.AddScoped<ITeamService, TeamService>();
 builder.Services.AddScoped<IIdentityService, CS2TeamManager.Infrastructure.Services.IdentityService>();

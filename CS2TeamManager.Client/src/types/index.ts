@@ -10,7 +10,7 @@ export interface Team {
     id: number;
     name: string;
     createdAt: string;
-    currentUserRole: string; // "Owner", "Player"
+    currentUserRole: string; // "Owner", "Captain", "Officer" or "Player"
 }
 
 export interface MatchMap {
@@ -43,7 +43,7 @@ export interface MatchResponse {
     scheduledDate: string;
     status: string;
     finalScore?: string;
-    matchOutcome?: string; // "WIN", "LOSS", "DRAW"
+    matchOutcome?: string; // "WIN", "LOSS" or "DRAW"
 }
 
 export interface TeamDashboardData {

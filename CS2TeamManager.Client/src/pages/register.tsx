@@ -4,19 +4,17 @@ import api from '../services/api';
 import { getApiErrorMessage } from '../services/errors';
 import axios, { AxiosError } from 'axios';
 
-// Expected shape of the request sent to C# backend
 type RegisterRequest = {
     username: string;
     email: string;
     password: string;
 };
 
-// Expected success response from C# (Ok(new { message = "..." }))
 type RegisterResponse = {
     message: string;
 };
 
-// Expected error response from C# Identity (BadRequest(result.Errors))
+// Identity's errors, returned as an array when registration fails.
 type IdentityError = {
     code: string;
     description: string;
@@ -27,7 +25,6 @@ function isAxiosError<T>(error: unknown): error is AxiosError<T> {
 }
 
 export default function Register() {
-    // Initialize useNavigate for programmatic navigation
     const navigate = useNavigate();
 
     const [username, setUsername] = useState('');
@@ -59,13 +56,11 @@ export default function Register() {
                 setSuccessMessage('Account created successfully. Redirecting to login...');
             }
 
-            // Clear form fields
             setUsername('');
             setEmail('');
             setPassword('');
             setConfirmPassword('');
 
-            // Automatically redirect to the login page after 2 seconds
             setTimeout(() => {
                 navigate('/login');
             }, 2000);

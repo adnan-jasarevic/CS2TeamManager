@@ -480,3 +480,7 @@ $RECYCLE.BIN/
 
 # Vim temporary swap files
 *.swp
+
+# Visual Studio website project code analysis output
+*.lastcodeanalysissucceeded
+CodeAnalysisLog.xml

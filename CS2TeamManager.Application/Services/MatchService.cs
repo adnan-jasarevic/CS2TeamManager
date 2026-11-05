@@ -9,7 +9,7 @@ namespace CS2TeamManager.Application.Services;
 public class MatchService : IMatchService
 {
     private readonly IMatchRepository _matchRepository;
-    private readonly ITeamRepository _teamRepository; // Needed to check whether the user belongs to that team
+    private readonly ITeamRepository _teamRepository;
 
     public MatchService(IMatchRepository matchRepository, ITeamRepository teamRepository)
     {

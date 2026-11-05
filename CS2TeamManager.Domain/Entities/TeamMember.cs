@@ -5,7 +5,7 @@ namespace CS2TeamManager.Domain.Entities;
 public class TeamMember
 {
     public string UserId { get; set; } = string.Empty;
-    // AppUser comes from the identity layer, which is in the Infra layer, so the Domain layer doesn't know about AppUser directly.
+    // The Identity user (AppUser) lives in Infrastructure, so the Domain only keeps its ID.
 
     public int TeamId { get; set; }
     public Team Team { get; set; } = null!;
