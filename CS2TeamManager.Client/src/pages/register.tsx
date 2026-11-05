@@ -6,19 +6,17 @@ import { getApiErrorMessage } from '../services/errors';
 import AuthLayout from '../components/auth-layout';
 import { Alert, Button, Field, Input, PasswordInput } from '../components/ui';
 
-// Expected shape of the request sent to C# backend
 type RegisterRequest = {
     username: string;
     email: string;
     password: string;
 };
 
-// Expected success response from C# (Ok(new { message = "..." }))
 type RegisterResponse = {
     message: string;
 };
 
-// Expected error response from C# Identity (BadRequest(result.Errors))
+// Identity's errors, returned as an array when registration fails.
 type IdentityError = {
     code: string;
     description: string;
@@ -72,7 +70,6 @@ export default function Register() {
             const response = await api.post<RegisterResponse>('/Auth/register', payload);
             setSuccessMessage(`${response.data?.message?.replace(/\.$/, '') || 'Account created'}. Redirecting to login...`);
         } catch (err: unknown) {
-            console.error('Error while trying to register:', err);
             setError(registerErrorMessage(err));
         } finally {
             setIsSubmitting(false);

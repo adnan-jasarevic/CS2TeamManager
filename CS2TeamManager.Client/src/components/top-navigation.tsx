@@ -5,7 +5,7 @@ import { Bell, LogOut, Mail, Moon, Sun } from 'lucide-react';
 import api from '../services/api';
 import { getApiErrorMessage } from '../services/errors';
 import { useTheme } from '../theme/theme-context';
-import { type Team, type TeamInvite } from '../types';
+import { type Team, type TeamInvite, roleLabel } from '../types';
 import { LogoMark } from './brand/logo';
 import { Alert, Button, EmptyState, Field, IconButton, Modal, Select } from './ui';
 
@@ -40,8 +40,8 @@ export default function TopNavigation({ teams, selectedTeam, onSelectTeam, onInv
         try {
             const response = await api.get<TeamInvite[]>('/Teams/my-invites');
             if (seq === fetchSeq.current) setInvites(response.data);
-        } catch (err) {
-            console.error('Failed to load invites', err);
+        } catch {
+            // Keep showing the last list that loaded; the next refresh tries again.
         }
     }, []);
 
@@ -78,12 +78,12 @@ export default function TopNavigation({ teams, selectedTeam, onSelectTeam, onInv
 
             if (isAccepted) onInviteAccepted();
         } catch (err) {
-            console.error('Failed to respond to invite', err);
             setFeedback({ type: 'error', text: getApiErrorMessage(err, 'Failed to process your response. Please try again.') });
 
-            // A 400 means the invite is no longer answerable (already answered, already a member...),
-            // so reload the list instead of leaving a stale invite on screen.
-            if (axios.isAxiosError(err) && err.response?.status === 400) fetchInvites();
+            // A 400, 403 or 404 means the invite is no longer answerable (already answered, already a
+            // member, deleted...), so reload the list instead of leaving a stale invite on screen.
+            const status = axios.isAxiosError(err) ? err.response?.status : undefined;
+            if (status === 400 || status === 403 || status === 404) fetchInvites();
         } finally {
             respondingRef.current.delete(invite.inviteId);
             setRespondingIds(ids => ids.filter(id => id !== invite.inviteId));
@@ -102,7 +102,7 @@ export default function TopNavigation({ teams, selectedTeam, onSelectTeam, onInv
                         <Field label="Team" hideLabel>
                             <Select value={selectedTeam.id} onChange={e => onSelectTeam(Number(e.target.value))}>
                                 {teams.map(team => (
-                                    <option key={team.id} value={team.id}>{team.name} ({team.currentUserRole})</option>
+                                    <option key={team.id} value={team.id}>{team.name} ({roleLabel(team)})</option>
                                 ))}
                             </Select>
                         </Field>

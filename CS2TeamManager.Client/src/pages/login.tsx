@@ -2,14 +2,15 @@
 import React, { useState } from 'react';
 import axios from 'axios';
 import api from '../services/api';
-import { type UserUser } from '../types';
+import { getApiErrorMessage } from '../services/errors';
+import { type LoginResponse } from '../types';
 import AuthLayout from '../components/auth-layout';
 import { Alert, Button, Field, Input, PasswordInput } from '../components/ui';
 
 const loginErrorMessage = (err: unknown) => {
     if (axios.isAxiosError(err) && !err.response) return "Can't reach the server. Check your connection and try again.";
-    if (axios.isAxiosError(err) && (err.response?.status === 400 || err.response?.status === 401)) return 'Wrong email or password. Try again.';
-    return 'Something went wrong on our side. Please try again.';
+    if (axios.isAxiosError(err) && err.response && err.response.status >= 500) return 'Something went wrong on our side. Please try again.';
+    return getApiErrorMessage(err, 'Wrong email or password. Try again.');
 };
 
 export default function Login() {
@@ -26,11 +27,10 @@ export default function Login() {
         setIsSubmitting(true);
 
         try {
-            const response = await api.post<UserUser>('/Auth/login', { email, password });
+            const response = await api.post<LoginResponse>('/Auth/login', { email, password });
             localStorage.setItem('jwt_token', response.data.token);
             navigate('/dashboard');
         } catch (err) {
-            console.error('Error while trying to log in:', err);
             setError(loginErrorMessage(err));
             setIsSubmitting(false);
         }

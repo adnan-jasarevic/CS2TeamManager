@@ -52,7 +52,7 @@ function MatchesContent({ team }: { team: Team }) {
     const { data: matches, error, isLoading, isFetching, reload } = useResource(load, 'Failed to load matches.');
     const [filter, setFilter] = useState<Filter>('all');
     const [isAddMatchOpen, setIsAddMatchOpen] = useState(false);
-    const canManageMatches = canManageTeam(team.currentUserRole);
+    const canManageMatches = canManageTeam(team);
 
     // The API returns matches newest first.
     const visibleMatches = (matches ?? []).filter(m => {

@@ -9,7 +9,7 @@ namespace CS2TeamManager.Application.Services;
 public class MatchService : IMatchService
 {
     private readonly IMatchRepository _matchRepository;
-    private readonly ITeamRepository _teamRepository; // Needed to check whether the user belongs to that team
+    private readonly ITeamRepository _teamRepository;
 
     public MatchService(IMatchRepository matchRepository, ITeamRepository teamRepository)
     {
@@ -21,11 +21,11 @@ public class MatchService : IMatchService
     {
         var team = await _teamRepository.GetByIdAsync(teamId);
         if (team == null)
-            return Result<MatchDto>.Failure("Team was not found.");
+            return Result<MatchDto>.NotFound("Team was not found.");
 
         var member = team.Members.FirstOrDefault(m => m.UserId == userId);
-        if (member == null || !member.Role.CanManageTeam())
-            return Result<MatchDto>.Failure("Only the team Owner, Captain or Officers can add matches.");
+        if (member == null || !member.CanManageTeam)
+            return Result<MatchDto>.Forbidden("Only the team Owner, Captain or Officers can add matches.");
 
         var maps = (dto.Maps ?? new List<MatchMapDto>())
             .Select((map, index) => new MatchMap
@@ -68,10 +68,10 @@ public class MatchService : IMatchService
     public async Task<Result<List<MatchDto>>> GetTeamMatchesAsync(string userId, int teamId)
     {
         var team = await _teamRepository.GetByIdAsync(teamId);
-        if (team == null) return Result<List<MatchDto>>.Failure("Team was not found.");
+        if (team == null) return Result<List<MatchDto>>.NotFound("Team was not found.");
 
         if (!team.Members.Any(m => m.UserId == userId))
-            return Result<List<MatchDto>>.Failure("You don't have access to the matches of this team.");
+            return Result<List<MatchDto>>.Forbidden("You don't have access to the matches of this team.");
 
         var matches = await _matchRepository.GetMatchesByTeamIdAsync(teamId);
         
@@ -83,7 +83,7 @@ public class MatchService : IMatchService
     public async Task<Result<TeamStatsDto>> GetTeamStatsAsync(string userId, int teamId, MatchKind? type)
     {
         if (await _teamRepository.GetTeamMemberAsync(teamId, userId) == null)
-            return Result<TeamStatsDto>.Failure("You don't have access to the statistics of this team.");
+            return Result<TeamStatsDto>.Forbidden("You don't have access to the statistics of this team.");
 
         var maps = await _matchRepository.GetMapStatsAsync(teamId, type);
         foreach (var map in maps)

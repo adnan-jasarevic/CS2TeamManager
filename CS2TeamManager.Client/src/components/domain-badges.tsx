@@ -21,10 +21,14 @@ export function MatchStatusBadge({ status }: { status: string }) {
 }
 
 const ROLES: Record<string, { tone: BadgeTone; icon?: React.ReactNode }> = {
-    Owner: { tone: 'accent', icon: <Crown /> },
     Captain: { tone: 'warning', icon: <Star /> },
     Officer: { tone: 'neutral', icon: <Shield /> },
 };
+
+/** Ownership isn't a role: the Owner also has a role, so this badge sits next to RoleBadge. */
+export function OwnerBadge() {
+    return <Badge tone="accent" icon={<Crown />}>Owner</Badge>;
+}
 
 export function RoleBadge({ role }: { role: string }) {
     const config = ROLES[role] ?? { tone: 'neutral' as const };

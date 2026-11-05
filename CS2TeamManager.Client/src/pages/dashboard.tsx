@@ -1,19 +1,21 @@
-﻿import { useCallback, useState, type FormEvent } from 'react';
+﻿import { useCallback, useState } from 'react';
 import { CalendarDays, CalendarPlus, Percent, Plus, Swords, Trophy, Users } from 'lucide-react';
 import api from '../services/api';
-import { getApiErrorMessage } from '../services/errors';
 import { useResource, type ResourceLoader } from '../hooks/use-resource';
 import { formatDate, formatTime } from '../lib/format';
 import { type MatchResponse, type Team, type TeamDashboardData, canManageTeam } from '../types';
 import AddMatchModal from '../components/add-match-modal';
+import CreateTeamModal from '../components/create-team-modal';
 import { OutcomeBadge } from '../components/domain-badges';
 import { useLayoutContext } from '../components/layout-context';
 import PageHeader, { PageContainer } from '../components/page-header';
 import { ListSkeleton, StatsSkeleton } from '../components/page-skeletons';
 import TeamGate from '../components/team-gate';
-import { Alert, Button, Card, CardHeader, EmptyState, ErrorState, Field, Input, LinkButton, Modal, StatGrid, StatTile, useToast } from '../components/ui';
+import { Alert, Button, Card, CardHeader, EmptyState, ErrorState, LinkButton, StatGrid, StatTile, useToast } from '../components/ui';
 
 export default function Dashboard() {
+    const { selectTeam, reloadTeams } = useLayoutContext();
+    const toast = useToast();
     const [isCreateOpen, setIsCreateOpen] = useState(false);
 
     return (
@@ -37,7 +39,16 @@ export default function Dashboard() {
                 {team => <DashboardContent key={team.id} team={team} onCreateTeam={() => setIsCreateOpen(true)} />}
             </TeamGate>
 
-            <CreateTeamDialog open={isCreateOpen} onClose={() => setIsCreateOpen(false)} />
+            {isCreateOpen && (
+                <CreateTeamModal
+                    onClose={() => setIsCreateOpen(false)}
+                    onCreated={team => {
+                        selectTeam(team.id);
+                        reloadTeams();
+                        toast.success(`${team.name} is ready. Invite your players next.`);
+                    }}
+                />
+            )}
         </>
     );
 }
@@ -49,7 +60,7 @@ function DashboardContent({ team, onCreateTeam }: { team: Team; onCreateTeam: ()
     );
     const { data, error, isLoading, isFetching, reload } = useResource(load, 'Failed to load team statistics.');
     const [isAddMatchOpen, setIsAddMatchOpen] = useState(false);
-    const canManageMatches = canManageTeam(team.currentUserRole);
+    const canManageMatches = canManageTeam(team);
 
     return (
         <PageContainer>
@@ -158,60 +169,5 @@ function MatchListCard({ title, matches, emptyState, renderLeading, renderTraili
             </div>
             <div className="p-5 pt-3">{footerLink}</div>
         </Card>
-    );
-}
-
-function CreateTeamDialog({ open, onClose }: { open: boolean; onClose: () => void }) {
-    const { selectTeam, reloadTeams } = useLayoutContext();
-    const toast = useToast();
-    const [name, setName] = useState('');
-    const [error, setError] = useState('');
-    const [isCreating, setIsCreating] = useState(false);
-
-    const close = () => {
-        setName('');
-        setError('');
-        onClose();
-    };
-
-    const handleSubmit = async (e: FormEvent) => {
-        e.preventDefault();
-        setError('');
-        setIsCreating(true);
-        try {
-            const response = await api.post<Team>('/Teams', { name: name.trim() });
-            if (response.data?.id) selectTeam(response.data.id);
-            reloadTeams();
-            toast.success(`${name.trim()} is ready. Invite your players next.`);
-            close();
-        } catch (err) {
-            setError(getApiErrorMessage(err, 'Failed to create the team.'));
-        } finally {
-            setIsCreating(false);
-        }
-    };
-
-    return (
-        <Modal
-            open={open}
-            onClose={close}
-            title="Create a new team"
-            size="sm"
-            busy={isCreating}
-            closeOnBackdrop={false}
-            footer={
-                <>
-                    <Button variant="ghost" onClick={close} disabled={isCreating}>Cancel</Button>
-                    <Button type="submit" form="create-team-form" disabled={!name.trim()} loading={isCreating} loadingText="Creating...">Create team</Button>
-                </>
-            }
-        >
-            <form id="create-team-form" onSubmit={handleSubmit} className="flex flex-col gap-4">
-                {error && <Alert tone="danger">{error}</Alert>}
-                <Field label="Team name">
-                    <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Tokyo Ronin" maxLength={100} autoComplete="off" data-autofocus />
-                </Field>
-            </form>
-        </Modal>
     );
 }

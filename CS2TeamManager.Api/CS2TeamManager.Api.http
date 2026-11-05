@@ -22,21 +22,20 @@ Content-Type: application/json
   "password": "Password123!"
 }
 
-### team creation
+### CREATE A TEAM
 POST {{CS2TeamManager.Api_HostAddress}}/api/Teams
 Content-Type: application/json
 Authorization: Bearer {{login.response.body.$.token}}
 
 {
-  "name": "Novi CS2 Tim",
-  "description": "Opis mog tima"
+  "name": "New CS2 Team"
 }
 
-### get teams
+### GET MY TEAMS
 GET {{CS2TeamManager.Api_HostAddress}}/api/Teams/my-teams
 Authorization: Bearer {{login.response.body.$.token}}
 
-### PLAYER REGISTRY
+### REGISTER A SECOND PLAYER
 POST {{CS2TeamManager.Api_HostAddress}}/api/Auth/register
 Content-Type: application/json
 
@@ -46,7 +45,7 @@ Content-Type: application/json
   "password": "Password123!"
 }
 
-### ADDING PLAYERS TO A TEAM
+### INVITE A PLAYER TO TEAM 1
 POST {{CS2TeamManager.Api_HostAddress}}/api/Teams/1/members
 Content-Type: application/json
 Authorization: Bearer {{login.response.body.$.token}}
@@ -65,24 +64,26 @@ Authorization: Bearer {{login.response.body.$.token}}
   "tournament": "ESL Pro League",
   "scheduledDate": "2026-03-02T18:00:00Z",
   "playedDate": "2026-03-02T20:00:00Z",
-  "status": 2, 
-  "ourScore": 13,
-  "opponentScore": 10,
+  "status": 2,
+  "type": 0,
   "bestOf": 3,
-  "maps": ["Mirage", "Inferno"],
-  "notes": "Sunpayus destroyed us on the first map but we came back"
+  "maps": [
+    { "mapName": "Mirage", "ourScore": 10, "opponentScore": 13, "ourFirstHalf": 4, "opponentFirstHalf": 8, "ourSecondHalf": 6, "opponentSecondHalf": 5 },
+    { "mapName": "Inferno", "ourScore": 13, "opponentScore": 9 },
+    { "mapName": "Nuke", "ourScore": 13, "opponentScore": 11 }
+  ],
+  "notes": "Lost Mirage, came back on Inferno and Nuke"
 }
 
 ### GET ALL MATCHES FOR TEAM 1
 GET {{CS2TeamManager.Api_HostAddress}}/api/Matches/1
 Authorization: Bearer {{login.response.body.$.token}}
 
-### team creation with a mistake
+### CREATE A TEAM WITH AN INVALID NAME (returns 400)
 POST {{CS2TeamManager.Api_HostAddress}}/api/Teams
 Content-Type: application/json
 Authorization: Bearer {{login.response.body.$.token}}
 
 {
-  "name": "A",
-  "description": "description x description 101"
+  "name": "A"
 }

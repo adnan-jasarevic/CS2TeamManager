@@ -40,9 +40,8 @@ public class AppDbContext : IdentityDbContext<AppUser>
     {
         base.OnModelCreating(builder);
 
-        // Teams and Members Config (many-to-many)
         builder.Entity<TeamMember>()
-            .HasKey(tm => new { tm.UserId, tm.TeamId }); // Composite key
+            .HasKey(tm => new { tm.UserId, tm.TeamId });
 
         // Plain index for the Team foreign key, kept alongside the filtered one below.
         builder.Entity<TeamMember>()
@@ -53,6 +52,20 @@ public class AppDbContext : IdentityDbContext<AppUser>
             .HasIndex(tm => tm.TeamId, "IX_TeamMembers_OneCaptainPerTeam")
             .IsUnique()
             .HasFilter("[Role] = 1");
+
+        // At most one pending invite per user per team, even when two invites are sent at the same time.
+        builder.Entity<TeamInvite>(invite =>
+        {
+            invite.Property(i => i.TargetUserId)
+                .HasMaxLength(450);
+
+            // Plain index for the Team foreign key, kept alongside the filtered one below.
+            invite.HasIndex(i => i.TeamId);
+
+            invite.HasIndex(i => new { i.TeamId, i.TargetUserId }, "IX_TeamInvites_OnePendingPerUser")
+                .IsUnique()
+                .HasFilter("[Status] = 0 AND [TargetUserId] IS NOT NULL");
+        });
 
         builder.Entity<TeamMember>()
             .HasOne<AppUser>()
@@ -75,7 +88,6 @@ public class AppDbContext : IdentityDbContext<AppUser>
             .WithMany(u => u.MatchStats)
             .HasForeignKey(s => s.UserId);
 
-        // Match config
         builder.Entity<Match>()
             .HasOne(m => m.Team)
             .WithMany(t => t.Matches)
@@ -118,9 +130,21 @@ public class AppDbContext : IdentityDbContext<AppUser>
                 .IsUnique();
         });
 
-        builder.Entity<Team>()
-            .Property(t => t.Name)
-            .IsRequired()
-            .HasMaxLength(100);
+        builder.Entity<Team>(team =>
+        {
+            team.Property(t => t.Name)
+                .IsRequired()
+                .HasMaxLength(100);
+
+            // Ownership lives on the team, so a team always has exactly one Owner.
+            team.Property(t => t.OwnerId)
+                .IsRequired()
+                .HasMaxLength(450);
+
+            team.HasOne<AppUser>()
+                .WithMany()
+                .HasForeignKey(t => t.OwnerId)
+                .OnDelete(DeleteBehavior.Restrict);
+        });
     }
 }

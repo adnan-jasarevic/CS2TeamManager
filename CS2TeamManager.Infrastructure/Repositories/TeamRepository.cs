@@ -32,8 +32,7 @@ public class TeamRepository : ITeamRepository
 
     public async Task<int> GetOwnedTeamsCountAsync(string userId)
     {
-        return await _context.TeamMembers
-            .CountAsync(tm => tm.UserId == userId && tm.Role == Domain.Enums.TeamRole.Owner);
+        return await _context.Teams.CountAsync(t => t.OwnerId == userId);
     }
 
     public async Task<Team> AddAsync(Team team)
@@ -89,19 +88,38 @@ public class TeamRepository : ITeamRepository
     public async Task<TeamMember?> GetTeamMemberAsync(int teamId, string userId)
     {
         return await _context.TeamMembers
+            .Include(tm => tm.Team)
             .FirstOrDefaultAsync(tm => tm.TeamId == teamId && tm.UserId == userId);
     }
 
-    public async Task UpdateTeamMemberAsync(TeamMember member)
+    public async Task<bool> UpdateTeamMemberAsync(TeamMember member)
     {
-        _context.TeamMembers.Update(member);
-        await _context.SaveChangesAsync();
+        // Marks only the member as changed, not the Team loaded with it.
+        _context.Entry(member).State = EntityState.Modified;
+        try
+        {
+            await _context.SaveChangesAsync();
+            return true;
+        }
+        catch (DbUpdateException)
+        {
+            // A unique index (one Captain per team) rejected the change.
+            await _context.Entry(member).ReloadAsync();
+            return false;
+        }
     }
 
-    public async Task UpdateTeamMembersAsync(IEnumerable<TeamMember> members)
+    public async Task<bool> TransferOwnershipAsync(int teamId, string currentOwnerId, string newOwnerId)
     {
-        _context.TeamMembers.UpdateRange(members);
-        await _context.SaveChangesAsync();
+        // One conditional update: it only applies while the requester still owns the team and the
+        // new Owner is still an Officer in it, so a concurrent change makes the transfer fail cleanly.
+        var updated = await _context.Teams
+            .Where(t => t.Id == teamId
+                && t.OwnerId == currentOwnerId
+                && t.Members.Any(m => m.UserId == newOwnerId && m.Role == TeamRole.Officer))
+            .ExecuteUpdateAsync(s => s.SetProperty(t => t.OwnerId, newOwnerId));
+
+        return updated == 1;
     }
 
     public async Task<TeamInvite?> GetPendingInviteAsync(int teamId, string email)
@@ -110,10 +128,20 @@ public class TeamRepository : ITeamRepository
             .FirstOrDefaultAsync(i => i.TeamId == teamId && i.TargetUserEmail == email && i.Status == InviteStatus.Pending);
     }
 
-    public async Task CreateInviteAsync(TeamInvite invite)
+    public async Task<bool> CreateInviteAsync(TeamInvite invite)
     {
-        await _context.TeamInvites.AddAsync(invite);
-        await _context.SaveChangesAsync();
+        _context.TeamInvites.Add(invite);
+        try
+        {
+            await _context.SaveChangesAsync();
+            return true;
+        }
+        catch (DbUpdateException)
+        {
+            // The one-pending-invite index rejected a duplicate sent at the same time.
+            _context.Entry(invite).State = EntityState.Detached;
+            return false;
+        }
     }
 
     public async Task<List<TeamInvite>> GetUserPendingInvitesAsync(string userId)

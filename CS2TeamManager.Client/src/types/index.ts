@@ -1,8 +1,8 @@
 ﻿// types/index.ts
 
-export interface UserUser {
+// Response of POST /Auth/login.
+export interface LoginResponse {
     username: string;
-    email: string;
     token: string;
 }
 
@@ -10,7 +10,8 @@ export interface Team {
     id: number;
     name: string;
     createdAt: string;
-    currentUserRole: string; // "Owner", "Player"
+    currentUserRole: string; // "Captain", "Officer" or "Player"
+    isOwner: boolean; // The Owner also has one of the roles above.
 }
 
 export interface MatchMap {
@@ -43,7 +44,7 @@ export interface MatchResponse {
     scheduledDate: string;
     status: string;
     finalScore?: string;
-    matchOutcome?: string; // "WIN", "LOSS", "DRAW"
+    matchOutcome?: string; // "WIN", "LOSS" or "DRAW"
 }
 
 export interface TeamDashboardData {
@@ -60,6 +61,7 @@ export interface TeamMember {
     email: string;
     username: string; 
     role: string; 
+    isOwner: boolean;
     joinedAt: string;
 }
 
@@ -169,5 +171,9 @@ export interface TeamStats {
     form: FormPoint[];
 }
 
-// Owner, Captain and Officers can invite players and manage matches and the calendar.
-export const canManageTeam = (role?: string) => role === 'Owner' || role === 'Captain' || role === 'Officer';
+// The Owner, the Captain and Officers can invite players and manage matches and the calendar.
+export const canManageTeam = (team?: Team) =>
+    !!team && (team.isOwner || team.currentUserRole === 'Captain' || team.currentUserRole === 'Officer');
+
+// How the user's place in a team is shown, for example "Owner, Captain".
+export const roleLabel = (team: Team) => team.isOwner ? `Owner, ${team.currentUserRole}` : team.currentUserRole;

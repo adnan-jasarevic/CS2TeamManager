@@ -1,10 +1,10 @@
 ﻿import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react';
-import { ArrowRightLeft, Crown, EllipsisVertical, MailPlus, UserMinus, UserPlus, Users } from 'lucide-react';
+import { ArrowRightLeft, EllipsisVertical, MailPlus, Shield, UserMinus, UserPlus, Users } from 'lucide-react';
 import api from '../services/api';
 import { getApiErrorMessage } from '../services/errors';
 import { useResource, type ResourceLoader } from '../hooks/use-resource';
 import { type Team, type TeamMember, canManageTeam } from '../types';
-import { RoleBadge } from '../components/domain-badges';
+import { OwnerBadge, RoleBadge } from '../components/domain-badges';
 import { useLayoutContext } from '../components/layout-context';
 import PageHeader, { PageContainer } from '../components/page-header';
 import TeamGate from '../components/team-gate';
@@ -57,8 +57,8 @@ function RosterContent({ team }: { team: Team }) {
     const [actionError, setActionError] = useState('');
     const [isSubmitting, setIsSubmitting] = useState(false);
 
-    const isOwner = team.currentUserRole === 'Owner';
-    const canInvite = canManageTeam(team.currentUserRole);
+    const isOwner = team.isOwner;
+    const canInvite = canManageTeam(team);
 
     // Focus returns to a removed player's menu button when the dialog closes, and the button then
     // disappears with their row once the list refreshes. Keep keyboard users in the page.
@@ -104,6 +104,7 @@ function RosterContent({ team }: { team: Team }) {
         () => api.put(`/Teams/${team.id}/members/${member.id}/role`, { newRole }),
         `${member.username} is now ${newRole === 'Officer' ? 'an' : 'a'} ${newRole}.`,
         'Failed to change role.',
+        member.isOwner ? reloadTeams : undefined, // The Owner changed their own role.
     );
 
     const executeTransfer = (member: TeamMember) => runAction(
@@ -159,19 +160,26 @@ function RosterContent({ team }: { team: Team }) {
                                             </div>
                                         </div>
                                     </td>
-                                    <td className="px-2 py-3"><RoleBadge role={member.role} /></td>
+                                    <td className="px-2 py-3">
+                                        <div className="flex flex-wrap gap-1">
+                                            {member.isOwner && <OwnerBadge />}
+                                            <RoleBadge role={member.role} />
+                                        </div>
+                                    </td>
                                     <td className="hidden px-2 py-3 text-fg-muted tabular-nums md:table-cell">
                                         {new Date(member.joinedAt).toLocaleDateString()}
                                     </td>
                                     <td className="py-3 pr-3 text-right">
-                                        {isOwner && member.role !== 'Owner' && (
+                                        {isOwner && (
                                             <Menu
                                                 label={`Actions for ${member.username}`}
                                                 renderTrigger={trigger => (
                                                     <IconButton {...trigger} size="sm" label={`Actions for ${member.username}`} icon={<EllipsisVertical className="size-5" aria-hidden="true" />} />
                                                 )}
                                             >
-                                                <MenuItem icon={<Crown />} onSelect={() => openAction({ type: 'role', member })}>Change role</MenuItem>
+                                                <MenuItem icon={<Shield />} onSelect={() => openAction({ type: 'role', member })}>Change role</MenuItem>
+                                                {/* The Owner can change their own role, but can't transfer to or kick themselves. */}
+                                                {!member.isOwner && (<>
                                                 <MenuItem
                                                     icon={<ArrowRightLeft />}
                                                     disabled={member.role !== 'Officer'}
@@ -182,6 +190,7 @@ function RosterContent({ team }: { team: Team }) {
                                                 </MenuItem>
                                                 <MenuSeparator />
                                                 <MenuItem icon={<UserMinus />} tone="danger" onSelect={() => openAction({ type: 'kick', member })}>Kick player</MenuItem>
+                                                </>)}
                                             </Menu>
                                         )}
                                     </td>
@@ -226,7 +235,7 @@ function RosterContent({ team }: { team: Team }) {
                 error={actionError}
                 confirmationText="CONFIRM"
             >
-                You are about to transfer full team ownership to <strong className="text-fg">{action?.member.username}</strong>. You will become an Officer and lose Owner privileges, including managing roles and the roster.
+                You are about to transfer full team ownership to <strong className="text-fg">{action?.member.username}</strong>. You keep your role ({team.currentUserRole}) but lose Owner privileges, including managing roles and the roster.
             </ConfirmDialog>
 
             <Modal
@@ -244,7 +253,7 @@ function RosterContent({ team }: { team: Team }) {
             >
                 <div className="flex flex-col gap-4">
                     {actionError && <Alert tone="danger">{actionError}</Alert>}
-                    <Field label="Role" hint="A team has one Captain and any number of Officers. Ownership can only be transferred to an Officer.">
+                    <Field label="Role" hint="A team has one Captain and any number of Officers, who have the same rights as the Captain. The Owner keeps Owner rights whatever their role. Ownership can only be transferred to an Officer.">
                         <Select value={newRole} onChange={e => setNewRole(e.target.value)} data-autofocus>
                             {ASSIGNABLE_ROLES.map(role => <option key={role} value={role}>{role}</option>)}
                         </Select>

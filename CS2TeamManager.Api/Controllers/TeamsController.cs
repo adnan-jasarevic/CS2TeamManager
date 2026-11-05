@@ -1,15 +1,13 @@
-﻿using CS2TeamManager.Application.DTOs;
+using CS2TeamManager.Application.DTOs;
 using CS2TeamManager.Application.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using System.Security.Claims;
 
 namespace CS2TeamManager.Api.Controllers;
 
-[Authorize] // all endpoints need a jwt token
-[ApiController]
+[Authorize]
 [Route("api/[controller]")]
-public class TeamsController : ControllerBase
+public class TeamsController : ApiControllerBase
 {
     private readonly ITeamService _teamService;
 
@@ -20,142 +18,41 @@ public class TeamsController : ControllerBase
 
     [HttpPost]
     public async Task<IActionResult> CreateTeam([FromBody] CreateTeamDto dto)
-    {
-        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
-
-        if (string.IsNullOrEmpty(userId))
-            return Unauthorized("User ID not found in token.");
-
-        var result = await _teamService.CreateTeamAsync(userId, dto);
-
-        if (!result.Success)
-            return BadRequest(new { message = result.ErrorMessage });
-
-        return Ok(result.Data);
-    }
+        => ToActionResult(await _teamService.CreateTeamAsync(UserId, dto));
 
     [HttpGet("my-teams")]
     public async Task<IActionResult> GetMyTeams()
-    {
-        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
-
-        if (string.IsNullOrEmpty(userId))
-            return Unauthorized("User ID not found in token.");
-
-        var teams = await _teamService.GetUserTeamsAsync(userId);
-
-        return Ok(teams);
-    }
+        => Ok(await _teamService.GetUserTeamsAsync(UserId));
 
     [HttpPost("{teamId}/members")]
     public async Task<IActionResult> AddMember(int teamId, [FromBody] AddTeamMemberDto dto)
-    {
-        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
-        if (string.IsNullOrEmpty(userId)) return Unauthorized();
-
-        var result = await _teamService.InviteMemberAsync(teamId, userId, dto.UserEmail);
-
-        if (!result.Success) return BadRequest(new { message = result.ErrorMessage });
-        return Ok(new { message = result.Data });
-    }
-
+        => ToMessageResult(await _teamService.InviteMemberAsync(teamId, UserId, dto.UserEmail));
 
     [HttpDelete("{teamId}/members/{memberId}")]
     public async Task<IActionResult> RemoveMember(int teamId, string memberId)
-    {
-        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
-        if (string.IsNullOrEmpty(userId)) return Unauthorized();
-
-        var result = await _teamService.RemoveMemberAsync(teamId, userId, memberId);
-
-        if (!result.Success) return BadRequest(new { message = result.ErrorMessage });
-        return Ok(new { message = result.Data });
-    }
+        => ToMessageResult(await _teamService.RemoveMemberAsync(teamId, UserId, memberId));
 
     [HttpGet("{teamId}/dashboard")]
     public async Task<IActionResult> GetTeamDashboard(int teamId)
-    {
-        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
-
-        if (string.IsNullOrEmpty(userId))
-            return Unauthorized("User ID not found in token.");
-
-        var dashboardData = await _teamService.GetTeamDashboardAsync(teamId, userId);
-
-        if (dashboardData == null)
-            return StatusCode(StatusCodes.Status403Forbidden, new { message = "You do not have access to this team's dashboard." });
-
-        return Ok(dashboardData);
-    }
+        => ToActionResult(await _teamService.GetTeamDashboardAsync(teamId, UserId));
 
     [HttpGet("{teamId}/members")]
     public async Task<IActionResult> GetTeamMembers(int teamId)
-    {
-        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
-
-        if (string.IsNullOrEmpty(userId))
-            return Unauthorized();
-
-        var members = await _teamService.GetTeamMembersAsync(teamId, userId);
-
-        if (members == null)
-            return StatusCode(StatusCodes.Status403Forbidden, new { message = "You are not a member of this team." });
-
-        return Ok(members);
-    }
+        => ToActionResult(await _teamService.GetTeamMembersAsync(teamId, UserId));
 
     [HttpPut("{teamId}/members/{memberId}/role")]
     public async Task<IActionResult> ChangeMemberRole(int teamId, string memberId, [FromBody] ChangeRoleDto dto)
-    {
-        var currentUserId = User.FindFirstValue(ClaimTypes.NameIdentifier);
-        if (string.IsNullOrEmpty(currentUserId)) return Unauthorized();
-
-        var result = await _teamService.ChangeMemberRoleAsync(teamId, currentUserId, memberId, dto.NewRole);
-
-        if (!result.Success) return BadRequest(new { message = result.ErrorMessage });
-        return Ok(new { message = result.Data });
-    }
+        => ToMessageResult(await _teamService.ChangeMemberRoleAsync(teamId, UserId, memberId, dto.NewRole));
 
     [HttpPut("{teamId}/transfer-ownership")]
     public async Task<IActionResult> TransferOwnership(int teamId, [FromBody] TransferOwnershipDto dto)
-    {
-        var currentUserId = User.FindFirstValue(ClaimTypes.NameIdentifier);
-        if (string.IsNullOrEmpty(currentUserId)) return Unauthorized();
-
-        var result = await _teamService.TransferOwnershipAsync(teamId, currentUserId, dto.NewOwnerId);
-
-        if (!result.Success) return BadRequest(new { message = result.ErrorMessage });
-        return Ok(new { message = result.Data });
-    }
+        => ToMessageResult(await _teamService.TransferOwnershipAsync(teamId, UserId, dto.NewOwnerId));
 
     [HttpGet("my-invites")]
     public async Task<IActionResult> GetMyPendingInvites()
-    {
-        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
-
-        if (string.IsNullOrEmpty(userId))
-            return Unauthorized("User ID not found in token.");
-
-        var invites = await _teamService.GetMyPendingInvitesAsync(userId);
-
-        return Ok(invites);
-    }
+        => Ok(await _teamService.GetMyPendingInvitesAsync(UserId));
 
     [HttpPost("invites/{inviteId}/respond")]
     public async Task<IActionResult> RespondToInvite(int inviteId, [FromBody] bool isAccepted)
-    {
-        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
-
-        if (string.IsNullOrEmpty(userId))
-            return Unauthorized("User ID not found in token.");
-
-        var result = await _teamService.RespondToInviteAsync(inviteId, userId, isAccepted);
-
-        if (!result.Success) return BadRequest(new { message = result.ErrorMessage });
-
-        return Ok(new { message = result.Data });
-    }
-
-
-
+        => ToMessageResult(await _teamService.RespondToInviteAsync(inviteId, UserId, isAccepted));
 }

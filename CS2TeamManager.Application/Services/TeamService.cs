@@ -18,24 +18,24 @@ public class TeamService : ITeamService
         _identityService = identityService;
     }
 
-    public async Task<(bool Success, string ErrorMessage, TeamDto? Data)> CreateTeamAsync(string userId, CreateTeamDto dto)
+    public async Task<Result<TeamDto>> CreateTeamAsync(string userId, CreateTeamDto dto)
     {
         int ownedCount = await _teamRepository.GetOwnedTeamsCountAsync(userId);
         if (ownedCount >= 3)
-            return (false, "You cannot own more than 3 teams.", null);
+            return Result<TeamDto>.Failure("You cannot own more than 3 teams.");
 
-        // Team Creation
         var newTeam = new Team
         {
             Name = dto.Name,
-            CreatedAt = DateTime.UtcNow
+            CreatedAt = DateTime.UtcNow,
+            OwnerId = userId
         };
 
-        // Automatically add creator as Owner
+        // The creator owns the team and is its Captain.
         newTeam.Members.Add(new TeamMember
         {
             UserId = userId,
-            Role = TeamRole.Owner,
+            Role = TeamRole.Captain,
             JoinedAt = DateTime.UtcNow
         });
 
@@ -46,10 +46,11 @@ public class TeamService : ITeamService
             Id = savedTeam.Id,
             Name = savedTeam.Name,
             CreatedAt = savedTeam.CreatedAt,
-            CurrentUserRole = "Owner"
+            CurrentUserRole = TeamRole.Captain.ToString(),
+            IsOwner = true
         };
 
-        return (true, string.Empty, teamDto);
+        return Result<TeamDto>.SuccessResult(teamDto);
     }
 
     public async Task<List<TeamDto>> GetUserTeamsAsync(string userId)
@@ -61,7 +62,8 @@ public class TeamService : ITeamService
             Id = t.Id,
             Name = t.Name,
             CreatedAt = t.CreatedAt,
-            CurrentUserRole = t.Members.First(m => m.UserId == userId).Role.ToString()
+            CurrentUserRole = t.Members.First(m => m.UserId == userId).Role.ToString(),
+            IsOwner = t.OwnerId == userId
         }).ToList();
     }
 
@@ -69,14 +71,14 @@ public class TeamService : ITeamService
     {
         var (exists, targetUserId) = await _identityService.CheckUserExistsAndGetIdAsync(targetEmail);
         if (!exists)
-            return Result<string>.Failure("A user with this email does not exist. They must register first.");
+            return Result<string>.NotFound("A user with this email does not exist. They must register first.");
 
         if (senderUserId == targetUserId)
             return Result<string>.Failure("You cannot invite yourself to the team.");
 
         var sender = await _teamRepository.GetTeamMemberAsync(teamId, senderUserId);
-        if (sender == null || !sender.Role.CanManageTeam())
-            return Result<string>.Failure("Only the team Owner, Captain or Officers can invite new players.");
+        if (sender == null || !sender.CanManageTeam)
+            return Result<string>.Forbidden("Only the team Owner, Captain or Officers can invite new players.");
 
         var existingMember = await _teamRepository.GetTeamMemberAsync(teamId, targetUserId);
         if (existingMember != null)
@@ -96,7 +98,8 @@ public class TeamService : ITeamService
             CreatedAt = DateTime.UtcNow
         };
 
-        await _teamRepository.CreateInviteAsync(invite);
+        if (!await _teamRepository.CreateInviteAsync(invite))
+            return Result<string>.Failure("An active invite has already been sent to this user.");
 
         return Result<string>.SuccessResult("Invite sent successfully.");
     }
@@ -106,20 +109,19 @@ public class TeamService : ITeamService
     public async Task<Result<string>> RemoveMemberAsync(int teamId, string ownerId, string memberIdToRemove)
     {
         var team = await _teamRepository.GetByIdAsync(teamId);
-        if (team == null) return Result<string>.Failure("The team doesn't exist.");
+        if (team == null) return Result<string>.NotFound("The team doesn't exist.");
 
-        // the owner removes a diff user, or the user leaves the team by themselves
         var requesterMembership = team.Members.FirstOrDefault(m => m.UserId == ownerId);
-        if (requesterMembership == null) return Result<string>.Failure("You are not in this team.");
+        if (requesterMembership == null) return Result<string>.Forbidden("You are not in this team.");
 
-        // prevent the player from removing other players (only owner can, or themselves)
-        if (requesterMembership.Role != Domain.Enums.TeamRole.Owner && ownerId != memberIdToRemove)
-            return Result<string>.Failure("Only the Team Owner can remove other players.");
+        // Members can remove themselves; only the Owner can remove someone else.
+        if (team.OwnerId != ownerId && ownerId != memberIdToRemove)
+            return Result<string>.Forbidden("Only the Team Owner can remove other players.");
 
         var memberToRemove = team.Members.FirstOrDefault(m => m.UserId == memberIdToRemove);
-        if (memberToRemove == null) return Result<string>.Failure("The User is not in the team.");
+        if (memberToRemove == null) return Result<string>.NotFound("The User is not in the team.");
 
-        if (memberToRemove.Role == Domain.Enums.TeamRole.Owner)
+        if (team.OwnerId == memberIdToRemove)
             return Result<string>.Failure("The Owner cannot be removed. They have to delete the team.");
 
         team.Members.Remove(memberToRemove);
@@ -129,10 +131,11 @@ public class TeamService : ITeamService
     }
 
 
-    public async Task<TeamDashboardDto?> GetTeamDashboardAsync(int teamId, string userId)
+    public async Task<Result<TeamDashboardDto>> GetTeamDashboardAsync(int teamId, string userId)
     {
         var isMember = await _teamRepository.IsUserInTeamAsync(teamId, userId);
-        if (!isMember) return null;
+        if (!isMember)
+            return Result<TeamDashboardDto>.Forbidden("You do not have access to this team's dashboard.");
 
         var totalMembers = await _teamRepository.GetTeamMemberCountAsync(teamId);
 
@@ -186,14 +189,16 @@ public class TeamService : ITeamService
             MatchOutcome = m.OurScore > m.OpponentScore ? "WIN" : (m.OurScore < m.OpponentScore ? "LOSS" : "DRAW")
         }).ToList();
 
-        return dashboard;
+        return Result<TeamDashboardDto>.SuccessResult(dashboard);
     }
 
-    public async Task<List<TeamMemberDto>?> GetTeamMembersAsync(int teamId, string userId)
+    public async Task<Result<List<TeamMemberDto>>> GetTeamMembersAsync(int teamId, string userId)
     {
         var isMember = await _teamRepository.IsUserInTeamAsync(teamId, userId);
-        if (!isMember) return null;
+        if (!isMember)
+            return Result<List<TeamMemberDto>>.Forbidden("You are not a member of this team.");
 
+        var team = await _teamRepository.GetByIdAsync(teamId);
         var membersData = await _teamRepository.GetTeamMembersWithUserDetailsAsync(teamId);
 
         var dtoList = membersData.Select(data => new TeamMemberDto
@@ -202,30 +207,29 @@ public class TeamService : ITeamService
             Email = data.Email ?? "Unknown",
             Username = data.Username ?? "Unknown",
             Role = data.Member.Role.ToString(),
+            IsOwner = data.Member.UserId == team?.OwnerId,
             JoinedAt = data.Member.JoinedAt
         }).ToList();
 
-        return dtoList;
+        return Result<List<TeamMemberDto>>.SuccessResult(dtoList);
     }
 
     public async Task<Result<string>> ChangeMemberRoleAsync(int teamId, string currentUserId, string targetMemberId, string newRoleStr)
     {
         var requester = await _teamRepository.GetTeamMemberAsync(teamId, currentUserId);
-        if (requester == null || requester.Role != TeamRole.Owner)
-            return Result<string>.Failure("Only the team owner can change roles.");
+        if (requester == null || !requester.IsOwner)
+            return Result<string>.Forbidden("Only the team owner can change roles.");
 
+        // The Owner can change their own role too, for example to hand the Captain role to someone else.
         var targetMember = await _teamRepository.GetTeamMemberAsync(teamId, targetMemberId);
         if (targetMember == null)
-            return Result<string>.Failure("Member not found in the team.");
+            return Result<string>.NotFound("Member not found in the team.");
 
-        if (targetMember.Role == TeamRole.Owner)
-            return Result<string>.Failure("Cannot change the role of the Owner. Use transfer ownership instead.");
+        if (string.Equals(newRoleStr, "Owner", StringComparison.OrdinalIgnoreCase))
+            return Result<string>.Failure("Owner is not a role. Use transfer ownership instead.");
 
         if (!Enum.TryParse<TeamRole>(newRoleStr, ignoreCase: true, out var newRole) || !Enum.IsDefined(newRole))
             return Result<string>.Failure("Invalid role provided.");
-
-        if (newRole == TeamRole.Owner)
-            return Result<string>.Failure("A member cannot be made Owner here. Use transfer ownership instead.");
 
         if (newRole == TeamRole.Captain && targetMember.Role != TeamRole.Captain)
         {
@@ -236,7 +240,8 @@ public class TeamService : ITeamService
         }
 
         targetMember.Role = newRole;
-        await _teamRepository.UpdateTeamMemberAsync(targetMember);
+        if (!await _teamRepository.UpdateTeamMemberAsync(targetMember))
+            return Result<string>.Failure("This team already has a Captain. Change their role first.");
 
         return Result<string>.SuccessResult("Role updated successfully.");
     }
@@ -244,15 +249,15 @@ public class TeamService : ITeamService
     public async Task<Result<string>> TransferOwnershipAsync(int teamId, string currentOwnerId, string newOwnerId)
     {
         var currentOwner = await _teamRepository.GetTeamMemberAsync(teamId, currentOwnerId);
-        if (currentOwner == null || currentOwner.Role != TeamRole.Owner)
-            return Result<string>.Failure("Only the team owner can transfer ownership.");
+        if (currentOwner == null || !currentOwner.IsOwner)
+            return Result<string>.Forbidden("Only the team owner can transfer ownership.");
 
         if (currentOwnerId == newOwnerId)
             return Result<string>.Failure("You already own this team.");
 
         var newOwner = await _teamRepository.GetTeamMemberAsync(teamId, newOwnerId);
         if (newOwner == null)
-            return Result<string>.Failure("Member not found in the team.");
+            return Result<string>.NotFound("Member not found in the team.");
 
         if (newOwner.Role != TeamRole.Officer)
             return Result<string>.Failure("Ownership can only be transferred to an Officer. Make them an Officer first.");
@@ -261,12 +266,9 @@ public class TeamService : ITeamService
         if (ownedCount >= 3)
             return Result<string>.Failure("This member already owns 3 teams and cannot take ownership of another.");
 
-        // The two swap places: the old Owner stays on as an Officer.
-        newOwner.Role = TeamRole.Owner;
-        currentOwner.Role = TeamRole.Officer;
-
-        // Single save so the team is never left with zero or two owners.
-        await _teamRepository.UpdateTeamMembersAsync(new[] { newOwner, currentOwner });
+        // Only ownership moves: both keep their roles, so the old Owner stays on as Captain, Officer or Player.
+        if (!await _teamRepository.TransferOwnershipAsync(teamId, currentOwnerId, newOwnerId))
+            return Result<string>.Failure("The roles changed while transferring ownership. Refresh and try again.");
 
         return Result<string>.SuccessResult("Ownership transferred successfully.");
     }
@@ -298,10 +300,10 @@ public class TeamService : ITeamService
         var invite = await _teamRepository.GetInviteByIdAsync(inviteId);
 
         if (invite == null)
-            return Result<string>.Failure("Invite not found.");
+            return Result<string>.NotFound("Invite not found.");
 
         if (invite.TargetUserId != userId)
-            return Result<string>.Failure("You are not authorized to respond to this invite.");
+            return Result<string>.Forbidden("You are not authorized to respond to this invite.");
 
         if (invite.Status != InviteStatus.Pending)
             return Result<string>.Failure("This invite has already been responded to.");

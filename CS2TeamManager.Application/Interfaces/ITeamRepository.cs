@@ -15,10 +15,16 @@ public interface ITeamRepository
     Task<List<Match>> GetTeamMatchesAsync(int teamId);
     Task<List<(TeamMember Member, string Email, string Username)>> GetTeamMembersWithUserDetailsAsync(int teamId);
     Task<TeamMember?> GetTeamMemberAsync(int teamId, string userId);
-    Task UpdateTeamMemberAsync(TeamMember member);
-    Task UpdateTeamMembersAsync(IEnumerable<TeamMember> members);
+    // Returns false when the database rejects the change (for example a second Captain added at the same time).
+    Task<bool> UpdateTeamMemberAsync(TeamMember member);
+
+    // Makes an Officer the Owner. Returns false if the Owner or the Officer's role changed meanwhile.
+    Task<bool> TransferOwnershipAsync(int teamId, string currentOwnerId, string newOwnerId);
+
     Task<TeamInvite?> GetPendingInviteAsync(int teamId, string email);
-    Task CreateInviteAsync(TeamInvite invite);
+
+    // Returns false when the user already has a pending invite to this team.
+    Task<bool> CreateInviteAsync(TeamInvite invite);
 
     Task<List<TeamInvite>> GetUserPendingInvitesAsync(string userId);
     Task<TeamInvite?> GetInviteByIdAsync(int inviteId);

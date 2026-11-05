@@ -28,7 +28,7 @@ public class TeamEventService : ITeamEventService
             return Result<List<TeamEventDto>>.Failure("The date range is too long.");
 
         if (await _teamRepository.GetTeamMemberAsync(teamId, userId) == null)
-            return Result<List<TeamEventDto>>.Failure("You don't have access to the calendar of this team.");
+            return Result<List<TeamEventDto>>.Forbidden("You don't have access to the calendar of this team.");
 
         var events = await _eventRepository.GetEventsAsync(teamId, from, to);
         return Result<List<TeamEventDto>>.SuccessResult(events.Select(ToDto).ToList());
@@ -37,7 +37,7 @@ public class TeamEventService : ITeamEventService
     public async Task<Result<TeamEventDto>> CreateEventAsync(string userId, int teamId, SaveTeamEventDto dto)
     {
         if (!await CanManageAsync(teamId, userId))
-            return Result<TeamEventDto>.Failure("Only the team Owner, Captain or Officers can add events.");
+            return Result<TeamEventDto>.Forbidden("Only the team Owner, Captain or Officers can add events.");
 
         var teamEvent = new TeamEvent
         {
@@ -53,11 +53,11 @@ public class TeamEventService : ITeamEventService
     public async Task<Result<TeamEventDto>> UpdateEventAsync(string userId, int teamId, int eventId, SaveTeamEventDto dto)
     {
         if (!await CanManageAsync(teamId, userId))
-            return Result<TeamEventDto>.Failure("Only the team Owner, Captain or Officers can edit events.");
+            return Result<TeamEventDto>.Forbidden("Only the team Owner, Captain or Officers can edit events.");
 
         var teamEvent = await _eventRepository.GetByIdAsync(teamId, eventId);
         if (teamEvent == null)
-            return Result<TeamEventDto>.Failure("Event was not found.");
+            return Result<TeamEventDto>.NotFound("Event was not found.");
 
         Apply(teamEvent, dto);
         await _eventRepository.UpdateAsync(teamEvent);
@@ -67,11 +67,11 @@ public class TeamEventService : ITeamEventService
     public async Task<Result<string>> DeleteEventAsync(string userId, int teamId, int eventId)
     {
         if (!await CanManageAsync(teamId, userId))
-            return Result<string>.Failure("Only the team Owner, Captain or Officers can delete events.");
+            return Result<string>.Forbidden("Only the team Owner, Captain or Officers can delete events.");
 
         var teamEvent = await _eventRepository.GetByIdAsync(teamId, eventId);
         if (teamEvent == null)
-            return Result<string>.Failure("Event was not found.");
+            return Result<string>.NotFound("Event was not found.");
 
         await _eventRepository.DeleteAsync(teamEvent);
         return Result<string>.SuccessResult("Event deleted.");
@@ -80,7 +80,7 @@ public class TeamEventService : ITeamEventService
     private async Task<bool> CanManageAsync(int teamId, string userId)
     {
         var member = await _teamRepository.GetTeamMemberAsync(teamId, userId);
-        return member != null && member.Role.CanManageTeam();
+        return member != null && member.CanManageTeam;
     }
 
     private static void Apply(TeamEvent teamEvent, SaveTeamEventDto dto)

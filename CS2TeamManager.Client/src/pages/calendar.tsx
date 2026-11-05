@@ -85,7 +85,7 @@ function CalendarContent({ team }: { team: Team }) {
     const [view, setView] = useState<View>(initialView);
     const [date, setDate] = useState(() => new Date());
     const [modal, setModal] = useState<ModalState>({ mode: 'closed' });
-    const canManage = canManageTeam(team.currentUserRole);
+    const canManage = canManageTeam(team);
 
     const { from, to } = useMemo(() => visibleRange(date, view), [date, view]);
 
