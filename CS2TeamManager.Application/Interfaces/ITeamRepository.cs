@@ -21,6 +21,13 @@ public interface ITeamRepository
     // Makes an Officer the Owner. Returns false if the Owner or the Officer's role changed meanwhile.
     Task<bool> TransferOwnershipAsync(int teamId, string currentOwnerId, string newOwnerId);
 
+    // Removes a member who doesn't own the team. Returns false if they aren't a member or own the team.
+    Task<bool> RemoveNonOwnerMemberAsync(int teamId, string userId);
+
+    // Deletes the team with its matches, events, members and invites in one transaction.
+    // Returns false if ownerId no longer owns the team.
+    Task<bool> DeleteTeamAsync(int teamId, string ownerId);
+
     Task<TeamInvite?> GetPendingInviteAsync(int teamId, string email);
 
     // Returns false when the user already has a pending invite to this team.

@@ -22,6 +22,8 @@ export default function TeamRoster() {
     const [activeDropdown, setActiveDropdown] = useState<string | null>(null);
     const [actionState, setActionState] = useState<{ type: 'kick' | 'role' | 'transfer' | null, member: TeamMember | null }>({ type: null, member: null });
     const [transferConfirmText, setTransferConfirmText] = useState('');
+    const [teamAction, setTeamAction] = useState<'leave' | 'delete' | null>(null);
+    const [deleteConfirmText, setDeleteConfirmText] = useState('');
     const [newRole, setNewRole] = useState('Player');
 
     const fetchTeams = useCallback(async () => {
@@ -29,9 +31,13 @@ export default function TeamRoster() {
             const response = await api.get<Team[]>('/Teams/my-teams');
             setTeams(response.data);
 
-            if (response.data.length > 0 && selectedTeamId === null) {
-                setSelectedTeamId(response.data[0].id);
-            } else if (response.data.length === 0) {
+            // Keep the selected team if it's still in the list (it's gone after leaving or deleting it),
+            // otherwise fall back to the first team, or to the empty state.
+            setSelectedTeamId(prev =>
+                response.data.some(t => t.id === prev) ? prev : (response.data[0]?.id ?? null));
+
+            if (response.data.length === 0) {
+                setMembers([]);
                 setLoading(false);
             }
         } catch (err: unknown) {
@@ -39,7 +45,7 @@ export default function TeamRoster() {
             setError(getApiErrorMessage(err, 'Failed to load teams.'));
             setLoading(false);
         }
-    }, [selectedTeamId]);
+    }, []);
 
     const fetchTeamMembers = async (teamId: number) => {
         setLoading(true);
@@ -137,9 +143,41 @@ export default function TeamRoster() {
         }
     };
 
+    const executeLeaveTeam = async () => {
+        if (!selectedTeamId) return;
+        setIsSubmitting(true);
+        try {
+            const response = await api.post<{ message: string }>(`/Teams/${selectedTeamId}/leave`);
+            showMessage(response.data.message);
+            closeModals();
+            fetchTeams();
+        } catch (err: unknown) {
+            showMessage(getApiErrorMessage(err, 'Failed to leave the team.'), true);
+        } finally {
+            setIsSubmitting(false);
+        }
+    };
+
+    const executeDeleteTeam = async () => {
+        if (!selectedTeamId || deleteConfirmText !== currentTeam?.name) return;
+        setIsSubmitting(true);
+        try {
+            const response = await api.delete<{ message: string }>(`/Teams/${selectedTeamId}`);
+            showMessage(response.data.message);
+            closeModals();
+            fetchTeams();
+        } catch (err: unknown) {
+            showMessage(getApiErrorMessage(err, 'Failed to delete the team.'), true);
+        } finally {
+            setIsSubmitting(false);
+        }
+    };
+
     const closeModals = () => {
         setActionState({ type: null, member: null });
         setTransferConfirmText('');
+        setTeamAction(null);
+        setDeleteConfirmText('');
         setIsSubmitting(false);
     };
 
@@ -152,6 +190,7 @@ export default function TeamRoster() {
         return (
             <div className="p-4 md:p-8">
                 <h1 className="text-3xl font-bold text-white mb-2">Team Roster</h1>
+                {successMsg && <div className="bg-emerald-500/10 border border-emerald-500 text-emerald-500 p-4 rounded my-6">{successMsg}</div>}
                 <p className="text-gray-400">You need to create or join a team first.</p>
             </div>
         );
@@ -294,6 +333,46 @@ export default function TeamRoster() {
                 )}
         </div>
 
+            {currentTeam && (
+                <div className="mt-8 bg-[#181a2d] rounded-xl border border-red-500/20 p-4 md:p-6">
+                    <h2 className="text-lg font-bold text-white mb-4">Team settings</h2>
+
+                    <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 py-3">
+                        <div>
+                            <p className="font-medium text-white">Leave team</p>
+                            <p className="text-sm text-gray-400">
+                                {isOwner
+                                    ? 'You own this team. Transfer ownership to an Officer or delete the team before leaving.'
+                                    : `You lose access to ${currentTeam.name}. You can only rejoin with a new invite.`}
+                            </p>
+                        </div>
+                        <button
+                            onClick={() => setTeamAction('leave')}
+                            disabled={isOwner}
+                            title={isOwner ? 'Transfer ownership or delete the team first' : undefined}
+                            className="shrink-0 border border-red-500/60 text-red-400 hover:bg-red-500/10 px-4 py-2 rounded-lg font-bold transition-colors disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-transparent"
+                        >
+                            Leave Team
+                        </button>
+                    </div>
+
+                    {isOwner && (
+                        <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 py-3 border-t border-gray-800">
+                            <div>
+                                <p className="font-medium text-white">Delete team</p>
+                                <p className="text-sm text-gray-400">Permanently deletes the team with its roster, invites, matches and calendar events.</p>
+                            </div>
+                            <button
+                                onClick={() => setTeamAction('delete')}
+                                className="shrink-0 bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg font-bold transition-colors"
+                            >
+                                Delete Team
+                            </button>
+                        </div>
+                    )}
+                </div>
+            )}
+
             {/* 1. INVITE MODAL */ }
     {
         isAddModalOpen && (
@@ -410,6 +489,65 @@ export default function TeamRoster() {
                                 className="bg-yellow-600 hover:bg-yellow-700 px-6 py-2 rounded-lg font-bold text-white transition-colors disabled:opacity-50"
                             >
                                 Transfer
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        )
+    }
+
+    {/* 5. LEAVE TEAM MODAL */ }
+    {
+        teamAction === 'leave' && currentTeam && (
+            <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
+                <div className="bg-gray-800 rounded-xl shadow-xl border border-red-500/30 w-full max-w-md overflow-hidden">
+                    <div className="p-6 border-b border-gray-700">
+                        <h2 className="text-xl font-bold text-red-500">Leave Team</h2>
+                    </div>
+                    <div className="p-6">
+                        <p className="text-gray-300 mb-6">Are you sure you want to leave <strong className="text-white">{currentTeam.name}</strong>? You will need a new invite to rejoin.</p>
+                        <div className="flex justify-end gap-3">
+                            <button onClick={closeModals} className="px-4 py-2 text-gray-400 hover:text-white">Cancel</button>
+                            <button onClick={executeLeaveTeam} disabled={isSubmitting} className="bg-red-600 hover:bg-red-700 px-6 py-2 rounded-lg font-bold text-white transition-colors disabled:opacity-50">
+                                {isSubmitting ? 'Leaving...' : 'Leave Team'}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        )
+    }
+
+    {/* 6. DELETE TEAM MODAL */ }
+    {
+        teamAction === 'delete' && currentTeam && (
+            <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
+                <div className="bg-gray-800 rounded-xl shadow-xl border border-red-500/30 w-full max-w-md overflow-hidden">
+                    <div className="p-6 border-b border-gray-700">
+                        <h2 className="text-xl font-bold text-red-500">Delete Team</h2>
+                    </div>
+                    <div className="p-6">
+                        <p className="text-gray-300 mb-4 text-sm">
+                            This permanently deletes <strong className="text-white">{currentTeam.name}</strong> with its roster, pending invites, matches and calendar events. This cannot be undone.
+                        </p>
+                        <p className="text-gray-400 text-xs mb-2">Type the team name <strong>{currentTeam.name}</strong> to confirm.</p>
+                        <input
+                            type="text"
+                            value={deleteConfirmText}
+                            onChange={(e) => setDeleteConfirmText(e.target.value)}
+                            className="w-full px-4 py-3 bg-[#111322] border border-gray-700 rounded-lg text-white mb-6 focus:outline-none focus:border-red-500"
+                            placeholder={currentTeam.name}
+                            autoFocus
+                        />
+                        <div className="flex justify-end gap-3">
+                            <button onClick={closeModals} className="px-4 py-2 text-gray-400 hover:text-white">Cancel</button>
+                            <button
+                                onClick={executeDeleteTeam}
+                                disabled={isSubmitting || deleteConfirmText !== currentTeam.name}
+                                className="bg-red-600 hover:bg-red-700 px-6 py-2 rounded-lg font-bold text-white transition-colors disabled:opacity-50"
+                            >
+                                {isSubmitting ? 'Deleting...' : 'Delete Team'}
                             </button>
                         </div>
                     </div>

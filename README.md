@@ -9,7 +9,8 @@ A web app for amateur Counter-Strike 2 teams to manage their roster, schedule ma
 - **Accounts:** register and log in with email and password (JWT authentication).
 - **Teams:** create up to 3 teams you own and switch between all the teams you're in.
 - **Roles:** every member is a Captain, Officer or Player. A team has one Captain and any number of Officers, who have the same rights as the Captain: they invite players, record matches and manage the calendar.
-- **Ownership:** each team has one Owner, who also has a role. Whoever creates a team is its Owner and Captain. Only the Owner manages roles, removes players and transfers ownership (only to an Officer).
+- **Ownership:** each team has one Owner, who also has a role. Whoever creates a team is its Owner and Captain. Only the Owner manages roles, removes players, transfers ownership (only to an Officer) and deletes the team.
+- **Leaving:** any member except the Owner can leave a team. The Owner transfers ownership or deletes the team first.
 - **Invites:** invite registered users by email. They accept or decline from the notification bell.
 - **Dashboard:** win rate, member count, recent results and upcoming matches for the selected team.
 - **Matches:** schedule or record matches with opponent, tournament, format (Bo1/Bo2/Bo3/Bo5), maps in play order, score and notes. Filter by upcoming or results.
@@ -93,7 +94,7 @@ The backend tests run the real services and repositories against an in-memory SQ
 dotnet test CS2TeamManager.Tests
 ```
 
-They cover team membership, invites, roles and permissions, and ownership transfer.
+They cover team membership, invites, roles and permissions, ownership transfer, and leaving and deleting teams.
 
 GitHub Actions runs on every pull request and on every push to `master`: it builds the API and runs the tests, then lints and builds the frontend (`npm run lint` and `npm run build`).
 
@@ -104,5 +105,3 @@ Planned features:
 - [Match participation](https://github.com/adnan-jasarevic/CS2TeamManager/issues/18): who played each match
 - [Player stats per match](https://github.com/adnan-jasarevic/CS2TeamManager/issues/19)
 - [Link a Steam account](https://github.com/adnan-jasarevic/CS2TeamManager/issues/20)
-- [Delete a team](https://github.com/adnan-jasarevic/CS2TeamManager/issues/21)
-- [Leave a team](https://github.com/adnan-jasarevic/CS2TeamManager/issues/22)
