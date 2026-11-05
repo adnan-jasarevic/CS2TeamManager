@@ -8,9 +8,9 @@ A web app for amateur Counter-Strike 2 teams to manage their roster, schedule ma
 
 - **Accounts:** register and log in with email and password (JWT authentication).
 - **Teams:** create up to 3 teams you own and switch between all the teams you're in.
-- **Roles:** every member is an Owner, Captain or Player.
-  - Owners manage roles, remove players and can transfer ownership.
-  - Owners and Captains invite players and record matches.
+- **Roles:** every member is an Owner, Captain, Officer or Player.
+  - Owners manage roles, remove players and can transfer ownership (only to an Officer).
+  - Owners, the Captain and Officers invite players, record matches and manage the calendar. A team has one Captain and any number of Officers, who have the same rights as the Captain.
 - **Invites:** invite registered users by email. They accept or decline from the notification bell.
 - **Dashboard:** win rate, member count, recent results and upcoming matches for the selected team.
 - **Matches:** schedule or record matches with opponent, tournament, format (Bo1/Bo2/Bo3/Bo5), maps in play order, score and notes. Filter by upcoming or results.
@@ -34,6 +34,7 @@ CS2TeamManager.Application     DTOs, services, validators, repository interfaces
 CS2TeamManager.Infrastructure  EF Core DbContext, migrations, repositories, Identity
 CS2TeamManager.Api             Controllers, validation filter, exception handler, startup
 CS2TeamManager.Client          React frontend
+CS2TeamManager.Tests           xUnit tests for the services, run against an in-memory SQLite database
 ```
 
 ## Getting started
@@ -85,6 +86,18 @@ npm run dev
 
 Open http://localhost:5173. The frontend calls `https://localhost:7185/api` by default. To point it elsewhere, copy `.env.example` to `.env.local` and set `VITE_API_BASE_URL`.
 
+## Tests and CI
+
+The backend tests run the real services and repositories against an in-memory SQLite database, so they need no SQL Server:
+
+```bash
+dotnet test CS2TeamManager.Tests
+```
+
+They cover team membership, invites, roles and permissions, and ownership transfer.
+
+GitHub Actions runs on every pull request and on every push to `master`: it builds the API and runs the tests, then lints and builds the frontend (`npm run lint` and `npm run build`).
+
 ## Roadmap
 
 Planned features:
@@ -94,7 +107,3 @@ Planned features:
 - [Link a Steam account](https://github.com/adnan-jasarevic/CS2TeamManager/issues/20)
 - [Delete a team](https://github.com/adnan-jasarevic/CS2TeamManager/issues/21)
 - [Leave a team](https://github.com/adnan-jasarevic/CS2TeamManager/issues/22)
-
-Planned cleanup:
-
-- Tests and CI
