@@ -64,7 +64,10 @@ The API only accepts browser requests from origins listed under `Cors:AllowedOri
 
 ### 2. Create the database
 
+Restore the NuGet packages first, because `dotnet ef` fails on a fresh clone without them:
+
 ```bash
+dotnet restore
 dotnet ef database update --project CS2TeamManager.Infrastructure --startup-project CS2TeamManager.Api
 ```
 
