@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState, type KeyboardEvent } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent, type ReactNode } from 'react';
 import { Calendar as BigCalendar, Views, dateFnsLocalizer, type Components, type EventProps, type SlotInfo, type View } from 'react-big-calendar';
 import { addDays, endOfMonth, format, getDay, parse, startOfMonth, startOfWeek } from 'date-fns';
 import { enUS } from 'date-fns/locale';
@@ -141,11 +141,12 @@ function CalendarContent({ team }: { team: Team }) {
     };
 
     const components = useMemo<Components<CalendarItem>>(() => ({
-        // Week and day views already make each event a focusable button, so it only needs a label.
-        event: CalendarEventChip,
         // Month view events can't be reached by keyboard. A real button inside each one can, and its
         // click bubbles up to onSelectEvent. The events sit in a role="row", which may only hold cells.
         month: { event: MonthEventChip },
+        // The library's day headers carry role="columnheader" with no table around them.
+        week: { header: DayHeader, event: TimeGridEventChip },
+        day: { header: DayHeader, event: TimeGridEventChip },
         // The agenda view has no onSelectEvent of its own, so its button opens the event directly.
         agenda: {
             event: ({ event: item }: EventProps<CalendarItem>) => (
@@ -187,6 +188,7 @@ function CalendarContent({ team }: { team: Team }) {
                 ) : error && !data ? (
                     <ErrorState title="Couldn't load the calendar" message={error} onRetry={reload} retrying={isFetching} />
                 ) : (
+                    <TimeGridA11yFix>
                     <BigCalendar<CalendarItem>
                         localizer={localizer}
                         culture="en-US"
@@ -212,6 +214,7 @@ function CalendarContent({ team }: { team: Team }) {
                         tooltipAccessor={item => `${KINDS[item.kind].label}: ${item.title}`}
                         eventPropGetter={item => ({ className: cx(`rbc-kind-${KINDS[item.kind].cssKey}`, !item.event && 'is-readonly') })}
                     />
+                    </TimeGridA11yFix>
                 )}
             </Card>
 
@@ -230,12 +233,52 @@ function CalendarContent({ team }: { team: Team }) {
     );
 }
 
-function CalendarEventChip({ event: item }: EventProps<CalendarItem>) {
-    return <EventLabel item={item} />;
-}
-
 function MonthEventChip({ event: item }: EventProps<CalendarItem>) {
     return <div role="cell"><EventLabel item={item} clickable={Boolean(item.event)} /></div>;
+}
+
+// Week and day views use one event component in two places. Timed events are already focusable
+// buttons, so they only need a label. Multi-day events sit in the all-day row, where the library
+// renders a plain div, so they get a real button like month view. Only the all-day row passes slotStart.
+function TimeGridEventChip(props: EventProps<CalendarItem>) {
+    const inAllDayRow = (props as EventProps<CalendarItem> & { slotStart?: Date }).slotStart !== undefined;
+    return <EventLabel item={props.event} clickable={inAllDayRow && Boolean(props.event.event)} />;
+}
+
+function DayHeader({ label }: { label: ReactNode }) {
+    return <span>{label}</span>;
+}
+
+// Fixes markup the library renders itself, so it is done after each render rather than through props.
+// - In week and day views the all-day row has role="rowgroup" and role="row" with no table around it,
+//   and the row has no cells when it is empty. It is just a strip of events, so those roles are removed.
+// - The scrolling time grid has nothing focusable when a week has no timed events, so keyboard users
+//   couldn't scroll it. It becomes a focusable, labelled region.
+function TimeGridA11yFix({ children }: { children: ReactNode }) {
+    const ref = useRef<HTMLDivElement>(null);
+
+    useEffect(() => {
+        const root = ref.current;
+        if (!root) return;
+
+        const fix = () => {
+            root.querySelectorAll('.rbc-time-header [role="rowgroup"], .rbc-time-header [role="row"]')
+                .forEach(element => element.removeAttribute('role'));
+            root.querySelectorAll<HTMLElement>('.rbc-time-content:not([tabindex])').forEach(element => {
+                element.tabIndex = 0;
+                element.setAttribute('role', 'region');
+                element.setAttribute('aria-label', 'Time slots');
+            });
+        };
+
+        fix();
+        // Only child changes are observed, so changing attributes doesn't trigger the observer again.
+        const observer = new MutationObserver(fix);
+        observer.observe(root, { childList: true, subtree: true });
+        return () => observer.disconnect();
+    }, []);
+
+    return <div ref={ref} className="h-full">{children}</div>;
 }
 
 interface EventLabelProps {
