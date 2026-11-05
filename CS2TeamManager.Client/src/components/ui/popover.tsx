@@ -5,6 +5,9 @@ import { PopoverCloseContext } from './popover-context';
 
 const VIEWPORT_MARGIN = 8;
 const TRIGGER_GAP = 6;
+// Landmarks and dialogs. The panel is placed inside the closest one around its trigger, so screen
+// readers find it in the same part of the page, and it stays inside a modal's focus trap.
+const CONTAINER_SELECTOR = 'main, header, nav, aside, footer, dialog, [role="main"], [role="banner"], [role="navigation"], [role="complementary"], [role="contentinfo"], [role="region"], [role="dialog"], [role="alertdialog"]';
 
 export interface PopoverTriggerProps {
     ref: RefObject<HTMLButtonElement | null>;
@@ -27,12 +30,14 @@ export interface PopoverProps {
 }
 
 /**
- * A floating panel anchored to a button. It renders into <body> with fixed positioning, so an
- * `overflow: hidden` card or table can't clip it, and flips above the trigger when there's no
- * room below. Closes on Esc, an outside click, scrolling and focus leaving.
+ * A floating panel anchored to a button. It renders into the landmark that holds the trigger
+ * (or <body> if there is none) with fixed positioning, so an `overflow: hidden` card or table
+ * can't clip it, and flips above the trigger when there's no room below. Closes on Esc, an
+ * outside click, scrolling and focus leaving.
  */
 export function Popover({ renderTrigger, label, role = 'dialog', align = 'end', className, onPanelKeyDown, children }: PopoverProps) {
     const [open, setOpen] = useState(false);
+    const [container, setContainer] = useState<Element | null>(null);
     const triggerRef = useRef<HTMLButtonElement>(null);
     const panelRef = useRef<HTMLDivElement>(null);
     const panelId = useId();
@@ -96,12 +101,15 @@ export function Popover({ renderTrigger, label, role = 'dialog', align = 'end', 
         <>
             {renderTrigger({
                 ref: triggerRef,
-                onClick: () => setOpen(current => !current),
+                onClick: () => {
+                    setContainer(triggerRef.current?.closest(CONTAINER_SELECTOR) ?? document.body);
+                    setOpen(current => !current);
+                },
                 'aria-expanded': open,
                 'aria-haspopup': role,
                 'aria-controls': open ? panelId : undefined,
             })}
-            {open && createPortal(
+            {open && container && createPortal(
                 <div
                     ref={panelRef}
                     id={panelId}
@@ -116,7 +124,7 @@ export function Popover({ renderTrigger, label, role = 'dialog', align = 'end', 
                 >
                     <PopoverCloseContext.Provider value={close}>{children}</PopoverCloseContext.Provider>
                 </div>,
-                document.body,
+                container,
             )}
         </>
     );
