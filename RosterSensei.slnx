@@ -1,0 +1,7 @@
+<Solution>
+  <Project Path="RosterSensei.Api/RosterSensei.Api.csproj" />
+  <Project Path="RosterSensei.Application/RosterSensei.Application.csproj" />
+  <Project Path="RosterSensei.Domain/RosterSensei.Domain.csproj" />
+  <Project Path="RosterSensei.Infrastructure/RosterSensei.Infrastructure.csproj" />
+  <Project Path="RosterSensei.Tests/RosterSensei.Tests.csproj" />
+</Solution>
