@@ -122,12 +122,46 @@ public class TeamService : ITeamService
         if (memberToRemove == null) return Result<string>.NotFound("The User is not in the team.");
 
         if (team.OwnerId == memberIdToRemove)
-            return Result<string>.Failure("The Owner cannot be removed. They have to delete the team.");
+            return Result<string>.Failure("The Owner cannot be removed. Transfer ownership to an Officer or delete the team first.");
 
         team.Members.Remove(memberToRemove);
         await _teamRepository.UpdateAsync(team);
 
         return Result<string>.SuccessResult("The User has been successfully removed from the team.");
+    }
+
+    public async Task<Result<string>> LeaveTeamAsync(int teamId, string userId)
+    {
+        var member = await _teamRepository.GetTeamMemberAsync(teamId, userId);
+        if (member == null)
+            return Result<string>.NotFound("You are not a member of this team.");
+
+        // A team always has an Owner, so the Owner hands the team on (or deletes it) before leaving.
+        if (member.IsOwner)
+            return Result<string>.Failure("You own this team. Transfer ownership to an Officer or delete the team before leaving.");
+
+        if (!await _teamRepository.RemoveNonOwnerMemberAsync(teamId, userId))
+            return Result<string>.Failure("You became the Owner of this team in the meantime. Refresh and try again.");
+
+        return Result<string>.SuccessResult($"You left {member.Team.Name}.");
+    }
+
+    public async Task<Result<string>> DeleteTeamAsync(int teamId, string userId)
+    {
+        var team = await _teamRepository.GetByIdAsync(teamId);
+        if (team == null)
+            return Result<string>.NotFound("The team doesn't exist.");
+
+        if (!team.Members.Any(m => m.UserId == userId))
+            return Result<string>.Forbidden("You are not a member of this team.");
+
+        if (team.OwnerId != userId)
+            return Result<string>.Forbidden("Only the team Owner can delete the team.");
+
+        if (!await _teamRepository.DeleteTeamAsync(teamId, userId))
+            return Result<string>.Failure("Ownership changed while deleting the team. Refresh and try again.");
+
+        return Result<string>.SuccessResult($"{team.Name} has been deleted.");
     }
 
 

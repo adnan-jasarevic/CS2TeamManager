@@ -7,7 +7,7 @@
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
         // The member who owns the team. Only the Owner manages roles, removes players,
-        // transfers ownership and (later) deletes the team.
+        // transfers ownership and deletes the team.
         public string OwnerId { get; set; } = string.Empty;
 
         public ICollection<TeamMember> Members { get; set; } = new List<TeamMember>();
