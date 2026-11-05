@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import api from '../services/api';
 import { getApiErrorMessage } from '../services/errors';
 import { useLayoutContext } from '../components/layout-context';
-import { type Team, type TeamDashboardData, canManageTeam } from '../types';
+import { type Team, type TeamDashboardData, canManageTeam, roleLabel } from '../types';
 import AddMatchModal from '../components/add-match-modal';
 import CreateTeamModal from '../components/create-team-modal';
 
@@ -67,7 +67,7 @@ export default function Dashboard() {
     };
 
     const selectedTeam = teams.find(t => t.id === selectedTeamId);
-    const canManageMatches = canManageTeam(selectedTeam?.currentUserRole);
+    const canManageMatches = canManageTeam(selectedTeam);
 
     if (loading) return <div className="text-gray-400 p-8">Loading dashboard...</div>;
 
@@ -123,7 +123,7 @@ export default function Dashboard() {
                             onChange={(e) => setSelectedTeamId(Number(e.target.value))}
                         >
                             {teams.map(t => (
-                                <option key={t.id} value={t.id}>{t.name} ({t.currentUserRole})</option>
+                                <option key={t.id} value={t.id}>{t.name} ({roleLabel(t)})</option>
                             ))}
                         </select>
                     </div>

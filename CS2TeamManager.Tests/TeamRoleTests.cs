@@ -1,4 +1,3 @@
-using CS2TeamManager.Domain.Entities;
 using CS2TeamManager.Domain.Enums;
 using CS2TeamManager.Tests.Infrastructure;
 using Microsoft.EntityFrameworkCore;
@@ -9,7 +8,6 @@ public class TeamRoleTests : IDisposable
 {
     private readonly TestDatabase _db = new();
     private readonly string _owner;
-    private readonly string _captain;
     private readonly string _player;
     private readonly string _player2;
     private readonly int _teamId;
@@ -17,11 +15,10 @@ public class TeamRoleTests : IDisposable
     public TeamRoleTests()
     {
         _owner = _db.AddUser("owner");
-        _captain = _db.AddUser("captain");
         _player = _db.AddUser("player");
         _player2 = _db.AddUser("player2");
+        // The Owner is also the Captain, as when a team is created.
         _teamId = _db.AddTeam(_owner,
-            (_captain, TeamRole.Captain),
             (_player, TeamRole.Player),
             (_player2, TeamRole.Player));
     }
@@ -38,14 +35,26 @@ public class TeamRoleTests : IDisposable
     }
 
     [Fact]
-    public async Task Captain_can_be_handed_over_once_the_old_one_steps_down()
+    public async Task Owner_can_hand_the_Captain_role_to_someone_else_and_stay_Owner()
     {
-        Assert.True((await _db.TeamService().ChangeMemberRoleAsync(_teamId, _owner, _captain, "Player")).Success);
+        Assert.True((await _db.TeamService().ChangeMemberRoleAsync(_teamId, _owner, _owner, "Officer")).Success);
 
         var result = await _db.TeamService().ChangeMemberRoleAsync(_teamId, _owner, _player, "Captain");
 
         Assert.True(result.Success, result.ErrorMessage);
         Assert.Equal(TeamRole.Captain, _db.RoleOf(_teamId, _player));
+        Assert.Equal(TeamRole.Officer, _db.RoleOf(_teamId, _owner));
+        Assert.Equal(_owner, _db.OwnerOf(_teamId));
+    }
+
+    [Fact]
+    public async Task Owner_keeps_Owner_rights_whatever_their_role()
+    {
+        Assert.True((await _db.TeamService().ChangeMemberRoleAsync(_teamId, _owner, _owner, "Player")).Success);
+
+        var result = await _db.TeamService().ChangeMemberRoleAsync(_teamId, _owner, _player, "Officer");
+
+        Assert.True(result.Success, result.ErrorMessage);
     }
 
     [Fact]
@@ -73,16 +82,6 @@ public class TeamRoleTests : IDisposable
         using var context = _db.CreateContext();
         var member = context.TeamMembers.Single(m => m.TeamId == _teamId && m.UserId == _player);
         member.Role = TeamRole.Captain;
-
-        Assert.Throws<DbUpdateException>(() => context.SaveChanges());
-    }
-
-    [Fact]
-    public void Database_rejects_a_second_Owner()
-    {
-        using var context = _db.CreateContext();
-        var member = context.TeamMembers.Single(m => m.TeamId == _teamId && m.UserId == _player);
-        member.Role = TeamRole.Owner;
 
         Assert.Throws<DbUpdateException>(() => context.SaveChanges());
     }

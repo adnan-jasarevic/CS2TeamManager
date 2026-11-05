@@ -1,8 +1,9 @@
 ﻿namespace CS2TeamManager.Domain.Enums;
 
+// The Owner isn't a role: ownership is kept on the Team, so the Owner also has one of these roles
+// (Captain by default, for whoever creates the team).
 public enum TeamRole
 {
-    Owner = 0,
     Captain = 1,
     Player = 2,
     // Second-in-command. A team can have several Officers but only one Captain,
@@ -12,8 +13,9 @@ public enum TeamRole
 
 public static class TeamRoleExtensions
 {
-    // Owner, Captain and Officers run the team day to day: invites, matches and the calendar.
+    // The Captain and Officers run the team day to day: invites, matches and the calendar.
+    // Officers have the same rights as the Captain. The Owner can always do this too, whatever their role.
     public static bool CanManageTeam(this TeamRole role) =>
-        role == TeamRole.Owner || role == TeamRole.Captain || role == TeamRole.Officer;
+        role == TeamRole.Captain || role == TeamRole.Officer;
 }
 

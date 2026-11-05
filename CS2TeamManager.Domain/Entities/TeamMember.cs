@@ -12,4 +12,8 @@ public class TeamMember
 
     public TeamRole Role { get; set; }
     public DateTime JoinedAt { get; set; } = DateTime.UtcNow;
+
+    // Both need Team to be loaded.
+    public bool IsOwner => Team.OwnerId == UserId;
+    public bool CanManageTeam => IsOwner || Role.CanManageTeam();
 }

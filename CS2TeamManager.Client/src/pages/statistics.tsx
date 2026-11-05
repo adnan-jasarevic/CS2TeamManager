@@ -21,7 +21,7 @@ import api from '../services/api';
 import { getApiErrorMessage } from '../services/errors';
 import { useLayoutContext } from '../components/layout-context';
 import TeamCharts from '../components/team-charts';
-import { type Match, type Team, type TeamStats } from '../types';
+import { type Match, type Team, type TeamStats, roleLabel } from '../types';
 
 // Only the grid features this page uses, to keep the bundle small.
 ModuleRegistry.registerModules([
@@ -298,7 +298,7 @@ export default function Statistics() {
                         onChange={(e) => setSelectedTeamId(Number(e.target.value))}
                     >
                         {teams.map(t => (
-                            <option key={t.id} value={t.id}>{t.name} ({t.currentUserRole})</option>
+                            <option key={t.id} value={t.id}>{t.name} ({roleLabel(t)})</option>
                         ))}
                     </select>
                 </div>

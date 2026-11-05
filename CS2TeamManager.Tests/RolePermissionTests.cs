@@ -8,7 +8,7 @@ namespace CS2TeamManager.Tests;
 
 // Officers are the Captain's extended hand: whatever a Captain may do, an Officer may do too.
 // Owner-only actions (roles, removing players, transferring ownership, and later deleting the team)
-// stay with the Owner.
+// stay with the Owner. Here the Owner's role is Player, to show their rights come from ownership alone.
 public class RolePermissionTests : IDisposable
 {
     private readonly TestDatabase _db = new();
@@ -26,7 +26,7 @@ public class RolePermissionTests : IDisposable
         _officer = _db.AddUser("officer");
         _player = _db.AddUser("player");
         _outsider = _db.AddUser("outsider");
-        _teamId = _db.AddTeam(_owner,
+        _teamId = _db.AddTeam(_owner, TeamRole.Player,
             (_captain, TeamRole.Captain),
             (_officer, TeamRole.Officer),
             (_player, TeamRole.Player));
@@ -36,7 +36,6 @@ public class RolePermissionTests : IDisposable
 
     public static TheoryData<TeamRole, bool> ManageRights => new()
     {
-        { TeamRole.Owner, true },
         { TeamRole.Captain, true },
         { TeamRole.Officer, true },
         { TeamRole.Player, false }
@@ -157,7 +156,7 @@ public class RolePermissionTests : IDisposable
         var result = await _db.TeamService().TransferOwnershipAsync(_teamId, userId, _officer);
 
         Assert.Equal(ErrorType.Forbidden, result.ErrorType);
-        Assert.Equal(TeamRole.Owner, _db.RoleOf(_teamId, _owner));
+        Assert.Equal(_owner, _db.OwnerOf(_teamId));
     }
 
     private static SaveTeamEventDto NewEvent(string title) => new()
