@@ -40,7 +40,7 @@ public interface ITeamRepository
     // Returns false when the user already has a pending invite to this team.
     Task<bool> CreateInviteAsync(TeamInvite invite);
 
-    Task<List<TeamInvite>> GetUserPendingInvitesAsync(string userId);
+    Task<List<TeamInvite>> GetUserPendingInvitesAsync(string userId, CancellationToken cancellationToken = default);
     Task<TeamInvite?> GetInviteByIdAsync(int inviteId);
     Task<bool> CompletePendingInviteAsync(int inviteId, InviteStatus newStatus, TeamMember? newMember = null);
 }

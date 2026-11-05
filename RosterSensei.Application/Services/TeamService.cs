@@ -313,12 +313,12 @@ public class TeamService : ITeamService
         return Result<string>.SuccessResult("Ownership transferred successfully.");
     }
 
-    public async Task<List<TeamInviteDto>> GetMyPendingInvitesAsync(string userId)
+    public async Task<List<TeamInviteDto>> GetMyPendingInvitesAsync(string userId, CancellationToken cancellationToken = default)
     {
-        var invites = await _teamRepository.GetUserPendingInvitesAsync(userId);
+        var invites = await _teamRepository.GetUserPendingInvitesAsync(userId, cancellationToken);
 
         // One query for all senders instead of one per invite. This list loads on every page change.
-        var senderNames = await _identityService.GetUsernamesByIdsAsync(invites.Select(i => i.SenderUserId));
+        var senderNames = await _identityService.GetUsernamesByIdsAsync(invites.Select(i => i.SenderUserId), cancellationToken);
 
         return invites.Select(invite => new TeamInviteDto
         {

@@ -115,7 +115,7 @@ public sealed class TestDatabase : IDisposable
         public Task<string> GetUsernameByIdAsync(string userId) =>
             Task.FromResult(_context.Users.FirstOrDefault(u => u.Id == userId)?.UserName ?? "Unknown");
 
-        public Task<Dictionary<string, string>> GetUsernamesByIdsAsync(IEnumerable<string> userIds)
+        public Task<Dictionary<string, string>> GetUsernamesByIdsAsync(IEnumerable<string> userIds, CancellationToken cancellationToken = default)
         {
             var ids = userIds.ToList();
             return Task.FromResult(_context.Users

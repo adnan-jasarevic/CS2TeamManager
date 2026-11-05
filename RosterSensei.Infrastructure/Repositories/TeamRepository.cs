@@ -213,12 +213,12 @@ public class TeamRepository : ITeamRepository
         }
     }
 
-    public async Task<List<TeamInvite>> GetUserPendingInvitesAsync(string userId)
+    public async Task<List<TeamInvite>> GetUserPendingInvitesAsync(string userId, CancellationToken cancellationToken = default)
     {
         return await _context.TeamInvites
             .Include(i => i.Team)
             .Where(i => i.TargetUserId == userId && i.Status == InviteStatus.Pending)
-            .ToListAsync();
+            .ToListAsync(cancellationToken);
     }
 
     public async Task<TeamInvite?> GetInviteByIdAsync(int inviteId)

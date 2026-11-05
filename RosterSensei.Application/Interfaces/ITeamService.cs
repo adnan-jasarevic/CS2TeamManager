@@ -17,6 +17,6 @@ public interface ITeamService
 
     Task<Result<string>> ChangeMemberRoleAsync(int teamId, string currentUserId, string targetMemberId, string newRoleStr);
     Task<Result<string>> TransferOwnershipAsync(int teamId, string currentOwnerId, string newOwnerId);
-    Task<List<TeamInviteDto>> GetMyPendingInvitesAsync(string userId);
+    Task<List<TeamInviteDto>> GetMyPendingInvitesAsync(string userId, CancellationToken cancellationToken = default);
     Task<Result<string>> RespondToInviteAsync(int inviteId, string userId, bool isAccepted);
 }

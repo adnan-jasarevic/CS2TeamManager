@@ -57,8 +57,8 @@ public class TeamsController : ApiControllerBase
         => ToMessageResult(await _teamService.TransferOwnershipAsync(teamId, UserId, dto.NewOwnerId));
 
     [HttpGet("my-invites")]
-    public async Task<IActionResult> GetMyPendingInvites()
-        => Ok(await _teamService.GetMyPendingInvitesAsync(UserId));
+    public async Task<IActionResult> GetMyPendingInvites(CancellationToken cancellationToken)
+        => Ok(await _teamService.GetMyPendingInvitesAsync(UserId, cancellationToken));
 
     [HttpPost("invites/{inviteId}/respond")]
     public async Task<IActionResult> RespondToInvite(int inviteId, [FromBody] bool isAccepted)

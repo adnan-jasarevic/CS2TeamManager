@@ -31,7 +31,7 @@ public class IdentityService : IIdentityService
         return user?.UserName ?? "Team Owner";
     }
 
-    public async Task<Dictionary<string, string>> GetUsernamesByIdsAsync(IEnumerable<string> userIds)
+    public async Task<Dictionary<string, string>> GetUsernamesByIdsAsync(IEnumerable<string> userIds, CancellationToken cancellationToken = default)
     {
         var ids = userIds.Distinct().ToList();
         if (ids.Count == 0)
@@ -39,7 +39,7 @@ public class IdentityService : IIdentityService
 
         return await _userManager.Users
             .Where(u => ids.Contains(u.Id))
-            .ToDictionaryAsync(u => u.Id, u => u.UserName ?? string.Empty);
+            .ToDictionaryAsync(u => u.Id, u => u.UserName ?? string.Empty, cancellationToken);
     }
 
 }
