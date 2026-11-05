@@ -92,16 +92,46 @@ public class TeamRepository : ITeamRepository
             .FirstOrDefaultAsync(tm => tm.TeamId == teamId && tm.UserId == userId);
     }
 
-    public async Task UpdateTeamMemberAsync(TeamMember member)
+    public async Task<bool> UpdateTeamMemberAsync(TeamMember member)
     {
         _context.TeamMembers.Update(member);
-        await _context.SaveChangesAsync();
+        try
+        {
+            await _context.SaveChangesAsync();
+            return true;
+        }
+        catch (DbUpdateException)
+        {
+            // A unique index (one Captain per team) rejected the change.
+            await _context.Entry(member).ReloadAsync();
+            return false;
+        }
     }
 
-    public async Task UpdateTeamMembersAsync(IEnumerable<TeamMember> members)
+    public async Task<bool> TransferOwnershipAsync(int teamId, string currentOwnerId, string newOwnerId)
     {
-        _context.TeamMembers.UpdateRange(members);
-        await _context.SaveChangesAsync();
+        await using var transaction = await _context.Database.BeginTransactionAsync();
+
+        // Demote first so the one-Owner index is never violated in between. Each update only applies
+        // while the role is still what we checked, so a concurrent change makes the transfer fail cleanly.
+        var demoted = await _context.TeamMembers
+            .Where(tm => tm.TeamId == teamId && tm.UserId == currentOwnerId && tm.Role == TeamRole.Owner)
+            .ExecuteUpdateAsync(s => s.SetProperty(tm => tm.Role, TeamRole.Officer));
+
+        var promoted = demoted == 1
+            ? await _context.TeamMembers
+                .Where(tm => tm.TeamId == teamId && tm.UserId == newOwnerId && tm.Role == TeamRole.Officer)
+                .ExecuteUpdateAsync(s => s.SetProperty(tm => tm.Role, TeamRole.Owner))
+            : 0;
+
+        if (promoted != 1)
+        {
+            await transaction.RollbackAsync();
+            return false;
+        }
+
+        await transaction.CommitAsync();
+        return true;
     }
 
     public async Task<TeamInvite?> GetPendingInviteAsync(int teamId, string email)
@@ -110,10 +140,20 @@ public class TeamRepository : ITeamRepository
             .FirstOrDefaultAsync(i => i.TeamId == teamId && i.TargetUserEmail == email && i.Status == InviteStatus.Pending);
     }
 
-    public async Task CreateInviteAsync(TeamInvite invite)
+    public async Task<bool> CreateInviteAsync(TeamInvite invite)
     {
-        await _context.TeamInvites.AddAsync(invite);
-        await _context.SaveChangesAsync();
+        _context.TeamInvites.Add(invite);
+        try
+        {
+            await _context.SaveChangesAsync();
+            return true;
+        }
+        catch (DbUpdateException)
+        {
+            // The one-pending-invite index rejected a duplicate sent at the same time.
+            _context.Entry(invite).State = EntityState.Detached;
+            return false;
+        }
     }
 
     public async Task<List<TeamInvite>> GetUserPendingInvitesAsync(string userId)
