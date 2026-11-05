@@ -28,18 +28,20 @@ export default function TopNavigation({ teams, selectedTeam, onSelectTeam, onInv
     const [respondingIds, setRespondingIds] = useState<number[]>([]);
     const [feedback, setFeedback] = useState<Feedback>(null);
 
-    // Each fetch gets a sequence number. Only the latest one may update state, and a
-    // successful response bumps the sequence so an older in-flight fetch can't bring back
-    // an invite that was just answered.
-    const fetchSeq = useRef(0);
+    // Only the latest fetch may update state. A new fetch, a successful response and unmounting
+    // all abort the one in flight, so an older response can't bring back an invite that was just
+    // answered and quick page changes don't pile up requests.
+    const fetchController = useRef<AbortController | null>(null);
     const respondingRef = useRef(new Set<number>());
     const bellRef = useRef<HTMLButtonElement>(null);
 
     const fetchInvites = useCallback(async () => {
-        const seq = ++fetchSeq.current;
+        fetchController.current?.abort();
+        const controller = new AbortController();
+        fetchController.current = controller;
         try {
-            const response = await api.get<TeamInvite[]>('/Teams/my-invites');
-            if (seq === fetchSeq.current) setInvites(response.data);
+            const response = await api.get<TeamInvite[]>('/Teams/my-invites', { signal: controller.signal });
+            if (!controller.signal.aborted) setInvites(response.data);
         } catch {
             // Keep showing the last list that loaded; the next refresh tries again.
         }
@@ -48,6 +50,8 @@ export default function TopNavigation({ teams, selectedTeam, onSelectTeam, onInv
     useEffect(() => {
         fetchInvites();
     }, [location.pathname, fetchInvites]);
+
+    useEffect(() => () => fetchController.current?.abort(), []);
 
     const openModal = () => {
         setFeedback(null);
@@ -69,7 +73,7 @@ export default function TopNavigation({ teams, selectedTeam, onSelectTeam, onInv
             // The endpoint takes a bare JSON boolean: POST /api/Teams/invites/{id}/respond with body `true` or `false`.
             const response = await api.post<{ message?: string }>(`/Teams/invites/${invite.inviteId}/respond`, isAccepted);
 
-            fetchSeq.current++;
+            fetchController.current?.abort();
             setInvites(prev => prev.filter(inv => inv.inviteId !== invite.inviteId));
             setFeedback({
                 type: 'success',
