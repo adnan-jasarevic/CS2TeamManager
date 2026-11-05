@@ -312,23 +312,18 @@ public class TeamService : ITeamService
     public async Task<List<TeamInviteDto>> GetMyPendingInvitesAsync(string userId)
     {
         var invites = await _teamRepository.GetUserPendingInvitesAsync(userId);
-        var dtoList = new List<TeamInviteDto>();
 
-        foreach (var invite in invites)
+        // One query for all senders instead of one per invite. This list loads on every page change.
+        var senderNames = await _identityService.GetUsernamesByIdsAsync(invites.Select(i => i.SenderUserId));
+
+        return invites.Select(invite => new TeamInviteDto
         {
-            string senderName = await _identityService.GetUsernameByIdAsync(invite.SenderUserId);
-
-            dtoList.Add(new TeamInviteDto
-            {
-                InviteId = invite.Id,
-                TeamId = invite.TeamId,
-                TeamName = invite.Team?.Name ?? "Unknown Team",
-                SenderUsername = senderName,
-                CreatedAt = invite.CreatedAt
-            });
-        }
-
-        return dtoList;
+            InviteId = invite.Id,
+            TeamId = invite.TeamId,
+            TeamName = invite.Team?.Name ?? "Unknown Team",
+            SenderUsername = senderNames.GetValueOrDefault(invite.SenderUserId) ?? "Team Owner",
+            CreatedAt = invite.CreatedAt
+        }).ToList();
     }
 
     public async Task<Result<string>> RespondToInviteAsync(int inviteId, string userId, bool isAccepted)

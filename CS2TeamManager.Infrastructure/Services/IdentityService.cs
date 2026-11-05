@@ -1,6 +1,7 @@
 using CS2TeamManager.Application.Interfaces;
 using CS2TeamManager.Infrastructure.Identity;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.EntityFrameworkCore;
 
 namespace CS2TeamManager.Infrastructure.Services;
 
@@ -28,6 +29,17 @@ public class IdentityService : IIdentityService
         var user = await _userManager.FindByIdAsync(userId);
 
         return user?.UserName ?? "Team Owner";
+    }
+
+    public async Task<Dictionary<string, string>> GetUsernamesByIdsAsync(IEnumerable<string> userIds)
+    {
+        var ids = userIds.Distinct().ToList();
+        if (ids.Count == 0)
+            return new Dictionary<string, string>();
+
+        return await _userManager.Users
+            .Where(u => ids.Contains(u.Id))
+            .ToDictionaryAsync(u => u.Id, u => u.UserName ?? string.Empty);
     }
 
 }

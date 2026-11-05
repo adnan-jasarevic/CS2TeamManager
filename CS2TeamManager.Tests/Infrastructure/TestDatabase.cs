@@ -114,5 +114,13 @@ public sealed class TestDatabase : IDisposable
 
         public Task<string> GetUsernameByIdAsync(string userId) =>
             Task.FromResult(_context.Users.FirstOrDefault(u => u.Id == userId)?.UserName ?? "Unknown");
+
+        public Task<Dictionary<string, string>> GetUsernamesByIdsAsync(IEnumerable<string> userIds)
+        {
+            var ids = userIds.ToList();
+            return Task.FromResult(_context.Users
+                .Where(u => ids.Contains(u.Id))
+                .ToDictionary(u => u.Id, u => u.UserName ?? string.Empty));
+        }
     }
 }
