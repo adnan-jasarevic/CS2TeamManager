@@ -165,11 +165,15 @@ export default function AddMatchModal({ teamId, onClose, onCreated }: AddMatchMo
                         <Input type="datetime-local" value={scheduledDate} onChange={(e) => setScheduledDate(e.target.value)} />
                     </Field>
                     <Field label="Status">
-                        <Select value={status} onChange={(e) => setStatus(Number(e.target.value) as MatchStatusValue)}>
-                            <option value={MatchStatus.Scheduled}>Scheduled</option>
-                            <option value={MatchStatus.Finished}>Finished</option>
-                            <option value={MatchStatus.Cancelled}>Cancelled</option>
-                        </Select>
+                        <Select<MatchStatusValue>
+                            value={status}
+                            onChange={setStatus}
+                            options={[
+                                { value: MatchStatus.Scheduled, label: 'Scheduled' },
+                                { value: MatchStatus.Finished, label: 'Finished' },
+                                { value: MatchStatus.Cancelled, label: 'Cancelled' },
+                            ]}
+                        />
                     </Field>
                 </div>
 

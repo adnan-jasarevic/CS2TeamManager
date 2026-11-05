@@ -29,8 +29,9 @@ Dependencies only point downwards: pages use components, components use `ui/`, a
    token needs a value in both themes.
 2. **Red means two things, so keep them apart.** `accent` is the brand and primary actions. `danger`
    is a loss or an error, and always comes with an icon or text. Green and gold are status colours only.
-3. **Native first.** `<dialog>`, radio buttons and `<select>` bring keyboard and screen reader
-   behaviour for free. Only build a custom widget when no native element does the job.
+3. **Native first.** `<dialog>` and radio buttons bring keyboard and screen reader behaviour for
+   free. Only build a custom widget when no native element does the job. `Select` is one: the popup
+   of a native `<select>` can't be themed reliably.
 4. **Every view that loads data handles four states:** loading, error, empty and data.
 5. **Never put rays on the logo's sun.** The rayed sun flag is offensive in much of Asia.
 
@@ -81,6 +82,20 @@ Import everything from `components/ui`.
 ```tsx
 <Field label="Opponent" required error={submitted && !name ? "Enter the opponent's name." : undefined}>
     <Input value={name} onChange={e => setName(e.target.value)} data-autofocus />
+</Field>
+```
+
+`Select` takes its choices as `options` and calls `onChange` with the new value, not an event. The
+value type is inferred from the options. It's a controlled button, so it doesn't submit with a form.
+An option's `hint` is a smaller second line in the open list. The closed control shows only the
+label, so keep the part people need to recognise a choice in `label`.
+
+```tsx
+<Field label="Role">
+    <Select value={role} onChange={setRole} options={[
+        { value: 'Player', label: 'Player' },
+        { value: 'Officer', label: 'Officer', hint: 'Same rights as the Captain' },
+    ]} />
 </Field>
 ```
 

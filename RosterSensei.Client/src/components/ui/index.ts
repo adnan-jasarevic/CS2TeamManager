@@ -1,7 +1,7 @@
 export { Alert, type AlertProps, type AlertTone } from './alert';
 export { Button, IconButton, LinkButton, type ButtonProps, type ButtonSize, type ButtonVariant, type IconButtonProps, type LinkButtonProps } from './button';
 export { Avatar, Badge, Card, CardHeader, LoadingRegion, Skeleton, StatGrid, StatTile, type BadgeProps, type BadgeTone, type CardHeaderProps, type LoadingRegionProps, type StatTileProps } from './display';
-export { Checkbox, Field, Input, PasswordInput, Select, Textarea, type CheckboxProps, type FieldProps } from './field';
+export { Checkbox, Field, Input, PasswordInput, Select, Textarea, type CheckboxProps, type FieldProps, type SelectOption, type SelectProps } from './field';
 export { Menu, MenuItem, MenuSeparator, type MenuItemProps, type MenuProps } from './menu';
 export { ConfirmDialog, Modal, type ConfirmDialogProps, type ModalProps } from './modal';
 export { Popover, type PopoverProps, type PopoverTriggerProps } from './popover';

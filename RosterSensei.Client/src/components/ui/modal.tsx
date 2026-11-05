@@ -197,7 +197,7 @@ function ConfirmDialogContent({
         >
             <form id={formId} onSubmit={handleSubmit} className="flex flex-col gap-4">
                 {error && <Alert tone="danger">{error}</Alert>}
-                <div className="text-sm text-fg-muted">{children}</div>
+                <div className="text-sm break-words text-fg-muted">{children}</div>
                 {confirmationText && (
                     <Field label={`Type ${confirmationText} to continue`}>
                         <Input

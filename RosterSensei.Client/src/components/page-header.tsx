@@ -17,7 +17,7 @@ export default function PageHeader({ title, description, actions }: PageHeaderPr
         <div className="mb-6 flex flex-col justify-between gap-4 md:flex-row md:items-end lg:mb-8">
             <div className="min-w-0">
                 <h1 className="text-2xl font-black tracking-tight text-fg lg:text-3xl">{title}</h1>
-                {description && <p className="mt-1 text-sm text-fg-muted lg:text-base">{description}</p>}
+                {description && <p className="mt-1 text-sm break-words text-fg-muted lg:text-base">{description}</p>}
             </div>
             {actions && <div className="flex shrink-0 flex-wrap items-center gap-2">{actions}</div>}
         </div>
