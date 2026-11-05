@@ -141,7 +141,7 @@ export default function UiKit() {
                     <Badge tone="danger">Danger</Badge>
                 </Row>
                 <Row>
-                    <OutcomeBadge outcome="WIN" />
+                    <OutcomeBadge outcome="Win" />
                     <OutcomeBadge outcome="Loss" />
                     <OutcomeBadge outcome="Draw" />
                     <MatchStatusBadge status="Live" />

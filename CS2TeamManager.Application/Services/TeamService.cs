@@ -182,7 +182,7 @@ public class TeamService : ITeamService
         };
 
         var finishedMatches = allMatches.Where(m => m.Status == MatchStatus.Finished).ToList();
-        var wins = finishedMatches.Count(m => m.OurScore > m.OpponentScore);
+        var wins = finishedMatches.Count(m => m.Outcome == MatchOutcome.Win);
 
         if (finishedMatches.Any())
         {
@@ -219,8 +219,8 @@ public class TeamService : ITeamService
             OpponentName = m.OpponentName,
             ScheduledDate = m.ScheduledDate,
             Status = m.Status.ToString(),
-            FinalScore = $"{m.OurScore}-{m.OpponentScore}",
-            MatchOutcome = m.OurScore > m.OpponentScore ? "WIN" : (m.OurScore < m.OpponentScore ? "LOSS" : "DRAW")
+            FinalScore = m.FinalScore,
+            MatchOutcome = m.Outcome.ToString()
         }).ToList();
 
         return Result<TeamDashboardDto>.SuccessResult(dashboard);
