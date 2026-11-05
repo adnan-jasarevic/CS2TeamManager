@@ -22,15 +22,17 @@ public class TeamMembershipTests : IDisposable
     public void Dispose() => _db.Dispose();
 
     [Fact]
-    public async Task Creator_owns_the_new_team()
+    public async Task Creator_owns_the_new_team_and_is_its_Captain()
     {
         var creator = _db.AddUser("creator");
 
         var result = await _db.TeamService().CreateTeamAsync(creator, new CreateTeamDto { Name = "Five Stack" });
 
         Assert.True(result.Success, result.ErrorMessage);
-        Assert.Equal("Owner", result.Data!.CurrentUserRole);
-        Assert.Equal(TeamRole.Owner, _db.RoleOf(result.Data.Id, creator));
+        Assert.True(result.Data!.IsOwner);
+        Assert.Equal("Captain", result.Data.CurrentUserRole);
+        Assert.Equal(creator, _db.OwnerOf(result.Data.Id));
+        Assert.Equal(TeamRole.Captain, _db.RoleOf(result.Data.Id, creator));
     }
 
     [Fact]
@@ -54,19 +56,20 @@ public class TeamMembershipTests : IDisposable
         var teams = await _db.TeamService().GetUserTeamsAsync(_player);
 
         Assert.Equal(2, teams.Count);
-        Assert.Contains(teams, t => t.CurrentUserRole == "Player");
-        Assert.Contains(teams, t => t.CurrentUserRole == "Officer");
+        Assert.Contains(teams, t => t.CurrentUserRole == "Player" && !t.IsOwner);
+        Assert.Contains(teams, t => t.CurrentUserRole == "Officer" && !t.IsOwner);
+        Assert.True(Assert.Single(await _db.TeamService().GetUserTeamsAsync(otherOwner)).IsOwner);
     }
 
     [Fact]
-    public async Task Members_list_has_usernames_and_roles()
+    public async Task Members_list_has_usernames_roles_and_the_Owner()
     {
         var result = await _db.TeamService().GetTeamMembersAsync(_teamId, _player);
 
         Assert.True(result.Success, result.ErrorMessage);
         Assert.Collection(result.Data!.OrderBy(m => m.Username),
-            m => Assert.Equal(("owner", "Owner"), (m.Username, m.Role)),
-            m => Assert.Equal(("player", "Player"), (m.Username, m.Role)));
+            m => Assert.Equal(("owner", "Captain", true), (m.Username, m.Role, m.IsOwner)),
+            m => Assert.Equal(("player", "Player", false), (m.Username, m.Role, m.IsOwner)));
     }
 
     [Fact]
@@ -93,7 +96,7 @@ public class TeamMembershipTests : IDisposable
         var result = await _db.TeamService().RemoveMemberAsync(_teamId, _owner, _owner);
 
         Assert.False(result.Success);
-        Assert.Equal(TeamRole.Owner, _db.RoleOf(_teamId, _owner));
+        Assert.NotNull(_db.RoleOf(_teamId, _owner));
     }
 
     [Fact]

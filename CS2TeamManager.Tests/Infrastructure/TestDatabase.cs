@@ -65,12 +65,16 @@ public sealed class TestDatabase : IDisposable
 
     public static string EmailOf(string name) => $"{name}@example.com";
 
-    // Creates a team owned by ownerId, with the other members added directly in the given roles.
-    public int AddTeam(string ownerId, params (string UserId, TeamRole Role)[] members)
+    // Creates a team owned by ownerId, who is also its Captain, like a team made in the app.
+    public int AddTeam(string ownerId, params (string UserId, TeamRole Role)[] members) =>
+        AddTeam(ownerId, TeamRole.Captain, members);
+
+    // Creates a team owned by ownerId in ownerRole, with the other members added directly in the given roles.
+    public int AddTeam(string ownerId, TeamRole ownerRole, params (string UserId, TeamRole Role)[] members)
     {
         using var context = CreateContext();
-        var team = new Team { Name = $"Team of {ownerId}" };
-        team.Members.Add(new TeamMember { UserId = ownerId, Role = TeamRole.Owner });
+        var team = new Team { Name = $"Team of {ownerId}", OwnerId = ownerId };
+        team.Members.Add(new TeamMember { UserId = ownerId, Role = ownerRole });
         foreach (var (userId, role) in members)
             team.Members.Add(new TeamMember { UserId = userId, Role = role });
 
@@ -86,6 +90,12 @@ public sealed class TestDatabase : IDisposable
             .Where(m => m.TeamId == teamId && m.UserId == userId)
             .Select(m => (TeamRole?)m.Role)
             .FirstOrDefault();
+    }
+
+    public string OwnerOf(int teamId)
+    {
+        using var context = CreateContext();
+        return context.Teams.Where(t => t.Id == teamId).Select(t => t.OwnerId).Single();
     }
 
     public void Dispose() => _connection.Dispose();

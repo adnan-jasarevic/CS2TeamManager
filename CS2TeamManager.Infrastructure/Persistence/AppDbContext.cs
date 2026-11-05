@@ -53,12 +53,6 @@ public class AppDbContext : IdentityDbContext<AppUser>
             .IsUnique()
             .HasFilter("[Role] = 1");
 
-        // Exactly one Owner per team: a transfer can never leave two.
-        builder.Entity<TeamMember>()
-            .HasIndex(tm => tm.TeamId, "IX_TeamMembers_OneOwnerPerTeam")
-            .IsUnique()
-            .HasFilter("[Role] = 0");
-
         // At most one pending invite per user per team, even when two invites are sent at the same time.
         builder.Entity<TeamInvite>(invite =>
         {
@@ -136,9 +130,21 @@ public class AppDbContext : IdentityDbContext<AppUser>
                 .IsUnique();
         });
 
-        builder.Entity<Team>()
-            .Property(t => t.Name)
-            .IsRequired()
-            .HasMaxLength(100);
+        builder.Entity<Team>(team =>
+        {
+            team.Property(t => t.Name)
+                .IsRequired()
+                .HasMaxLength(100);
+
+            // Ownership lives on the team, so a team always has exactly one Owner.
+            team.Property(t => t.OwnerId)
+                .IsRequired()
+                .HasMaxLength(450);
+
+            team.HasOne<AppUser>()
+                .WithMany()
+                .HasForeignKey(t => t.OwnerId)
+                .OnDelete(DeleteBehavior.Restrict);
+        });
     }
 }

@@ -80,7 +80,7 @@ public class TeamEventService : ITeamEventService
     private async Task<bool> CanManageAsync(int teamId, string userId)
     {
         var member = await _teamRepository.GetTeamMemberAsync(teamId, userId);
-        return member != null && member.Role.CanManageTeam();
+        return member != null && member.CanManageTeam;
     }
 
     private static void Apply(TeamEvent teamEvent, SaveTeamEventDto dto)

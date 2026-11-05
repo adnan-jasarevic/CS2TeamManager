@@ -194,7 +194,14 @@ namespace CS2TeamManager.Infrastructure.Migrations
                         .HasMaxLength(100)
                         .HasColumnType("nvarchar(100)");
 
+                    b.Property<string>("OwnerId")
+                        .IsRequired()
+                        .HasMaxLength(450)
+                        .HasColumnType("nvarchar(450)");
+
                     b.HasKey("Id");
+
+                    b.HasIndex("OwnerId");
 
                     b.ToTable("Teams");
                 });
@@ -307,10 +314,6 @@ namespace CS2TeamManager.Infrastructure.Migrations
                     b.HasIndex(new[] { "TeamId" }, "IX_TeamMembers_OneCaptainPerTeam")
                         .IsUnique()
                         .HasFilter("[Role] = 1");
-
-                    b.HasIndex(new[] { "TeamId" }, "IX_TeamMembers_OneOwnerPerTeam")
-                        .IsUnique()
-                        .HasFilter("[Role] = 0");
 
                     b.ToTable("TeamMembers");
                 });
@@ -564,6 +567,15 @@ namespace CS2TeamManager.Infrastructure.Migrations
                         .HasForeignKey("UserId");
 
                     b.Navigation("Match");
+                });
+
+            modelBuilder.Entity("CS2TeamManager.Domain.Entities.Team", b =>
+                {
+                    b.HasOne("CS2TeamManager.Infrastructure.Identity.AppUser", null)
+                        .WithMany()
+                        .HasForeignKey("OwnerId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
                 });
 
             modelBuilder.Entity("CS2TeamManager.Domain.Entities.TeamEvent", b =>
