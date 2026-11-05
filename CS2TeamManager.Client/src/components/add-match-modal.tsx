@@ -3,6 +3,7 @@ import api from '../services/api';
 import { getApiErrorMessage } from '../services/errors';
 import { MAP_POOL } from '../constants/maps';
 import { MatchKind, MatchStatus, type CreateMatchRequest, type MatchKindValue, type MatchMap, type MatchStatusValue } from '../types';
+import { Alert, Button, Field, Input, Modal, SegmentedControl, Select, Textarea, ToggleChip } from './ui';
 
 interface AddMatchModalProps {
     teamId: number;
@@ -10,7 +11,12 @@ interface AddMatchModalProps {
     onCreated: () => void;
 }
 
-const BEST_OF_OPTIONS = [1, 2, 3, 5];
+const TYPE_OPTIONS = [
+    { value: MatchKind.Official, label: 'Official' },
+    { value: MatchKind.Scrim, label: 'Scrim' },
+];
+
+const BEST_OF_OPTIONS = [1, 2, 3, 5].map(value => ({ value, label: `Bo${value}` }));
 
 // Score inputs are kept as text so a field can be left empty (map not played, halves not tracked).
 type ScoreField = 'ourScore' | 'opponentScore' | 'ourFirstHalf' | 'opponentFirstHalf' | 'ourSecondHalf' | 'opponentSecondHalf';
@@ -27,9 +33,6 @@ const EMPTY_MAP_SCORE: MapScoreInput = {
 
 const toNumber = (value: string) => (value.trim() === '' ? undefined : Math.max(0, Number(value)));
 
-const inputClass = 'w-full px-4 py-2 bg-[#111322] border border-gray-700 rounded-lg text-white focus:outline-none focus:border-[#ff6b4a]';
-const labelClass = 'block text-gray-400 text-sm mb-1';
-
 export default function AddMatchModal({ teamId, onClose, onCreated }: AddMatchModalProps) {
     const [opponentName, setOpponentName] = useState('');
     const [tournament, setTournament] = useState('');
@@ -44,6 +47,7 @@ export default function AddMatchModal({ teamId, onClose, onCreated }: AddMatchMo
     const [notes, setNotes] = useState('');
 
     const [error, setError] = useState('');
+    const [showFieldErrors, setShowFieldErrors] = useState(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
 
     const isFinished = status === MatchStatus.Finished;
@@ -94,8 +98,9 @@ export default function AddMatchModal({ teamId, onClose, onCreated }: AddMatchMo
         e.preventDefault();
         setError('');
 
+        // The button stays enabled so pressing it can explain what's missing, right on the fields.
         if (!opponentName.trim() || !scheduledDate) {
-            setError('Opponent and date are required.');
+            setShowFieldErrors(true);
             return;
         }
 
@@ -129,219 +134,123 @@ export default function AddMatchModal({ teamId, onClose, onCreated }: AddMatchMo
     };
 
     return (
-        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
-            <div className="bg-gray-800 rounded-xl shadow-xl border border-gray-700 w-full max-w-lg max-h-[90vh] overflow-y-auto">
-                <div className="p-6 border-b border-gray-700 flex justify-between items-center">
-                    <h2 className="text-xl font-bold text-white">Add Match</h2>
-                    <button onClick={onClose} className="text-gray-400 hover:text-white text-2xl">&times;</button>
+        <Modal
+            open
+            onClose={onClose}
+            title="Add match"
+            busy={isSubmitting}
+            closeOnBackdrop={false}
+            footer={
+                <>
+                    <Button variant="ghost" onClick={onClose} disabled={isSubmitting}>Cancel</Button>
+                    <Button type="submit" form="add-match-form" loading={isSubmitting} loadingText="Saving...">Add match</Button>
+                </>
+            }
+        >
+            <form id="add-match-form" onSubmit={handleSubmit} noValidate className="flex flex-col gap-5">
+                {error && <Alert tone="danger">{error}</Alert>}
+
+                <SegmentedControl label="Type" value={type} options={TYPE_OPTIONS} onChange={setType} />
+
+                <Field label="Opponent" required error={showFieldErrors && !opponentName.trim() ? 'Enter the opponent\'s name.' : undefined}>
+                    <Input value={opponentName} onChange={(e) => setOpponentName(e.target.value)} placeholder="e.g. Tokyo Ronin" maxLength={100} autoComplete="off" data-autofocus />
+                </Field>
+
+                <Field label="Tournament" optional>
+                    <Input value={tournament} onChange={(e) => setTournament(e.target.value)} placeholder="e.g. Local LAN Cup" maxLength={100} autoComplete="off" />
+                </Field>
+
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                    <Field label="Date and time" required error={showFieldErrors && !scheduledDate ? 'Pick a date and time.' : undefined}>
+                        <Input type="datetime-local" value={scheduledDate} onChange={(e) => setScheduledDate(e.target.value)} />
+                    </Field>
+                    <Field label="Status">
+                        <Select value={status} onChange={(e) => setStatus(Number(e.target.value) as MatchStatusValue)}>
+                            <option value={MatchStatus.Scheduled}>Scheduled</option>
+                            <option value={MatchStatus.Finished}>Finished</option>
+                            <option value={MatchStatus.Cancelled}>Cancelled</option>
+                        </Select>
+                    </Field>
                 </div>
 
-                <form onSubmit={handleSubmit} className="p-6 flex flex-col gap-4">
-                    {error && <div className="bg-red-500/10 border border-red-500 text-red-500 p-3 rounded text-sm">{error}</div>}
+                {isFinished && !hasMapScores && (
+                    <div className="grid grid-cols-2 gap-4">
+                        <Field label="Our score">
+                            <Input type="number" inputMode="numeric" min={0} value={ourScore} onChange={(e) => setOurScore(Math.max(0, Number(e.target.value)))} />
+                        </Field>
+                        <Field label="Opponent score">
+                            <Input type="number" inputMode="numeric" min={0} value={opponentScore} onChange={(e) => setOpponentScore(Math.max(0, Number(e.target.value)))} />
+                        </Field>
+                    </div>
+                )}
 
-                    <div>
-                        <label className={labelClass}>Type</label>
-                        <div className="flex gap-2">
-                            {([['Official', MatchKind.Official], ['Scrim', MatchKind.Scrim]] as const).map(([label, value]) => (
-                                <button
-                                    key={label}
-                                    type="button"
-                                    onClick={() => setType(value)}
-                                    className={`px-4 py-2 rounded-lg text-sm font-bold border transition-colors ${type === value
-                                        ? 'bg-[#ff6b4a] border-[#ff6b4a] text-white'
-                                        : 'bg-[#111322] border-gray-700 text-gray-400 hover:text-white'
-                                        }`}
-                                >
-                                    {label}
-                                </button>
-                            ))}
+                <SegmentedControl label="Format" value={bestOf} options={BEST_OF_OPTIONS} onChange={handleBestOfChange} />
+
+                <fieldset>
+                    <legend className="mb-1.5 text-sm font-medium text-fg-muted">
+                        Maps <span className="font-normal text-fg-subtle tabular-nums">({maps.length}/{bestOf}, in play order)</span>
+                    </legend>
+                    <div className="flex flex-wrap gap-2">
+                        {MAP_POOL.map(map => {
+                            const index = maps.indexOf(map);
+                            const selected = index !== -1;
+                            return (
+                                <ToggleChip key={map} pressed={selected} disabled={!selected && maps.length >= bestOf} onToggle={() => toggleMap(map)}>
+                                    {selected && <span className="mr-1 font-bold text-accent-text">{index + 1}.</span>}{map}
+                                </ToggleChip>
+                            );
+                        })}
+                    </div>
+                </fieldset>
+
+                {hasMapScores && (
+                    <div className="flex flex-col gap-3">
+                        <div className="flex items-baseline justify-between gap-4">
+                            <span className="text-sm font-medium text-fg-muted">Map scores <span className="font-normal text-fg-subtle">(leave a map empty if it wasn't played)</span></span>
+                            {seriesPreview && <span className="shrink-0 font-display font-black text-fg tabular-nums">{seriesPreview}</span>}
                         </div>
-                    </div>
-
-                    <div>
-                        <label className={labelClass}>Opponent</label>
-                        <input
-                            type="text"
-                            value={opponentName}
-                            onChange={(e) => setOpponentName(e.target.value)}
-                            className={inputClass}
-                            placeholder="e.g. Team Liquid"
-                            maxLength={100}
-                            autoFocus
-                        />
-                    </div>
-
-                    <div>
-                        <label className={labelClass}>Tournament (optional)</label>
-                        <input
-                            type="text"
-                            value={tournament}
-                            onChange={(e) => setTournament(e.target.value)}
-                            className={inputClass}
-                            placeholder="e.g. Local LAN Cup"
-                            maxLength={100}
-                        />
-                    </div>
-
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                        <div>
-                            <label className={labelClass}>Date and time</label>
-                            <input
-                                type="datetime-local"
-                                value={scheduledDate}
-                                onChange={(e) => setScheduledDate(e.target.value)}
-                                className={inputClass}
-                            />
-                        </div>
-                        <div>
-                            <label className={labelClass}>Status</label>
-                            <select
-                                value={status}
-                                onChange={(e) => setStatus(Number(e.target.value) as MatchStatusValue)}
-                                className={inputClass}
-                            >
-                                <option value={MatchStatus.Scheduled}>Scheduled</option>
-                                <option value={MatchStatus.Finished}>Finished</option>
-                                <option value={MatchStatus.Cancelled}>Cancelled</option>
-                            </select>
-                        </div>
-                    </div>
-
-                    {isFinished && !hasMapScores && (
-                        <div className="grid grid-cols-2 gap-4">
-                            <div>
-                                <label className={labelClass}>Our score</label>
-                                <input
+                        {maps.map((map, index) => {
+                            const score = scoreFor(map);
+                            const scoreInput = (field: ScoreField, label: string) => (
+                                <Input
                                     type="number"
+                                    inputMode="numeric"
                                     min={0}
-                                    value={ourScore}
-                                    onChange={(e) => setOurScore(Math.max(0, Number(e.target.value)))}
-                                    className={inputClass}
+                                    value={score[field]}
+                                    onChange={(e) => setMapScore(map, field, e.target.value)}
+                                    className="px-1 text-center"
+                                    placeholder="-"
+                                    aria-label={`${map} ${label}`}
                                 />
-                            </div>
-                            <div>
-                                <label className={labelClass}>Opponent score</label>
-                                <input
-                                    type="number"
-                                    min={0}
-                                    value={opponentScore}
-                                    onChange={(e) => setOpponentScore(Math.max(0, Number(e.target.value)))}
-                                    className={inputClass}
-                                />
-                            </div>
-                        </div>
-                    )}
-
-                    <div>
-                        <label className={labelClass}>Format</label>
-                        <div className="flex gap-2">
-                            {BEST_OF_OPTIONS.map(option => (
-                                <button
-                                    key={option}
-                                    type="button"
-                                    onClick={() => handleBestOfChange(option)}
-                                    className={`px-4 py-2 rounded-lg text-sm font-bold border transition-colors ${bestOf === option
-                                        ? 'bg-[#ff6b4a] border-[#ff6b4a] text-white'
-                                        : 'bg-[#111322] border-gray-700 text-gray-400 hover:text-white'
-                                        }`}
-                                >
-                                    Bo{option}
-                                </button>
-                            ))}
-                        </div>
-                    </div>
-
-                    <div>
-                        <label className={labelClass}>Maps ({maps.length}/{bestOf}, in play order)</label>
-                        <div className="flex flex-wrap gap-2">
-                            {MAP_POOL.map(map => {
-                                const index = maps.indexOf(map);
-                                const selected = index !== -1;
-                                const disabled = !selected && maps.length >= bestOf;
-                                return (
-                                    <button
-                                        key={map}
-                                        type="button"
-                                        onClick={() => toggleMap(map)}
-                                        disabled={disabled}
-                                        className={`px-3 py-1 rounded text-sm border transition-colors disabled:opacity-40 ${selected
-                                            ? 'bg-[#ff6b4a]/20 border-[#ff6b4a] text-[#ff6b4a]'
-                                            : 'bg-[#111322] border-gray-700 text-gray-400 hover:text-white'
-                                            }`}
-                                    >
-                                        {selected && `${index + 1}. `}{map}
-                                    </button>
-                                );
-                            })}
-                        </div>
-                    </div>
-
-                    {hasMapScores && (
-                        <div className="flex flex-col gap-3">
-                            <div className="flex justify-between items-baseline">
-                                <span className="text-gray-400 text-sm">Map scores (leave a map empty if it wasn't played)</span>
-                                {seriesPreview && <span className="text-white font-bold">{seriesPreview}</span>}
-                            </div>
-                            {maps.map((map, index) => {
-                                const score = scoreFor(map);
-                                const scoreInput = (field: ScoreField, label: string) => (
-                                    <input
-                                        type="number"
-                                        min={0}
-                                        value={score[field]}
-                                        onChange={(e) => setMapScore(map, field, e.target.value)}
-                                        className={`${inputClass} text-center px-2`}
-                                        placeholder="-"
-                                        aria-label={`${map} ${label}`}
-                                    />
-                                );
-                                return (
-                                    <div key={map} className="bg-[#111322] border border-gray-700 rounded-lg p-3">
-                                        <p className="text-white font-bold text-sm mb-2">{index + 1}. {map}</p>
-                                        <div className="grid grid-cols-[auto_1fr_1fr_1fr] gap-2 items-center text-xs text-gray-500">
-                                            <span />
-                                            <span className="text-center">Final</span>
-                                            <span className="text-center">1st half</span>
-                                            <span className="text-center">2nd half</span>
-                                            <span>Us</span>
-                                            {scoreInput('ourScore', 'our final score')}
-                                            {scoreInput('ourFirstHalf', 'our first half')}
-                                            {scoreInput('ourSecondHalf', 'our second half')}
-                                            <span>Them</span>
-                                            {scoreInput('opponentScore', 'opponent final score')}
-                                            {scoreInput('opponentFirstHalf', 'opponent first half')}
-                                            {scoreInput('opponentSecondHalf', 'opponent second half')}
-                                        </div>
+                            );
+                            return (
+                                <fieldset key={map} className="rounded-md border border-line bg-sunken p-3">
+                                    <legend className="px-1 text-sm font-bold text-fg">{index + 1}. {map}</legend>
+                                    <div className="grid grid-cols-[auto_repeat(3,minmax(0,1fr))] items-center gap-2 text-xs text-fg-subtle">
+                                        <span />
+                                        <span className="text-center">Final</span>
+                                        <span className="text-center">1st half</span>
+                                        <span className="text-center">2nd half</span>
+                                        <span>Us</span>
+                                        {scoreInput('ourScore', 'our final score')}
+                                        {scoreInput('ourFirstHalf', 'our first half')}
+                                        {scoreInput('ourSecondHalf', 'our second half')}
+                                        <span>Them</span>
+                                        {scoreInput('opponentScore', 'opponent final score')}
+                                        {scoreInput('opponentFirstHalf', 'opponent first half')}
+                                        {scoreInput('opponentSecondHalf', 'opponent second half')}
                                     </div>
-                                );
-                            })}
-                            <p className="text-xs text-gray-500">Halves are optional. If the final score is higher than both halves added up, the map went to overtime.</p>
-                        </div>
-                    )}
-
-                    <div>
-                        <label className={labelClass}>Notes (optional)</label>
-                        <textarea
-                            value={notes}
-                            onChange={(e) => setNotes(e.target.value)}
-                            className={`${inputClass} resize-none`}
-                            rows={3}
-                            maxLength={1000}
-                        />
+                                </fieldset>
+                            );
+                        })}
+                        <p className="text-xs text-fg-subtle">Halves are optional. If the final score is higher than both halves added up, the map went to overtime.</p>
                     </div>
+                )}
 
-                    <div className="mt-2 flex justify-end gap-3">
-                        <button type="button" onClick={onClose} className="px-4 py-2 text-gray-400 hover:text-white">Cancel</button>
-                        <button
-                            type="submit"
-                            disabled={isSubmitting || !opponentName.trim() || !scheduledDate}
-                            className="bg-[#ff6b4a] hover:bg-[#e5593c] px-6 py-2 rounded-lg font-bold text-white transition-colors disabled:opacity-50"
-                        >
-                            {isSubmitting ? 'Saving...' : 'Add Match'}
-                        </button>
-                    </div>
-                </form>
-            </div>
-        </div>
+                <Field label="Notes" optional>
+                    <Textarea value={notes} onChange={(e) => setNotes(e.target.value)} maxLength={1000} />
+                </Field>
+            </form>
+        </Modal>
     );
 }

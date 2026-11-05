@@ -1,6 +1,11 @@
-/* Dark theme for react-big-calendar, scoped to the team calendar page. */
+/* Theme for react-big-calendar, scoped to the team calendar and driven by the design tokens. */
 .team-calendar .rbc-calendar {
-    color: #e5e7eb;
+    color: var(--rs-fg);
+    transition: opacity 150ms ease;
+}
+
+.team-calendar.is-refreshing .rbc-calendar {
+    opacity: 0.75;
 }
 
 .team-calendar .rbc-toolbar {
@@ -9,28 +14,40 @@
 }
 
 .team-calendar .rbc-toolbar .rbc-toolbar-label {
-    font-weight: 700;
-    font-size: 1.1rem;
+    font-family: var(--font-display);
+    font-weight: 900;
+    font-size: 1.125rem;
 }
 
 .team-calendar .rbc-toolbar button {
-    color: #9ca3af;
-    background: #111322;
-    border-color: #374151;
+    min-height: 36px;
+    color: var(--rs-fg-muted);
+    background: transparent;
+    border-color: var(--rs-line-strong);
+    font-size: 0.875rem;
+    font-weight: 600;
 }
 
 .team-calendar .rbc-toolbar button:hover,
 .team-calendar .rbc-toolbar button:focus {
-    color: #fff;
-    background: #1f2937;
-    border-color: #374151;
+    color: var(--rs-fg);
+    background: var(--rs-hover);
+    border-color: var(--rs-line-strong);
+}
+
+.team-calendar .rbc-toolbar button:focus-visible {
+    position: relative;
+    z-index: 1;
+    outline: 2px solid var(--rs-focus);
+    outline-offset: 2px;
 }
 
 .team-calendar .rbc-toolbar button.rbc-active,
-.team-calendar .rbc-toolbar button.rbc-active:hover {
-    color: #fff;
-    background: #ff6b4a;
-    border-color: #ff6b4a;
+.team-calendar .rbc-toolbar button.rbc-active:hover,
+.team-calendar .rbc-toolbar button.rbc-active:focus {
+    color: var(--rs-on-accent);
+    background: var(--rs-accent);
+    border-color: var(--rs-accent);
     box-shadow: none;
 }
 
@@ -38,6 +55,7 @@
 .team-calendar .rbc-time-view,
 .team-calendar .rbc-agenda-view table.rbc-agenda-table,
 .team-calendar .rbc-header,
+.team-calendar .rbc-header + .rbc-header,
 .team-calendar .rbc-month-row + .rbc-month-row,
 .team-calendar .rbc-day-bg + .rbc-day-bg,
 .team-calendar .rbc-time-header-content,
@@ -48,63 +66,201 @@
 .team-calendar .rbc-agenda-view table.rbc-agenda-table tbody > tr > td + td,
 .team-calendar .rbc-agenda-view table.rbc-agenda-table tbody > tr + tr,
 .team-calendar .rbc-agenda-view table.rbc-agenda-table thead > tr > th {
-    border-color: #1f2937;
+    border-color: var(--rs-line);
+}
+
+.team-calendar .rbc-month-view,
+.team-calendar .rbc-time-view {
+    border-radius: 6px;
+    overflow: hidden;
 }
 
 .team-calendar .rbc-header {
     padding: 8px 4px;
-    color: #9ca3af;
+    color: var(--rs-fg-muted);
+    font-size: 0.75rem;
     font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
 }
 
 .team-calendar .rbc-off-range-bg {
-    background: #111322;
+    background: var(--rs-sunken);
 }
 
 .team-calendar .rbc-off-range {
-    color: #4b5563;
+    color: var(--rs-fg-subtle);
 }
 
 .team-calendar .rbc-today {
-    background: rgba(255, 107, 74, 0.08);
+    background: var(--rs-accent-soft);
 }
 
 .team-calendar .rbc-current-time-indicator {
-    background-color: #ff6b4a;
+    background-color: var(--rs-accent-text);
 }
 
 .team-calendar .rbc-time-gutter,
 .team-calendar .rbc-label {
-    color: #6b7280;
+    color: var(--rs-fg-subtle);
 }
 
 .team-calendar .rbc-event {
+    padding: 2px 4px;
+    border: none;
     border-radius: 4px;
-    font-size: 0.8rem;
+    font-size: 0.75rem;
+    font-weight: 600;
+}
+
+.team-calendar .rbc-event.is-readonly {
+    cursor: default;
 }
 
 .team-calendar .rbc-event.rbc-selected {
-    filter: brightness(1.15);
+    filter: brightness(1.12);
+}
+
+.team-calendar .rbc-kind-pracc { background: var(--rs-event-pracc); color: var(--rs-event-pracc-fg); }
+.team-calendar .rbc-kind-official { background: var(--rs-event-official); color: var(--rs-event-official-fg); }
+.team-calendar .rbc-kind-vod { background: var(--rs-event-vod); color: var(--rs-event-vod-fg); }
+.team-calendar .rbc-kind-match { background: var(--rs-event-match); color: var(--rs-event-match-fg); }
+.team-calendar .rbc-kind-other { background: var(--rs-event-other); color: var(--rs-event-other-fg); }
+
+.team-calendar .rs-event-label {
+    display: flex;
+    width: 100%;
+    min-width: 0;
+    align-items: center;
+    gap: 4px;
+    border-radius: 2px;
+    color: inherit;
+    font: inherit;
+    text-align: left;
+}
+
+.team-calendar .rs-event-label:focus-visible {
+    outline-offset: 1px;
+}
+
+/* Tall enough that a 30-minute event is still a 24px target, the WCAG 2.2 AA minimum. */
+.team-calendar .rbc-timeslot-group {
+    min-height: 48px;
+}
+
+.team-calendar .rbc-month-view .rs-event-label {
+    min-height: 20px;
+}
+
+.team-calendar .rbc-event-label {
+    font-size: 0.6875rem;
 }
 
 .team-calendar .rbc-slot-selection {
-    background: rgba(255, 107, 74, 0.35);
+    background: var(--rs-accent-soft);
+    color: var(--rs-fg);
 }
 
 .team-calendar .rbc-show-more {
     background: transparent;
-    color: #ff6b4a;
+    color: var(--rs-accent-text);
+    font-size: 0.75rem;
+    font-weight: 600;
 }
 
+/* react-big-calendar renders the "+2 more" popup inside the calendar, so the card can't clip it. */
 .team-calendar .rbc-overlay {
-    background: #111322;
-    border-color: #374151;
+    background: var(--rs-raised);
+    border-color: var(--rs-line);
+    border-radius: 6px;
+    box-shadow: var(--rs-shadow);
 }
 
 .team-calendar .rbc-overlay-header {
-    border-color: #374151;
+    border-color: var(--rs-line);
+}
+
+.team-calendar .rbc-agenda-view .rs-event-label {
+    color: var(--rs-fg);
+}
+
+.team-calendar .rbc-agenda-view button.rs-event-label:hover {
+    color: var(--rs-accent-text);
+    text-decoration: underline;
+}
+
+.team-calendar .rbc-agenda-view table.rbc-agenda-table tbody > tr {
+    background: transparent !important;
+    color: var(--rs-fg) !important;
 }
 
 .team-calendar .rbc-agenda-empty {
-    color: #6b7280;
+    padding: 48px 16px;
+    color: var(--rs-fg-muted);
+    text-align: center;
+}
+
+@media (max-width: 639px) {
+    .team-calendar .rbc-toolbar {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .team-calendar .rbc-toolbar .rbc-btn-group {
+        display: flex;
+    }
+
+    .team-calendar .rbc-toolbar .rbc-btn-group button {
+        flex: 1;
+        min-height: 44px;
+    }
+
+    .team-calendar .rbc-toolbar .rbc-toolbar-label {
+        order: -1;
+    }
+
+    /* Three columns don't fit on a phone, so each row stacks with the event on its own line. */
+    .team-calendar .rbc-agenda-view table.rbc-agenda-table thead {
+        display: none;
+    }
+
+    .team-calendar .rbc-agenda-view table.rbc-agenda-table,
+    .team-calendar .rbc-agenda-view table.rbc-agenda-table tbody {
+        display: block;
+        width: 100%;
+    }
+
+    .team-calendar .rbc-agenda-view table.rbc-agenda-table tbody > tr {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: baseline;
+        column-gap: 8px;
+        padding: 8px 4px;
+    }
+
+    .team-calendar .rbc-agenda-view table.rbc-agenda-table tbody > tr > td {
+        padding: 0;
+        border: none;
+        white-space: nowrap;
+    }
+
+    .team-calendar .rbc-agenda-view td.rbc-agenda-date-cell {
+        font-weight: 700;
+    }
+
+    .team-calendar .rbc-agenda-view td.rbc-agenda-time-cell {
+        color: var(--rs-fg-muted);
+        font-size: 0.8125rem;
+    }
+
+    .team-calendar .rbc-agenda-view table.rbc-agenda-table tbody > tr > td.rbc-agenda-event-cell {
+        flex: 0 0 100%;
+        min-width: 0;
+        padding-top: 4px;
+        white-space: normal;
+    }
+
+    .team-calendar .rbc-agenda-view .rs-event-label {
+        min-height: 32px;
+    }
 }

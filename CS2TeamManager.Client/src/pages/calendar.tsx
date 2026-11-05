@@ -1,13 +1,17 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Calendar as BigCalendar, Views, dateFnsLocalizer, type SlotInfo, type View } from 'react-big-calendar';
+import { useCallback, useMemo, useState, type KeyboardEvent } from 'react';
+import { Calendar as BigCalendar, Views, dateFnsLocalizer, type Components, type EventProps, type SlotInfo, type View } from 'react-big-calendar';
 import { addDays, endOfMonth, format, getDay, parse, startOfMonth, startOfWeek } from 'date-fns';
 import { enUS } from 'date-fns/locale';
+import { CalendarPlus, Circle, Clapperboard, Crosshair, Swords, Trophy, type LucideIcon } from 'lucide-react';
 import 'react-big-calendar/lib/css/react-big-calendar.css';
 import './calendar.css';
 import api from '../services/api';
-import { getApiErrorMessage } from '../services/errors';
-import { useLayoutContext } from '../components/layout-context';
+import { useResource, type ResourceLoader } from '../hooks/use-resource';
+import { cx } from '../lib/cx';
 import EventModal from '../components/event-modal';
+import PageHeader, { PageContainer } from '../components/page-header';
+import TeamGate from '../components/team-gate';
+import { Alert, Button, Card, ErrorState, Skeleton } from '../components/ui';
 import { EVENT_TYPE_LABELS, type Match, type Team, type TeamEvent, canManageTeam } from '../types';
 
 // Weeks start on Monday.
@@ -30,21 +34,14 @@ interface CalendarItem {
     event?: TeamEvent;
 }
 
-const KIND_COLORS: Record<CalendarItem['kind'], string> = {
-    Pracc: '#3b82f6',
-    OfficialMatch: '#ff6b4a',
-    VodReview: '#a855f7',
-    Other: '#6b7280',
-    Match: '#16a34a',
+// Every kind has its own icon as well as a colour, so kinds can be told apart without seeing colour.
+const KINDS: Record<CalendarItem['kind'], { label: string; icon: LucideIcon; cssKey: string }> = {
+    Pracc: { label: EVENT_TYPE_LABELS.Pracc, icon: Crosshair, cssKey: 'pracc' },
+    OfficialMatch: { label: EVENT_TYPE_LABELS.OfficialMatch, icon: Trophy, cssKey: 'official' },
+    VodReview: { label: EVENT_TYPE_LABELS.VodReview, icon: Clapperboard, cssKey: 'vod' },
+    Other: { label: EVENT_TYPE_LABELS.Other, icon: Circle, cssKey: 'other' },
+    Match: { label: 'Recorded match', icon: Swords, cssKey: 'match' },
 };
-
-const LEGEND: { kind: CalendarItem['kind']; label: string }[] = [
-    { kind: 'Pracc', label: EVENT_TYPE_LABELS.Pracc },
-    { kind: 'OfficialMatch', label: EVENT_TYPE_LABELS.OfficialMatch },
-    { kind: 'VodReview', label: EVENT_TYPE_LABELS.VodReview },
-    { kind: 'Other', label: EVENT_TYPE_LABELS.Other },
-    { kind: 'Match', label: 'Recorded match' },
-];
 
 // The range a view shows, padded so month view's leading and trailing days are included.
 const visibleRange = (date: Date, view: View) => {
@@ -68,68 +65,50 @@ type ModalState =
     | { mode: 'create'; start: Date; end: Date }
     | { mode: 'open'; event: TeamEvent };
 
-export default function CalendarPage() {
-    const [teams, setTeams] = useState<Team[]>([]);
-    const [selectedTeamId, setSelectedTeamId] = useState<number | null>(null);
-    const [events, setEvents] = useState<TeamEvent[]>([]);
-    const [matches, setMatches] = useState<Match[]>([]);
-    const [view, setView] = useState<View>(Views.MONTH);
-    const [date, setDate] = useState(new Date());
-    const [modal, setModal] = useState<ModalState>({ mode: 'closed' });
-    const [loading, setLoading] = useState(true);
-    const [error, setError] = useState('');
-    const { teamsVersion } = useLayoutContext();
+interface CalendarData {
+    events: TeamEvent[];
+    matches: Match[];
+}
 
-    useEffect(() => {
-        const fetchTeams = async () => {
-            try {
-                const response = await api.get<Team[]>('/Teams/my-teams');
-                setTeams(response.data);
-                if (response.data.length > 0) setSelectedTeamId(prev => prev ?? response.data[0].id);
-            } catch (err: unknown) {
-                setError(getApiErrorMessage(err, 'Failed to load teams.'));
-            } finally {
-                setLoading(false);
-            }
-        };
-        fetchTeams();
-    }, [teamsVersion]);
+// A month grid is unreadable on a phone, so small screens start on the agenda list.
+const initialView = (): View => (window.matchMedia('(max-width: 639px)').matches ? Views.AGENDA : Views.MONTH);
+
+export default function CalendarPage() {
+    return (
+        <TeamGate title="Calendar">
+            {team => <CalendarContent key={team.id} team={team} />}
+        </TeamGate>
+    );
+}
+
+function CalendarContent({ team }: { team: Team }) {
+    const [view, setView] = useState<View>(initialView);
+    const [date, setDate] = useState(() => new Date());
+    const [modal, setModal] = useState<ModalState>({ mode: 'closed' });
+    const canManage = canManageTeam(team.currentUserRole);
 
     const { from, to } = useMemo(() => visibleRange(date, view), [date, view]);
 
-    const fetchEvents = useCallback(async () => {
-        if (selectedTeamId === null) return;
-        try {
-            setError('');
-            const [eventsResponse, matchesResponse] = await Promise.all([
-                api.get<TeamEvent[]>(`/teams/${selectedTeamId}/events`, {
-                    params: { from: from.toISOString(), to: to.toISOString() },
-                }),
-                api.get<Match[]>(`/Matches/${selectedTeamId}`),
-            ]);
-            setEvents(eventsResponse.data);
-            setMatches(matchesResponse.data);
-        } catch (err: unknown) {
-            setError(getApiErrorMessage(err, 'Failed to load the calendar.'));
-        }
-    }, [selectedTeamId, from, to]);
+    const load = useCallback<ResourceLoader<CalendarData>>(async signal => {
+        const [events, matches] = await Promise.all([
+            api.get<TeamEvent[]>(`/teams/${team.id}/events`, { signal, params: { from: from.toISOString(), to: to.toISOString() } }),
+            api.get<Match[]>(`/Matches/${team.id}`, { signal }),
+        ]);
+        return { events: events.data, matches: matches.data };
+    }, [team.id, from, to]);
 
-    useEffect(() => {
-        fetchEvents();
-    }, [fetchEvents]);
-
-    const selectedTeam = teams.find(t => t.id === selectedTeamId);
-    const canManage = canManageTeam(selectedTeam?.currentUserRole);
+    // Keeps the current events on screen while the next month loads, instead of blanking the grid.
+    const { data, error, isLoading, isFetching, reload } = useResource(load, 'Failed to load the calendar.', { keepPrevious: true });
 
     const items = useMemo<CalendarItem[]>(() => [
-        ...events.map(e => ({
+        ...(data?.events ?? []).map(e => ({
             title: e.title,
             start: new Date(e.startTime),
             end: new Date(e.endTime),
             kind: e.eventType,
             event: e,
         })),
-        ...matches
+        ...(data?.matches ?? [])
             .filter(m => m.status !== 'Cancelled')
             .map(m => {
                 const start = new Date(m.scheduledDate);
@@ -141,7 +120,7 @@ export default function CalendarPage() {
                     kind: 'Match' as const,
                 };
             }),
-    ], [events, matches]);
+    ], [data]);
 
     const handleSelectSlot = (slot: SlotInfo) => {
         if (!canManage) return;
@@ -154,108 +133,131 @@ export default function CalendarPage() {
         setModal({ mode: 'create', start, end });
     };
 
-    const handleSelectEvent = (item: CalendarItem) => {
-        if (item.event) setModal({ mode: 'open', event: item.event });
+    const openNewEvent = () => {
+        const start = new Date();
+        start.setMinutes(0, 0, 0);
+        start.setHours(start.getHours() + 1);
+        setModal({ mode: 'create', start, end: new Date(start.getTime() + 2 * 60 * 60 * 1000) });
     };
 
-    if (loading) return <div className="text-gray-400 p-8">Loading calendar...</div>;
-
-    if (teams.length === 0) {
-        return (
-            <div className="p-8">
-                <h1 className="text-3xl font-bold text-white mb-2">Calendar</h1>
-                <p className="text-gray-400">You need to create or join a team first.</p>
-            </div>
-        );
-    }
+    const components = useMemo<Components<CalendarItem>>(() => ({
+        // Week and day views already make each event a focusable button, so it only needs a label.
+        event: CalendarEventChip,
+        // Month view events can't be reached by keyboard. A real button inside each one can, and its
+        // click bubbles up to onSelectEvent. The events sit in a role="row", which may only hold cells.
+        month: { event: MonthEventChip },
+        // The agenda view has no onSelectEvent of its own, so its button opens the event directly.
+        agenda: {
+            event: ({ event: item }: EventProps<CalendarItem>) => (
+                <EventLabel item={item} onOpen={item.event ? () => setModal({ mode: 'open', event: item.event! }) : undefined} />
+            ),
+        },
+    }), []);
 
     return (
-        <div className="p-8">
-            <div className="flex flex-col md:flex-row justify-between items-start md:items-end mb-6 gap-4">
-                <div>
-                    <h1 className="text-3xl font-bold text-white mb-2">Calendar</h1>
-                    <p className="text-gray-400">
-                        Praccs, official matches and VOD reviews.
-                        {canManage && ' Click a day or drag over a time range to add an event.'}
-                    </p>
-                </div>
+        <PageContainer>
+            <PageHeader
+                title="Calendar"
+                description={<>Praccs, official matches and VOD reviews.{canManage && <span className="max-sm:hidden"> Click a day or drag over a time range to add an event.</span>}</>}
+                actions={canManage && (
+                    <Button onClick={openNewEvent} leftIcon={<CalendarPlus className="size-4" aria-hidden="true" />}>Add event</Button>
+                )}
+            />
 
-                <div className="flex items-end gap-4">
-                    {canManage && (
-                        <button
-                            onClick={() => {
-                                const start = new Date();
-                                start.setMinutes(0, 0, 0);
-                                start.setHours(start.getHours() + 1);
-                                setModal({ mode: 'create', start, end: new Date(start.getTime() + 2 * 60 * 60 * 1000) });
-                            }}
-                            className="bg-[#ff6b4a] hover:bg-[#e5593c] px-6 py-2 rounded-lg font-bold transition-colors shadow-lg text-white"
-                        >
-                            + Add Event
-                        </button>
-                    )}
-                    <div className="flex flex-col">
-                        <label className="text-xs text-gray-500 mb-1">Select Team:</label>
-                        <select
-                            className="bg-[#181a2d] border border-gray-700 text-white rounded-lg px-4 py-2 focus:outline-none focus:border-[#ff6b4a]"
-                            value={selectedTeamId || ''}
-                            onChange={(e) => setSelectedTeamId(Number(e.target.value))}
-                        >
-                            {teams.map(t => (
-                                <option key={t.id} value={t.id}>{t.name} ({t.currentUserRole})</option>
-                            ))}
-                        </select>
-                    </div>
-                </div>
-            </div>
+            {error && data && <Alert tone="danger" className="mb-4">{error}</Alert>}
 
-            {error && <div className="bg-red-500/10 border border-red-500 text-red-500 p-4 rounded mb-6">{error}</div>}
-
-            <div className="flex flex-wrap gap-4 mb-4">
-                {LEGEND.map(l => (
-                    <span key={l.kind} className="flex items-center gap-2 text-xs text-gray-400">
-                        <span className="w-3 h-3 rounded-sm" style={{ backgroundColor: KIND_COLORS[l.kind] }} />
-                        {l.label}
-                    </span>
+            <ul className="mb-4 flex flex-wrap gap-x-4 gap-y-2" aria-label="Event types">
+                {Object.entries(KINDS).map(([kind, { label, icon: Icon, cssKey }]) => (
+                    <li key={kind} className="flex items-center gap-1.5 text-xs font-medium text-fg-muted">
+                        <span className="flex size-5 items-center justify-center rounded" style={{ backgroundColor: `var(--rs-event-${cssKey})`, color: `var(--rs-event-${cssKey}-fg)` }}>
+                            <Icon className="size-3" aria-hidden="true" />
+                        </span>
+                        {label}
+                    </li>
                 ))}
-            </div>
+            </ul>
 
-            <div className="team-calendar bg-[#181a2d] rounded-xl border border-gray-800 shadow-md p-4" style={{ height: 720 }}>
-                <BigCalendar<CalendarItem>
-                    localizer={localizer}
-                    culture="en-US"
-                    events={items}
-                    view={view}
-                    onView={setView}
-                    date={date}
-                    onNavigate={setDate}
-                    views={[Views.MONTH, Views.WEEK, Views.DAY, Views.AGENDA]}
-                    selectable={canManage}
-                    onSelectSlot={handleSelectSlot}
-                    onSelectEvent={handleSelectEvent}
-                    scrollToTime={new Date(1970, 0, 1, 12, 0)}
-                    popup
-                    eventPropGetter={(item) => ({
-                        style: {
-                            backgroundColor: KIND_COLORS[item.kind],
-                            border: 'none',
-                            cursor: item.event ? 'pointer' : 'default',
-                        },
-                    })}
-                />
-            </div>
+            <Card className={cx('team-calendar h-[75dvh] min-h-[560px] overflow-hidden p-2 sm:p-4', isFetching && 'is-refreshing')} aria-busy={isFetching} aria-label="Team calendar">
+                {isLoading ? (
+                    <div role="status" className="flex h-full flex-col gap-4">
+                        <span className="sr-only">Loading calendar</span>
+                        <Skeleton className="h-10 w-full" />
+                        <Skeleton className="w-full flex-1" />
+                    </div>
+                ) : error && !data ? (
+                    <ErrorState title="Couldn't load the calendar" message={error} onRetry={reload} retrying={isFetching} />
+                ) : (
+                    <BigCalendar<CalendarItem>
+                        localizer={localizer}
+                        culture="en-US"
+                        events={items}
+                        view={view}
+                        onView={setView}
+                        date={date}
+                        onNavigate={setDate}
+                        views={[Views.MONTH, Views.WEEK, Views.DAY, Views.AGENDA]}
+                        selectable={canManage}
+                        onSelectSlot={handleSelectSlot}
+                        onSelectEvent={item => { if (item.event) setModal({ mode: 'open', event: item.event }); }}
+                        onKeyPressEvent={(item, keyEvent) => {
+                            const { key } = keyEvent as unknown as KeyboardEvent;
+                            if (!item.event || (key !== 'Enter' && key !== ' ')) return;
+                            // Without this, the same key press lands in the dialog's form and submits it.
+                            keyEvent.preventDefault();
+                            setModal({ mode: 'open', event: item.event });
+                        }}
+                        scrollToTime={new Date(1970, 0, 1, 12, 0)}
+                        popup
+                        components={components}
+                        tooltipAccessor={item => `${KINDS[item.kind].label}: ${item.title}`}
+                        eventPropGetter={item => ({ className: cx(`rbc-kind-${KINDS[item.kind].cssKey}`, !item.event && 'is-readonly') })}
+                    />
+                )}
+            </Card>
 
-            {modal.mode !== 'closed' && selectedTeamId !== null && (
+            {modal.mode !== 'closed' && (
                 <EventModal
-                    teamId={selectedTeamId}
+                    teamId={team.id}
                     event={modal.mode === 'open' ? modal.event : null}
                     initialStart={modal.mode === 'create' ? modal.start : undefined}
                     initialEnd={modal.mode === 'create' ? modal.end : undefined}
                     canManage={canManage}
                     onClose={() => setModal({ mode: 'closed' })}
-                    onSaved={fetchEvents}
+                    onSaved={reload}
                 />
             )}
-        </div>
+        </PageContainer>
     );
+}
+
+function CalendarEventChip({ event: item }: EventProps<CalendarItem>) {
+    return <EventLabel item={item} />;
+}
+
+function MonthEventChip({ event: item }: EventProps<CalendarItem>) {
+    return <div role="cell"><EventLabel item={item} clickable={Boolean(item.event)} /></div>;
+}
+
+interface EventLabelProps {
+    item: CalendarItem;
+    /** Renders a focusable button whose click bubbles up to the calendar. */
+    clickable?: boolean;
+    /** Renders a button that handles the click itself. */
+    onOpen?: () => void;
+}
+
+function EventLabel({ item, clickable = false, onOpen }: EventLabelProps) {
+    const { icon: Icon, label } = KINDS[item.kind];
+    const content = (
+        <>
+            <Icon className="size-3 shrink-0" aria-hidden="true" />
+            <span className="sr-only">{label}: </span>
+            <span className="truncate">{item.title}</span>
+        </>
+    );
+
+    if (clickable || onOpen) {
+        return <button type="button" onClick={onOpen} className="rs-event-label">{content}</button>;
+    }
+    return <span className="rs-event-label">{content}</span>;
 }

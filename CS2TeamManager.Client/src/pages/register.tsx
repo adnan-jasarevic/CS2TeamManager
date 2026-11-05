@@ -1,7 +1,10 @@
 ﻿import { Link, useNavigate } from 'react-router-dom';
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
+import axios from 'axios';
 import api from '../services/api';
-import axios, { AxiosError } from 'axios';
+import { getApiErrorMessage } from '../services/errors';
+import AuthLayout from '../components/auth-layout';
+import { Alert, Button, Field, Input, PasswordInput } from '../components/ui';
 
 // Expected shape of the request sent to C# backend
 type RegisterRequest = {
@@ -21,12 +24,18 @@ type IdentityError = {
     description: string;
 };
 
-function isAxiosError<T>(error: unknown): error is AxiosError<T> {
-    return axios.isAxiosError(error);
-}
+const REDIRECT_DELAY_MS = 2000;
+
+const registerErrorMessage = (err: unknown) => {
+    if (axios.isAxiosError<IdentityError[]>(err) && Array.isArray(err.response?.data) && err.response.data.length > 0) {
+        // Identity reports every broken password rule at once, so show them all.
+        return err.response.data.map(e => e.description).join(' ');
+    }
+    if (axios.isAxiosError(err) && !err.response) return "Can't reach the server. Check your connection and try again.";
+    return getApiErrorMessage(err, 'Registration failed. Please try again.');
+};
 
 export default function Register() {
-    // Initialize useNavigate for programmatic navigation
     const navigate = useNavigate();
 
     const [username, setUsername] = useState('');
@@ -34,145 +43,75 @@ export default function Register() {
     const [password, setPassword] = useState('');
     const [confirmPassword, setConfirmPassword] = useState('');
 
-    const [error, setError] = useState<string>('');
-    const [successMessage, setSuccessMessage] = useState<string>('');
+    const [error, setError] = useState('');
+    const [mismatch, setMismatch] = useState(false);
+    const [successMessage, setSuccessMessage] = useState('');
+    const [isSubmitting, setIsSubmitting] = useState(false);
+
+    // The timer is cleared if the user leaves first, so it can't pull them back to the login page.
+    useEffect(() => {
+        if (!successMessage) return;
+        const timer = setTimeout(() => navigate('/login'), REDIRECT_DELAY_MS);
+        return () => clearTimeout(timer);
+    }, [successMessage, navigate]);
 
     const handleRegister = async (e: React.FormEvent) => {
         e.preventDefault();
         setError('');
-        setSuccessMessage('');
 
         if (password !== confirmPassword) {
-            setError('Passwords do not match.');
+            setMismatch(true);
             return;
         }
+        setMismatch(false);
+        setIsSubmitting(true);
 
         const payload: RegisterRequest = { username, email, password };
 
         try {
             const response = await api.post<RegisterResponse>('/Auth/register', payload);
-
-            if (response.data && response.data.message) {
-                setSuccessMessage(`${response.data.message}. Redirecting to login...`);
-            } else {
-                setSuccessMessage('Account created successfully. Redirecting to login...');
-            }
-
-            // Clear form fields
-            setUsername('');
-            setEmail('');
-            setPassword('');
-            setConfirmPassword('');
-
-            // Automatically redirect to the login page after 2 seconds
-            setTimeout(() => {
-                navigate('/login');
-            }, 2000);
-
+            setSuccessMessage(`${response.data?.message?.replace(/\.$/, '') || 'Account created'}. Redirecting to login...`);
         } catch (err: unknown) {
             console.error('Error while trying to register:', err);
-
-            if (isAxiosError<IdentityError[]>(err)) {
-                const errors = err.response?.data;
-
-                if (Array.isArray(errors) && errors.length > 0) {
-                    setError(errors[0].description);
-                    return;
-                }
-            }
-
-            setError('Registration failed. Please try again.');
+            setError(registerErrorMessage(err));
+        } finally {
+            setIsSubmitting(false);
         }
     };
 
     return (
-        <div className="min-h-screen flex items-center justify-center bg-gray-900">
-            <div className="bg-gray-800 p-8 rounded-lg shadow-lg w-full max-w-md border border-gray-700">
-                <h2 className="text-3xl font-bold text-white text-center mb-6">
-                    Create Account
-                </h2>
+        <AuthLayout
+            title="Create your account"
+            subtitle="Set up your roster in a couple of minutes."
+            footer={<>Already have an account? <Link to="/login" className="font-semibold text-accent-text underline-offset-4 hover:underline">Log in</Link></>}
+        >
+            {successMessage ? (
+                <Alert tone="success">{successMessage}</Alert>
+            ) : (
+                <form onSubmit={handleRegister} className="flex flex-col gap-4">
+                    {error && <Alert tone="danger">{error}</Alert>}
 
-                {error && (
-                    <div className="bg-red-500/10 border border-red-500 text-red-500 p-3 rounded mb-4 text-sm text-center">
-                        {error}
-                    </div>
-                )}
+                    <Field label="Username">
+                        <Input value={username} onChange={(e) => setUsername(e.target.value)} placeholder="Your nickname" autoComplete="username" required />
+                    </Field>
 
-                {successMessage && (
-                    <div className="bg-green-500/10 border border-green-500 text-green-500 p-3 rounded mb-4 text-sm text-center">
-                        {successMessage}
-                    </div>
-                )}
+                    <Field label="Email">
+                        <Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@example.com" autoComplete="email" required />
+                    </Field>
 
-                <form onSubmit={handleRegister} className="space-y-4">
-                    <div>
-                        <label className="block text-gray-300 text-sm font-medium mb-1">
-                            Username
-                        </label>
-                        <input
-                            type="text"
-                            value={username}
-                            onChange={(e) => setUsername(e.target.value)}
-                            className="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded text-white focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
-                            placeholder="Your nickname"
-                            required
-                        />
-                    </div>
+                    <Field label="Password">
+                        <PasswordInput value={password} onChange={(e) => setPassword(e.target.value)} autoComplete="new-password" required />
+                    </Field>
 
-                    <div>
-                        <label className="block text-gray-300 text-sm font-medium mb-1">
-                            Email
-                        </label>
-                        <input
-                            type="email"
-                            value={email}
-                            onChange={(e) => setEmail(e.target.value)}
-                            className="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded text-white focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
-                            placeholder="you@example.com"
-                            required
-                        />
-                    </div>
+                    <Field label="Confirm password" error={mismatch ? 'Passwords do not match.' : undefined}>
+                        <PasswordInput value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} autoComplete="new-password" required />
+                    </Field>
 
-                    <div>
-                        <label className="block text-gray-300 text-sm font-medium mb-1">
-                            Password
-                        </label>
-                        <input
-                            type="password"
-                            value={password}
-                            onChange={(e) => setPassword(e.target.value)}
-                            className="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded text-white focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
-                            placeholder="••••••••"
-                            required
-                        />
-                    </div>
-
-                    <div>
-                        <label className="block text-gray-300 text-sm font-medium mb-1">
-                            Confirm Password
-                        </label>
-                        <input
-                            type="password"
-                            value={confirmPassword}
-                            onChange={(e) => setConfirmPassword(e.target.value)}
-                            className="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded text-white focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
-                            placeholder="••••••••"
-                            required
-                        />
-                    </div>
-
-                    <button
-                        type="submit"
-                        className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded transition-colors duration-200 mt-6"
-                    >
+                    <Button type="submit" size="lg" fullWidth loading={isSubmitting} loadingText="Creating account..." className="mt-2">
                         Register
-                    </button>
+                    </Button>
                 </form>
-
-                <p className="mt-4 text-center text-gray-400 text-sm">
-                    Already have an account? <Link to="/login" className="text-blue-400 hover:text-blue-300">Log in</Link>
-                </p>
-            </div>
-        </div>
+            )}
+        </AuthLayout>
     );
 }

@@ -1,425 +1,336 @@
-﻿import React, { useEffect, useState, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
+﻿import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react';
+import { ArrowRightLeft, Crown, EllipsisVertical, MailPlus, UserMinus, UserPlus, Users } from 'lucide-react';
 import api from '../services/api';
-import axios from 'axios';
-import { useLayoutContext } from '../components/layout-context';
+import { getApiErrorMessage } from '../services/errors';
+import { useResource, type ResourceLoader } from '../hooks/use-resource';
 import { type Team, type TeamMember, canManageTeam } from '../types';
+import { RoleBadge } from '../components/domain-badges';
+import { useLayoutContext } from '../components/layout-context';
+import PageHeader, { PageContainer } from '../components/page-header';
+import TeamGate from '../components/team-gate';
+import {
+    Alert,
+    Avatar,
+    Button,
+    Card,
+    ConfirmDialog,
+    EmptyState,
+    ErrorState,
+    Field,
+    IconButton,
+    Input,
+    LoadingRegion,
+    Menu,
+    MenuItem,
+    MenuSeparator,
+    Modal,
+    Select,
+    Skeleton,
+    useToast,
+} from '../components/ui';
+
+type MemberAction = { type: 'kick' | 'role' | 'transfer'; member: TeamMember } | null;
+
+const ASSIGNABLE_ROLES = ['Player', 'Officer', 'Captain'];
 
 export default function TeamRoster() {
-    const navigate = useNavigate();
-    const { teamsVersion } = useLayoutContext();
+    return (
+        <TeamGate title="Team roster">
+            {team => <RosterContent key={team.id} team={team} />}
+        </TeamGate>
+    );
+}
 
-    const [teams, setTeams] = useState<Team[]>([]);
-    const [selectedTeamId, setSelectedTeamId] = useState<number | null>(null);
-    const [members, setMembers] = useState<TeamMember[]>([]);
+function RosterContent({ team }: { team: Team }) {
+    const { reloadTeams } = useLayoutContext();
+    const toast = useToast();
 
-    const [loading, setLoading] = useState(true);
-    const [error, setError] = useState('');
-    const [successMsg, setSuccessMsg] = useState('');
+    const load = useCallback<ResourceLoader<TeamMember[]>>(
+        signal => api.get<TeamMember[]>(`/Teams/${team.id}/members`, { signal }).then(response => response.data),
+        [team.id],
+    );
+    const { data: members, error, isLoading, isFetching, reload } = useResource(load, 'Failed to load team members.');
 
-    const [isAddModalOpen, setIsAddModalOpen] = useState(false);
-    const [newMemberEmail, setNewMemberEmail] = useState('');
+    const [isInviteOpen, setIsInviteOpen] = useState(false);
+    const [action, setAction] = useState<MemberAction>(null);
+    const [newRole, setNewRole] = useState('Player');
+    const [actionError, setActionError] = useState('');
     const [isSubmitting, setIsSubmitting] = useState(false);
 
-    const [activeDropdown, setActiveDropdown] = useState<string | null>(null);
-    const [actionState, setActionState] = useState<{ type: 'kick' | 'role' | 'transfer' | null, member: TeamMember | null }>({ type: null, member: null });
-    const [transferConfirmText, setTransferConfirmText] = useState('');
-    const [newRole, setNewRole] = useState('Player');
+    const isOwner = team.currentUserRole === 'Owner';
+    const canInvite = canManageTeam(team.currentUserRole);
 
-    const fetchTeams = useCallback(async () => {
-        try {
-            const response = await api.get<Team[]>('/Teams/my-teams');
-            setTeams(response.data);
-
-            if (response.data.length > 0 && selectedTeamId === null) {
-                setSelectedTeamId(response.data[0].id);
-            } else if (response.data.length === 0) {
-                setLoading(false);
-            }
-        } catch (err: unknown) {
-            if (axios.isAxiosError(err) && err.response?.status === 401) {
-                localStorage.removeItem('jwt_token');
-                navigate('/login');
-            } else {
-                setError('Failed to load teams.');
-                setLoading(false);
-            }
-        }
-    }, [navigate, selectedTeamId]);
-
-    const fetchTeamMembers = async (teamId: number) => {
-        setLoading(true);
-        setError('');
-        try {
-            const response = await api.get<TeamMember[]>(`/Teams/${teamId}/members`);
-            setMembers(response.data);
-        } catch (err: unknown) {
-            console.error('Error fetching members:', err);
-            setError('Failed to load team members.');
-        } finally {
-            setLoading(false);
-        }
-    };
-
-    // teamsVersion changes when the user joins a team from the invite modal.
+    // Focus returns to a removed player's menu button when the dialog closes, and the button then
+    // disappears with their row once the list refreshes. Keep keyboard users in the page.
+    const awaitingRemoval = useRef(false);
     useEffect(() => {
-        fetchTeams();
-    }, [fetchTeams, teamsVersion]);
+        if (!awaitingRemoval.current) return;
+        awaitingRemoval.current = false;
+        if (document.activeElement === document.body) document.getElementById('main')?.focus({ preventScroll: true });
+    }, [members]);
 
-    useEffect(() => {
-        if (selectedTeamId !== null) {
-            fetchTeamMembers(selectedTeamId);
-        }
-    }, [selectedTeamId]);
-
-    const showMessage = (msg: string, isError = false) => {
-        if (isError) setError(msg);
-        else setSuccessMsg(msg);
-        setTimeout(() => { setError(''); setSuccessMsg(''); }, 4000);
+    const openAction = (next: NonNullable<MemberAction>) => {
+        setActionError('');
+        setNewRole(next.member.role);
+        setAction(next);
     };
 
-    const handleAddMember = async (e: React.FormEvent<HTMLFormElement>) => {
-        e.preventDefault();
-        if (!selectedTeamId || !newMemberEmail.trim()) return;
+    const closeAction = () => setAction(null);
 
+    const runAction = async (request: () => Promise<unknown>, successMessage: string, failureMessage: string, onDone?: () => void) => {
         setIsSubmitting(true);
+        setActionError('');
         try {
-            await api.post(`/Teams/${selectedTeamId}/members`, { userEmail: newMemberEmail });
-            showMessage(`Successfully invited ${newMemberEmail} to the team!`);
-            setNewMemberEmail('');
-            setIsAddModalOpen(false);
-            fetchTeamMembers(selectedTeamId);
-        } catch (err: unknown) {
-            showMessage(axios.isAxiosError(err) ? err.response?.data?.message || 'Failed to add member.' : 'Failed to add member.', true);
+            await request();
+            toast.success(successMessage);
+            reload();
+            onDone?.();
+            closeAction();
+        } catch (err) {
+            setActionError(getApiErrorMessage(err, failureMessage));
         } finally {
             setIsSubmitting(false);
         }
     };
 
-    const executeKick = async () => {
-        if (!selectedTeamId || !actionState.member) return;
-        setIsSubmitting(true);
-        try {
-            await api.delete(`/Teams/${selectedTeamId}/members/${actionState.member.id}`);
-            showMessage(`Successfully removed ${actionState.member.username}.`);
-            fetchTeamMembers(selectedTeamId);
-            closeModals();
-        } catch (err: unknown) {
-            showMessage(axios.isAxiosError(err) ? err.response?.data?.message || 'Failed to remove member.' : 'Failed to remove member.', true);
-        } finally {
-            setIsSubmitting(false);
-        }
-    };
+    const executeKick = (member: TeamMember) => runAction(
+        () => api.delete(`/Teams/${team.id}/members/${member.id}`),
+        `Removed ${member.username} from the team.`,
+        'Failed to remove member.',
+        () => { awaitingRemoval.current = true; },
+    );
 
-    const executeRoleChange = async () => {
-        if (!selectedTeamId || !actionState.member) return;
-        setIsSubmitting(true);
-        try {
-            await api.put(`/Teams/${selectedTeamId}/members/${actionState.member.id}/role`, { newRole });
-            showMessage(`Changed role for ${actionState.member.username} to ${newRole}.`);
-            fetchTeamMembers(selectedTeamId);
-            closeModals();
-        } catch (err: unknown) {
-            showMessage(axios.isAxiosError(err) ? err.response?.data?.message || 'Failed to change role.' : 'Failed to change role.', true);
-        } finally {
-            setIsSubmitting(false);
-        }
-    };
+    const executeRoleChange = (member: TeamMember) => runAction(
+        () => api.put(`/Teams/${team.id}/members/${member.id}/role`, { newRole }),
+        `${member.username} is now ${newRole === 'Officer' ? 'an' : 'a'} ${newRole}.`,
+        'Failed to change role.',
+    );
 
-    const executeTransferOwnership = async () => {
-        if (!selectedTeamId || !actionState.member) return;
-        if (transferConfirmText !== 'CONFIRM') return;
-
-        setIsSubmitting(true);
-        try {
-            await api.put(`/Teams/${selectedTeamId}/transfer-ownership`, { newOwnerId: actionState.member.id });
-            showMessage(`Ownership transferred to ${actionState.member.username}.`);
-            fetchTeams();
-            fetchTeamMembers(selectedTeamId);
-            closeModals();
-        } catch (err: unknown) {
-            showMessage(axios.isAxiosError(err) ? err.response?.data?.message || 'Failed to transfer ownership.' : 'Failed to transfer ownership.', true);
-        } finally {
-            setIsSubmitting(false);
-        }
-    };
-
-    const closeModals = () => {
-        setActionState({ type: null, member: null });
-        setTransferConfirmText('');
-        setIsSubmitting(false);
-    };
-
-    const currentTeam = teams.find(t => t.id === selectedTeamId);
-    const isOwner = currentTeam?.currentUserRole === 'Owner';
-
-    if (loading && teams.length === 0) return <div className="text-gray-400 p-8">Loading roster...</div>;
-
-    if (teams.length === 0) {
-        return (
-            <div className="p-8">
-                <h1 className="text-3xl font-bold text-white mb-2">Team Roster</h1>
-                <p className="text-gray-400">You need to create or join a team first.</p>
-            </div>
-        );
-    }
+    const executeTransfer = (member: TeamMember) => runAction(
+        () => api.put(`/Teams/${team.id}/transfer-ownership`, { newOwnerId: member.id }),
+        `Ownership transferred to ${member.username}.`,
+        'Failed to transfer ownership.',
+        reloadTeams, // The current user's own role just changed.
+    );
 
     return (
-        <div className="p-8 relative min-h-screen">
-            {activeDropdown && (
-                <div className="fixed inset-0 z-10" onClick={() => setActiveDropdown(null)}></div>
-            )}
-
-            <div className="flex flex-col md:flex-row justify-between items-start md:items-end mb-8 gap-4">
-                <div>
-                    <h1 className="text-3xl font-bold text-white mb-2">Team Roster</h1>
-                    <p className="text-gray-400">Manage your players and roles.</p>
-                </div>
-
-                <div className="flex items-end gap-4 relative z-20">
-                    {canManageTeam(currentTeam?.currentUserRole) && (
-                        <button
-                            onClick={() => setIsAddModalOpen(true)}
-                            className="bg-[#ff6b4a] hover:bg-[#e5593c] text-white font-bold px-4 py-2 rounded-lg transition-colors shadow-lg"
-                        >
-                            + Invite Player
-                        </button>
-                    )}
-
-                    <div className="flex flex-col">
-                        <label className="text-xs text-gray-500 mb-1">Select Team:</label>
-                        <select
-                            className="bg-[#181a2d] border border-gray-700 text-white px-4 py-2 rounded-lg focus:outline-none focus:border-[#ff6b4a]"
-                            value={selectedTeamId || ''}
-                            onChange={(e) => setSelectedTeamId(Number(e.target.value))}
-                        >
-                            {teams.map(t => (
-                                <option key={t.id} value={t.id}>{t.name} ({t.currentUserRole})</option>
-                            ))}
-                        </select>
-                    </div>
-                </div>
-            </div>
-
-            {error && <div className="bg-red-500/10 border border-red-500 text-red-500 p-4 rounded mb-6">{error}</div>}
-            {successMsg && <div className="bg-emerald-500/10 border border-emerald-500 text-emerald-500 p-4 rounded mb-6">{successMsg}</div>}
-
-            {/* Obrisano overflow-hidden ovdje */}
-            <div className="bg-[#181a2d] rounded-xl border border-gray-800 shadow-md relative z-20">
-                {/* Dodano rounded-t-xl ovdje */}
-                <div className="grid grid-cols-12 gap-4 p-4 border-b border-gray-800 text-sm font-bold text-gray-400 uppercase tracking-wider rounded-t-xl bg-[#181a2d]">
-                    <div className="col-span-5 md:col-span-4">Player</div>
-                    <div className="col-span-4 md:col-span-3">Role</div>
-                    <div className="hidden md:block col-span-3">Joined</div>
-                    <div className="col-span-3 md:col-span-2 text-right">Actions</div>
-                </div>
-
-                {loading ? (
-                    <div className="p-8 text-center text-gray-500">Loading players...</div>
-                ) : members.length === 0 ? (
-                    <div className="p-8 text-center text-gray-500">No members found.</div>
-                ) : (
-                    <div className="divide-y divide-gray-800/50">
-                        {members.map((member, index) => (
-                            <div key={member.id} className={`grid grid-cols-12 gap-4 p-4 items-center hover:bg-[#111322] transition-colors ${index === members.length - 1 ? 'rounded-b-xl' : ''}`}>
-                        <div className="col-span-5 md:col-span-4 flex items-center gap-3">
-                            <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-purple-600 to-[#ff6b4a] flex items-center justify-center text-white font-bold">
-                                {member.username.charAt(0).toUpperCase()}
-                            </div>
-                            <div>
-                                <p className="font-bold text-white">{member.username}</p>
-                                <p className="text-xs text-gray-500 truncate w-32 md:w-auto">{member.email}</p>
-                            </div>
-                        </div>
-
-                        <div className="col-span-4 md:col-span-3">
-                            <span className={`px-3 py-1 rounded text-xs font-bold ${member.role === 'Owner' ? 'bg-[#ff6b4a]/20 text-[#ff6b4a] border border-[#ff6b4a]/30' :
-                                member.role === 'Captain' ? 'bg-yellow-500/15 text-yellow-400 border border-yellow-500/30' :
-                                member.role === 'Officer' ? 'bg-blue-500/15 text-blue-300 border border-blue-500/30' :
-                                'bg-gray-700/30 text-gray-300'
-                                }`}>
-                                {member.role}
-                            </span>
-                        </div>
-
-                        <div className="hidden md:block col-span-3 text-sm text-gray-400">
-                            {new Date(member.joinedAt).toLocaleDateString()}
-                        </div>
-
-                        <div className="col-span-3 md:col-span-2 flex justify-end relative">
-                            {isOwner && member.role !== 'Owner' && (
-                                <>
-                                    <button
-                                        onClick={() => setActiveDropdown(activeDropdown === member.id ? null : member.id)}
-                                        className="p-2 text-gray-400 hover:text-white hover:bg-gray-800 rounded transition-colors"
-                                    >
-                                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                                            <path d="M10 6a2 2 0 110-4 2 2 0 010 4zM10 12a2 2 0 110-4 2 2 0 010 4zM10 18a2 2 0 110-4 2 2 0 010 4z" />
-                                        </svg>
-                                    </button>
-
-                                    {/* Podignut z-index na z-50 */}
-                                    {activeDropdown === member.id && (
-                                        <div className="absolute right-0 top-10 w-48 bg-gray-800 border border-gray-700 rounded-lg shadow-xl py-1 z-50">
-                                            <button
-                                                onClick={() => { setActionState({ type: 'role', member }); setNewRole(member.role); setActiveDropdown(null); }}
-                                                className="w-full text-left px-4 py-2 text-sm text-gray-300 hover:bg-gray-700 hover:text-white"
-                                            >
-                                                Change Role
-                                            </button>
-                                            {member.role === 'Officer' ? (
-                                                <button
-                                                    onClick={() => { setActionState({ type: 'transfer', member }); setActiveDropdown(null); }}
-                                                    className="w-full text-left px-4 py-2 text-sm text-yellow-500 hover:bg-gray-700"
-                                                >
-                                                    Transfer Ownership
-                                                </button>
-                                            ) : (
-                                                <p className="px-4 py-2 text-xs text-gray-500" title="Ownership can only go to an Officer">
-                                                    Make them an Officer to transfer ownership
-                                                </p>
-                                            )}
-                                            <div className="h-px bg-gray-700 my-1"></div>
-                                            <button
-                                                onClick={() => { setActionState({ type: 'kick', member }); setActiveDropdown(null); }}
-                                                className="w-full text-left px-4 py-2 text-sm text-red-500 hover:bg-gray-700"
-                                            >
-                                                Kick Player
-                                            </button>
-                                        </div>
-                                    )}
-                                </>
-                            )}
-                        </div>
-                    </div>
-                ))}
-            </div>
+        <PageContainer>
+            <PageHeader
+                title="Team roster"
+                description="Manage your players and roles."
+                actions={canInvite && (
+                    <Button onClick={() => setIsInviteOpen(true)} leftIcon={<UserPlus className="size-4" aria-hidden="true" />}>Invite player</Button>
                 )}
-        </div>
+            />
 
-            {/* 1. INVITE MODAL */ }
-    {
-        isAddModalOpen && (
-            <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
-                <div className="bg-gray-800 rounded-xl shadow-xl border border-gray-700 w-full max-w-md overflow-hidden">
-                    <div className="p-6 border-b border-gray-700 flex justify-between items-center">
-                        <h2 className="text-xl font-bold text-white">Invite Player</h2>
-                        <button onClick={() => setIsAddModalOpen(false)} className="text-gray-400 hover:text-white text-2xl">&times;</button>
-                    </div>
-                    <form onSubmit={handleAddMember} className="p-6">
-                        <p className="text-sm text-gray-400 mb-4">Enter the email address of the user you want to invite.</p>
-                        <input
-                            type="email"
-                            value={newMemberEmail}
-                            onChange={(e) => setNewMemberEmail(e.target.value)}
-                            className="w-full px-4 py-3 bg-[#111322] border border-gray-700 rounded-lg text-white focus:outline-none focus:border-[#ff6b4a]"
-                            placeholder="player@example.com"
-                            required autoFocus
-                        />
-                        <div className="mt-6 flex justify-end gap-3">
-                            <button type="button" onClick={() => setIsAddModalOpen(false)} className="px-4 py-2 text-gray-400 hover:text-white transition-colors">Cancel</button>
-                            <button type="submit" disabled={isSubmitting || !newMemberEmail.trim()} className="bg-[#ff6b4a] hover:bg-[#e5593c] px-6 py-2 rounded-lg font-bold text-white transition-colors disabled:opacity-50">
-                                {isSubmitting ? 'Inviting...' : 'Send Invite'}
-                            </button>
-                        </div>
-                    </form>
+            {error && members && <Alert tone="danger" className="mb-4">{error}</Alert>}
+
+            <Card className="overflow-hidden">
+                {isLoading ? (
+                    <RosterSkeleton />
+                ) : error && !members ? (
+                    <ErrorState title="Couldn't load the roster" message={error} onRetry={reload} retrying={isFetching} />
+                ) : !members || members.length === 0 ? (
+                    <EmptyState
+                        icon={<Users />}
+                        title="No members found"
+                        description="Invited players appear here once they accept."
+                    />
+                ) : (
+                    <table className="w-full table-fixed text-left text-sm">
+                        <caption className="sr-only">Members of {team.name}</caption>
+                        <thead className="border-b border-line text-xs font-semibold tracking-wide text-fg-subtle uppercase">
+                            <tr>
+                                <th scope="col" className="px-4 py-3 lg:px-5">Player</th>
+                                <th scope="col" className="w-28 px-2 py-3 sm:w-36">Role</th>
+                                <th scope="col" className="hidden w-36 px-2 py-3 md:table-cell">Joined</th>
+                                <th scope="col" className="w-14 py-3 pr-3"><span className="sr-only">Actions</span></th>
+                            </tr>
+                        </thead>
+                        <tbody className="divide-y divide-line">
+                            {members.map(member => (
+                                <tr key={member.id} className="transition-colors hover:bg-hover">
+                                    <td className="px-4 py-3 lg:px-5">
+                                        <div className="flex min-w-0 items-center gap-3">
+                                            <Avatar name={member.username} className="max-sm:hidden" />
+                                            <div className="min-w-0">
+                                                <p className="truncate font-semibold text-fg">{member.username}</p>
+                                                <p className="truncate text-xs text-fg-subtle">{member.email}</p>
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td className="px-2 py-3"><RoleBadge role={member.role} /></td>
+                                    <td className="hidden px-2 py-3 text-fg-muted tabular-nums md:table-cell">
+                                        {new Date(member.joinedAt).toLocaleDateString()}
+                                    </td>
+                                    <td className="py-3 pr-3 text-right">
+                                        {isOwner && member.role !== 'Owner' && (
+                                            <Menu
+                                                label={`Actions for ${member.username}`}
+                                                renderTrigger={trigger => (
+                                                    <IconButton {...trigger} size="sm" label={`Actions for ${member.username}`} icon={<EllipsisVertical className="size-5" aria-hidden="true" />} />
+                                                )}
+                                            >
+                                                <MenuItem icon={<Crown />} onSelect={() => openAction({ type: 'role', member })}>Change role</MenuItem>
+                                                <MenuItem
+                                                    icon={<ArrowRightLeft />}
+                                                    disabled={member.role !== 'Officer'}
+                                                    hint={member.role !== 'Officer' ? 'Make them an Officer first' : undefined}
+                                                    onSelect={() => openAction({ type: 'transfer', member })}
+                                                >
+                                                    Transfer ownership
+                                                </MenuItem>
+                                                <MenuSeparator />
+                                                <MenuItem icon={<UserMinus />} tone="danger" onSelect={() => openAction({ type: 'kick', member })}>Kick player</MenuItem>
+                                            </Menu>
+                                        )}
+                                    </td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                )}
+            </Card>
+
+            <InviteDialog
+                open={isInviteOpen}
+                teamId={team.id}
+                onClose={() => setIsInviteOpen(false)}
+                onInvited={email => {
+                    toast.success(`Invite sent to ${email}.`);
+                    reload();
+                }}
+            />
+
+            <ConfirmDialog
+                open={action?.type === 'kick'}
+                onClose={closeAction}
+                onConfirm={() => action && executeKick(action.member)}
+                title="Kick player"
+                confirmLabel="Kick player"
+                busyLabel="Removing..."
+                busy={isSubmitting}
+                error={actionError}
+            >
+                Remove <strong className="text-fg">{action?.member.username}</strong> from the team? They will lose access to team data.
+            </ConfirmDialog>
+
+            <ConfirmDialog
+                open={action?.type === 'transfer'}
+                onClose={closeAction}
+                onConfirm={() => action && executeTransfer(action.member)}
+                title="Transfer ownership"
+                confirmLabel="Transfer"
+                busyLabel="Transferring..."
+                busy={isSubmitting}
+                error={actionError}
+                confirmationText="CONFIRM"
+            >
+                You are about to transfer full team ownership to <strong className="text-fg">{action?.member.username}</strong>. You will become an Officer and lose Owner privileges, including managing roles and the roster.
+            </ConfirmDialog>
+
+            <Modal
+                open={action?.type === 'role'}
+                onClose={closeAction}
+                title={`Change role: ${action?.member.username ?? ''}`}
+                size="sm"
+                busy={isSubmitting}
+                footer={
+                    <>
+                        <Button variant="ghost" onClick={closeAction} disabled={isSubmitting}>Cancel</Button>
+                        <Button onClick={() => action && executeRoleChange(action.member)} loading={isSubmitting} loadingText="Saving...">Save role</Button>
+                    </>
+                }
+            >
+                <div className="flex flex-col gap-4">
+                    {actionError && <Alert tone="danger">{actionError}</Alert>}
+                    <Field label="Role" hint="A team has one Captain and any number of Officers. Ownership can only be transferred to an Officer.">
+                        <Select value={newRole} onChange={e => setNewRole(e.target.value)} data-autofocus>
+                            {ASSIGNABLE_ROLES.map(role => <option key={role} value={role}>{role}</option>)}
+                        </Select>
+                    </Field>
                 </div>
-            </div>
-        )
-    }
+            </Modal>
+        </PageContainer>
+    );
+}
 
-    {/* 2. KICK MODAL */ }
-    {
-        actionState.type === 'kick' && actionState.member && (
-            <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
-                <div className="bg-gray-800 rounded-xl shadow-xl border border-red-500/30 w-full max-w-md overflow-hidden">
-                    <div className="p-6 border-b border-gray-700">
-                        <h2 className="text-xl font-bold text-red-500">Kick Player</h2>
+function RosterSkeleton() {
+    return (
+        <LoadingRegion label="Loading players" className="divide-y divide-line">
+            {Array.from({ length: 5 }, (_, index) => (
+                <div key={index} className="flex items-center gap-3 p-4">
+                    <Skeleton className="size-10 shrink-0 rounded-full" />
+                    <div className="flex-1 space-y-2">
+                        <Skeleton className="h-4 w-1/3" />
+                        <Skeleton className="h-3 w-1/2" />
                     </div>
-                    <div className="p-6">
-                        <p className="text-gray-300 mb-6">Are you sure you want to remove <strong className="text-white">{actionState.member.username}</strong> from the team? They will lose access to team data.</p>
-                        <div className="flex justify-end gap-3">
-                            <button onClick={closeModals} className="px-4 py-2 text-gray-400 hover:text-white">Cancel</button>
-                            <button onClick={executeKick} disabled={isSubmitting} className="bg-red-600 hover:bg-red-700 px-6 py-2 rounded-lg font-bold text-white transition-colors disabled:opacity-50">
-                                {isSubmitting ? 'Removing...' : 'Kick Player'}
-                            </button>
-                        </div>
-                    </div>
+                    <Skeleton className="h-6 w-16 shrink-0" />
                 </div>
-            </div>
-        )
-    }
+            ))}
+        </LoadingRegion>
+    );
+}
 
-    {/* 3. ROLE MODAL */ }
-    {
-        actionState.type === 'role' && actionState.member && (
-            <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
-                <div className="bg-gray-800 rounded-xl shadow-xl border border-gray-700 w-full max-w-md overflow-hidden">
-                    <div className="p-6 border-b border-gray-700">
-                        <h2 className="text-xl font-bold text-white">Change Role: {actionState.member.username}</h2>
-                    </div>
-                    <div className="p-6">
-                        <select
-                        value={newRole}
-                        onChange={(e) => setNewRole(e.target.value)}
-                        className="w-full bg-[#111322] border border-gray-700 text-white px-4 py-3 rounded-lg focus:outline-none focus:border-[#ff6b4a] mb-6"
-                        >
-                        <option value="Player">Player</option>
-                        <option value="Officer">Officer</option>
-                        <option value="Captain">Captain</option>
-                        </select>
-                        <p className="text-xs text-gray-500 -mt-4 mb-6">
-                            A team has one Captain and any number of Officers. Ownership can only be transferred to an Officer.
-                        </p>
+interface InviteDialogProps {
+    open: boolean;
+    teamId: number;
+    onClose: () => void;
+    onInvited: (email: string) => void;
+}
 
-                        <div className="flex justify-end gap-3">
-                            <button onClick={closeModals} className="px-4 py-2 text-gray-400 hover:text-white">Cancel</button>
-                            <button onClick={executeRoleChange} disabled={isSubmitting} className="bg-[#ff6b4a] hover:bg-[#e5593c] px-6 py-2 rounded-lg font-bold text-white transition-colors disabled:opacity-50">
-                                Save Role
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        )
-    }
+function InviteDialog({ open, teamId, onClose, onInvited }: InviteDialogProps) {
+    const [email, setEmail] = useState('');
+    const [error, setError] = useState('');
+    const [isSending, setIsSending] = useState(false);
 
-    {/* 4. TRANSFER OWNERSHIP MODAL */ }
-    {
-        actionState.type === 'transfer' && actionState.member && (
-            <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
-                <div className="bg-gray-800 rounded-xl shadow-xl border border-yellow-500/30 w-full max-w-md overflow-hidden">
-                    <div className="p-6 border-b border-gray-700">
-                        <h2 className="text-xl font-bold text-yellow-500">Transfer Ownership</h2>
-                    </div>
-                    <div className="p-6">
-                        <p className="text-gray-300 mb-4 text-sm">
-                            You are about to transfer full team ownership to <strong className="text-white">{actionState.member.username}</strong>. You will become an Officer and lose Owner privileges, including managing roles and the roster.
-                        </p>
-                        <p className="text-gray-400 text-xs mb-2">Type <strong>CONFIRM</strong> below to proceed.</p>
-                        <input
-                            type="text"
-                            value={transferConfirmText}
-                            onChange={(e) => setTransferConfirmText(e.target.value)}
-                            className="w-full px-4 py-3 bg-[#111322] border border-gray-700 rounded-lg text-white mb-6 focus:outline-none focus:border-yellow-500"
-                            placeholder="CONFIRM"
-                            autoFocus
-                        />
-                        <div className="flex justify-end gap-3">
-                            <button onClick={closeModals} className="px-4 py-2 text-gray-400 hover:text-white">Cancel</button>
-                            <button
-                                onClick={executeTransferOwnership}
-                                disabled={isSubmitting || transferConfirmText !== 'CONFIRM'}
-                                className="bg-yellow-600 hover:bg-yellow-700 px-6 py-2 rounded-lg font-bold text-white transition-colors disabled:opacity-50"
-                            >
-                                Transfer
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        )
-    }
-        </div >
+    const close = () => {
+        setEmail('');
+        setError('');
+        onClose();
+    };
+
+    const handleSubmit = async (e: FormEvent) => {
+        e.preventDefault();
+        const address = email.trim();
+        if (!address) return;
+
+        setError('');
+        setIsSending(true);
+        try {
+            await api.post(`/Teams/${teamId}/members`, { userEmail: address });
+            onInvited(address);
+            close();
+        } catch (err) {
+            setError(getApiErrorMessage(err, 'Failed to invite this player.'));
+        } finally {
+            setIsSending(false);
+        }
+    };
+
+    return (
+        <Modal
+            open={open}
+            onClose={close}
+            title="Invite player"
+            size="sm"
+            busy={isSending}
+            closeOnBackdrop={false}
+            footer={
+                <>
+                    <Button variant="ghost" onClick={close} disabled={isSending}>Cancel</Button>
+                    <Button type="submit" form="invite-form" disabled={!email.trim()} loading={isSending} loadingText="Sending..." leftIcon={<MailPlus className="size-4" aria-hidden="true" />}>
+                        Send invite
+                    </Button>
+                </>
+            }
+        >
+            <form id="invite-form" onSubmit={handleSubmit} className="flex flex-col gap-4">
+                {error && <Alert tone="danger">{error}</Alert>}
+                <Field label="Email address" hint="They'll see the invite the next time they open Roster Sensei.">
+                    <Input type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="player@example.com" autoComplete="off" required data-autofocus />
+                </Field>
+            </form>
+        </Modal>
     );
 }

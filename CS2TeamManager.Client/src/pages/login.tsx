@@ -1,96 +1,62 @@
 ﻿import { Link, useNavigate } from 'react-router-dom';
 import React, { useState } from 'react';
+import axios from 'axios';
 import api from '../services/api';
 import { type UserUser } from '../types';
+import AuthLayout from '../components/auth-layout';
+import { Alert, Button, Field, Input, PasswordInput } from '../components/ui';
+
+const loginErrorMessage = (err: unknown) => {
+    if (axios.isAxiosError(err) && !err.response) return "Can't reach the server. Check your connection and try again.";
+    if (axios.isAxiosError(err) && (err.response?.status === 400 || err.response?.status === 401)) return 'Wrong email or password. Try again.';
+    return 'Something went wrong on our side. Please try again.';
+};
 
 export default function Login() {
-    // Initialize useNavigate for redirecting after login
     const navigate = useNavigate();
 
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [error, setError] = useState('');
+    const [isSubmitting, setIsSubmitting] = useState(false);
 
     const handleLogin = async (e: React.FormEvent) => {
         e.preventDefault();
         setError('');
+        setIsSubmitting(true);
 
         try {
-            const response = await api.post<UserUser>('/Auth/login', {
-                email,
-                password
-            });
-
-            // Save the JWT token to local storage
+            const response = await api.post<UserUser>('/Auth/login', { email, password });
             localStorage.setItem('jwt_token', response.data.token);
-
-            console.log('Successful login! Welcome:', response.data.username);
-
-            // Redirect the user to the dashboard immediately
             navigate('/dashboard');
-
         } catch (err) {
             console.error('Error while trying to log in:', err);
-            setError('Wrong email or password. Try again.');
+            setError(loginErrorMessage(err));
+            setIsSubmitting(false);
         }
     };
 
     return (
-        <div className="min-h-screen flex items-center justify-center bg-gray-900">
-            <div className="bg-gray-800 p-8 rounded-lg shadow-lg w-full max-w-md border border-gray-700">
+        <AuthLayout
+            title="Welcome back"
+            subtitle="Log in to get back to your roster."
+            footer={<>Don't have an account? <Link to="/register" className="font-semibold text-accent-text underline-offset-4 hover:underline">Register</Link></>}
+        >
+            <form onSubmit={handleLogin} className="flex flex-col gap-4">
+                {error && <Alert tone="danger">{error}</Alert>}
 
-                <h2 className="text-3xl font-bold text-white text-center mb-6">
-                    CS2 Team Manager
-                </h2>
+                <Field label="Email">
+                    <Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@example.com" autoComplete="email" required />
+                </Field>
 
-                {error && (
-                    <div className="bg-red-500/10 border border-red-500 text-red-500 p-3 rounded mb-4 text-sm text-center">
-                        {error}
-                    </div>
-                )}
+                <Field label="Password">
+                    <PasswordInput value={password} onChange={(e) => setPassword(e.target.value)} autoComplete="current-password" required />
+                </Field>
 
-                <form onSubmit={handleLogin} className="space-y-4">
-                    <div>
-                        <label className="block text-gray-300 text-sm font-medium mb-1">
-                            Email
-                        </label>
-                        <input
-                            type="email"
-                            value={email}
-                            onChange={(e) => setEmail(e.target.value)}
-                            className="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded text-white focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
-                            placeholder="your@email.com"
-                            required
-                        />
-                    </div>
-
-                    <div>
-                        <label className="block text-gray-300 text-sm font-medium mb-1">
-                            Password
-                        </label>
-                        <input
-                            type="password"
-                            value={password}
-                            onChange={(e) => setPassword(e.target.value)}
-                            className="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded text-white focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
-                            placeholder="••••••••"
-                            required
-                        />
-                    </div>
-
-                    <button
-                        type="submit"
-                        className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded transition-colors duration-200 mt-6"
-                    >
-                        Log in
-                    </button>
-                </form>
-
-                <p className="mt-4 text-center text-gray-400 text-sm">
-                    Don't have an account? <Link to="/register" className="text-blue-400 hover:text-blue-300">Register</Link>
-                </p>
-
-            </div>
-        </div>
+                <Button type="submit" size="lg" fullWidth loading={isSubmitting} loadingText="Logging in..." className="mt-2">
+                    Log in
+                </Button>
+            </form>
+        </AuthLayout>
     );
 }

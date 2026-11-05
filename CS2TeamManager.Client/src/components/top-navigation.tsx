@@ -1,18 +1,27 @@
 ﻿import { useCallback, useEffect, useRef, useState } from 'react';
 import { useLocation } from 'react-router-dom';
 import axios from 'axios';
+import { Bell, LogOut, Mail, Moon, Sun } from 'lucide-react';
 import api from '../services/api';
 import { getApiErrorMessage } from '../services/errors';
-import { type TeamInvite } from '../types';
+import { useTheme } from '../theme/theme-context';
+import { type Team, type TeamInvite } from '../types';
+import { LogoMark } from './brand/logo';
+import { Alert, Button, EmptyState, Field, IconButton, Modal, Select } from './ui';
 
 interface TopNavigationProps {
+    teams: Team[];
+    selectedTeam: Team | null;
+    onSelectTeam: (teamId: number) => void;
     onInviteAccepted: () => void;
+    onLogout: () => void;
 }
 
 type Feedback = { type: 'success' | 'error'; text: string } | null;
 
-export default function TopNavigation({ onInviteAccepted }: TopNavigationProps) {
+export default function TopNavigation({ teams, selectedTeam, onSelectTeam, onInviteAccepted, onLogout }: TopNavigationProps) {
     const location = useLocation();
+    const { theme, toggleTheme } = useTheme();
 
     const [invites, setInvites] = useState<TeamInvite[]>([]);
     const [showInviteModal, setShowInviteModal] = useState(false);
@@ -25,7 +34,6 @@ export default function TopNavigation({ onInviteAccepted }: TopNavigationProps) 
     const fetchSeq = useRef(0);
     const respondingRef = useRef(new Set<number>());
     const bellRef = useRef<HTMLButtonElement>(null);
-    const closeRef = useRef<HTMLButtonElement>(null);
 
     const fetchInvites = useCallback(async () => {
         const seq = ++fetchSeq.current;
@@ -39,28 +47,17 @@ export default function TopNavigation({ onInviteAccepted }: TopNavigationProps) 
 
     useEffect(() => {
         fetchInvites();
-    },[location.pathname, fetchInvites]);
+    }, [location.pathname, fetchInvites]);
 
     const openModal = () => {
         setFeedback(null);
         setShowInviteModal(true);
     };
 
-    const closeModal = useCallback(() => {
+    const closeModal = () => {
         setShowInviteModal(false);
         setFeedback(null);
-        bellRef.current?.focus();
-    }, []);
-
-    useEffect(() => {
-        if (!showInviteModal) return;
-        closeRef.current?.focus();
-        const onKeyDown = (e: KeyboardEvent) => {
-            if (e.key === 'Escape') closeModal();
-        };
-        document.addEventListener('keydown', onKeyDown);
-        return () => document.removeEventListener('keydown', onKeyDown);
-    }, [showInviteModal, closeModal]);
+    };
 
     const handleInviteResponse = async (invite: TeamInvite, isAccepted: boolean) => {
         if (respondingRef.current.has(invite.inviteId)) return;
@@ -93,106 +90,83 @@ export default function TopNavigation({ onInviteAccepted }: TopNavigationProps) 
         }
     };
 
+    const nextTheme = theme === 'dark' ? 'light' : 'dark';
+
     return (
         <>
-            <header className="h-16 border-b border-gray-800 flex items-center justify-end px-8 bg-[#181a2d] shrink-0 z-10">
-                <button
-                    ref={bellRef}
-                    onClick={openModal}
-                    className="relative p-2 text-gray-400 hover:text-white transition-colors"
-                    title="View Invites"
-                    aria-label={invites.length > 0 ? `View invites (${invites.length} pending)` : 'View invites'}
-                >
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
-                    </svg>
-                    {invites.length > 0 && (
-                        <span className="absolute top-1 right-1 flex h-3 w-3">
-                            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
-                            <span className="relative inline-flex rounded-full h-3 w-3 bg-red-500"></span>
-                        </span>
+            <header className="flex h-16 shrink-0 items-center gap-2 border-b border-line bg-surface px-3 lg:px-6">
+                <LogoMark size={28} className="shrink-0 lg:hidden" />
+
+                <div className="min-w-0 flex-1 lg:max-w-xs">
+                    {teams.length > 0 && selectedTeam && (
+                        <Field label="Team" hideLabel>
+                            <Select value={selectedTeam.id} onChange={e => onSelectTeam(Number(e.target.value))}>
+                                {teams.map(team => (
+                                    <option key={team.id} value={team.id}>{team.name} ({team.currentUserRole})</option>
+                                ))}
+                            </Select>
+                        </Field>
                     )}
-                </button>
+                </div>
+
+                <div className="ml-auto flex shrink-0 items-center gap-1">
+                    <IconButton
+                        ref={bellRef}
+                        onClick={openModal}
+                        label={invites.length > 0 ? `View invites, ${invites.length} pending` : 'View invites'}
+                        icon={<Bell className="size-5" aria-hidden="true" />}
+                        badge={invites.length}
+                    />
+                    <IconButton
+                        onClick={toggleTheme}
+                        label={`Switch to ${nextTheme} theme`}
+                        icon={theme === 'dark' ? <Sun className="size-5" aria-hidden="true" /> : <Moon className="size-5" aria-hidden="true" />}
+                    />
+                    <IconButton onClick={onLogout} label="Log out" className="lg:hidden" icon={<LogOut className="size-5" aria-hidden="true" />} />
+                </div>
             </header>
 
             {invites.length > 0 && (
-                <div className="bg-gradient-to-r from-[#ff6b4a]/20 to-purple-600/20 border-b border-[#ff6b4a]/30 px-8 py-3 flex justify-between items-center shrink-0 z-10 shadow-md">
-                    <div className="flex items-center gap-3">
-                        <span className="text-xl" aria-hidden="true">🔔</span>
-                        <p className="text-white text-sm">
-                            You have <strong>{invites.length}</strong> pending team invite{invites.length > 1 ? 's' : ''}!
-                        </p>
-                    </div>
-                    <button onClick={openModal} className="bg-[#ff6b4a] hover:bg-[#e5593c] text-white text-xs font-bold px-4 py-1.5 rounded transition-colors shadow-lg">
-                        View Invites
-                    </button>
-                </div>
+                <section aria-label="Pending invites" className="flex shrink-0 flex-wrap items-center justify-between gap-x-4 gap-y-2 border-b border-line bg-accent-soft px-4 py-2 lg:px-6">
+                    <p className="flex items-center gap-2 text-sm text-fg">
+                        <Mail className="size-4 shrink-0 text-accent-text" aria-hidden="true" />
+                        <span>You have <strong>{invites.length}</strong> pending team invite{invites.length > 1 ? 's' : ''}.</span>
+                    </p>
+                    <Button size="sm" onClick={openModal}>View invites</Button>
+                </section>
             )}
 
-            {showInviteModal && (
-                <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4">
-                    <div
-                        role="dialog"
-                        aria-modal="true"
-                        aria-labelledby="invite-modal-title"
-                        className="bg-[#181a2d] rounded-xl border border-gray-700 w-full max-w-lg shadow-2xl overflow-hidden"
-                    >
-                        <div className="p-6 border-b border-gray-800 flex justify-between items-center bg-[#111322]">
-                            <h2 id="invite-modal-title" className="text-xl font-bold text-white">Pending Team Invites</h2>
-                            <button ref={closeRef} onClick={closeModal} aria-label="Close" className="text-gray-400 hover:text-white text-2xl">&times;</button>
-                        </div>
+            <Modal open={showInviteModal} onClose={closeModal} title="Pending team invites" returnFocusRef={bellRef}>
+                <div className="flex flex-col gap-4">
+                    {feedback && <Alert tone={feedback.type === 'error' ? 'danger' : 'success'}>{feedback.text}</Alert>}
 
-                        <div className="p-6 max-h-[60vh] overflow-y-auto">
-                            {feedback && (
-                                <div
-                                    role={feedback.type === 'error' ? 'alert' : 'status'}
-                                    className={`mb-4 px-4 py-3 rounded-lg text-sm border ${feedback.type === 'error'
-                                        ? 'bg-red-500/10 border-red-500/50 text-red-400'
-                                        : 'bg-emerald-500/10 border-emerald-500/50 text-emerald-400'}`}
-                                >
-                                    {feedback.text}
-                                </div>
-                            )}
-
-                            {invites.length === 0 ? (
-                                <p className="text-gray-500 text-center py-4">You have no pending invites.</p>
-                            ) : (
-                                <div className="space-y-4">
-                                    {invites.map(invite => {
-                                        const isResponding = respondingIds.includes(invite.inviteId);
-                                        return (
-                                            <div key={invite.inviteId} className="bg-[#111322] border border-gray-700 p-4 rounded-lg flex flex-col md:flex-row justify-between items-center gap-4">
-                                                <div>
-                                                    <h3 className="text-white font-bold text-lg">{invite.teamName}</h3>
-                                                    <p className="text-gray-400 text-sm">Invited by: <span className="text-[#ff6b4a]">{invite.senderUsername}</span></p>
-                                                </div>
-                                                <div className="flex gap-2">
-                                                    <button
-                                                        onClick={() => handleInviteResponse(invite, true)}
-                                                        disabled={isResponding}
-                                                        aria-label={`Accept invite to ${invite.teamName}`}
-                                                        className="px-4 py-2 rounded font-bold text-sm bg-emerald-600 hover:bg-emerald-500 text-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                                                    >
-                                                        {isResponding ? 'Working...' : 'Accept'}
-                                                    </button>
-                                                    <button
-                                                        onClick={() => handleInviteResponse(invite, false)}
-                                                        disabled={isResponding}
-                                                        aria-label={`Decline invite to ${invite.teamName}`}
-                                                        className="px-4 py-2 rounded font-bold text-sm border border-gray-600 text-gray-300 hover:bg-red-500/20 hover:text-red-500 hover:border-red-500/50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                                                    >
-                                                        Decline
-                                                    </button>
-                                                </div>
-                                            </div>
-                                        );
-                                    })}
-                                </div>
-                            )}
-                        </div>
-                    </div>
+                    {invites.length === 0 ? (
+                        <EmptyState compact icon={<Mail />} title="No pending invites" description="When a team invites you, it shows up here." />
+                    ) : (
+                        <ul className="flex flex-col gap-3">
+                            {invites.map(invite => {
+                                const isResponding = respondingIds.includes(invite.inviteId);
+                                return (
+                                    <li key={invite.inviteId} className="flex flex-col justify-between gap-3 rounded-md border border-line bg-sunken p-4 sm:flex-row sm:items-center">
+                                        <div className="min-w-0">
+                                            <h3 className="font-bold break-words text-fg">{invite.teamName}</h3>
+                                            <p className="text-sm text-fg-muted">Invited by <span className="font-medium text-fg">{invite.senderUsername}</span></p>
+                                        </div>
+                                        <div className="flex shrink-0 gap-2">
+                                            <Button size="sm" onClick={() => handleInviteResponse(invite, true)} loading={isResponding} aria-label={`Accept invite to ${invite.teamName}`}>
+                                                Accept
+                                            </Button>
+                                            <Button size="sm" variant="secondary" onClick={() => handleInviteResponse(invite, false)} disabled={isResponding} aria-label={`Decline invite to ${invite.teamName}`}>
+                                                Decline
+                                            </Button>
+                                        </div>
+                                    </li>
+                                );
+                            })}
+                        </ul>
+                    )}
                 </div>
-            )}
+            </Modal>
         </>
     );
 }

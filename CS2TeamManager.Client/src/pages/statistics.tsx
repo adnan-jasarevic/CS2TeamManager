@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useMemo, useRef, useState } from 'react';
 import { AgGridReact } from 'ag-grid-react';
 import {
     CellStyleModule,
@@ -10,6 +10,7 @@ import {
     ValidationModule,
     ModuleRegistry,
     colorSchemeDark,
+    colorSchemeLight,
     themeQuartz,
     type CellStyle,
     type ColDef,
@@ -17,10 +18,15 @@ import {
     type GridApi,
     type GridReadyEvent,
 } from 'ag-grid-community';
+import { Columns3, RotateCcw } from 'lucide-react';
 import api from '../services/api';
-import { getApiErrorMessage } from '../services/errors';
-import { useLayoutContext } from '../components/layout-context';
+import { useResource, type ResourceLoader } from '../hooks/use-resource';
+import { useTheme } from '../theme/theme-context';
+import PageHeader, { PageContainer } from '../components/page-header';
+import { PanelSkeleton, StatsSkeleton } from '../components/page-skeletons';
 import TeamCharts from '../components/team-charts';
+import TeamGate from '../components/team-gate';
+import { Alert, Button, Card, Checkbox, ErrorState, LoadingRegion, Popover, SegmentedControl } from '../components/ui';
 import { type Match, type Team, type TeamStats } from '../types';
 
 // Only the grid features this page uses, to keep the bundle small.
@@ -35,15 +41,21 @@ ModuleRegistry.registerModules([
     ...(import.meta.env.DEV ? [ValidationModule] : []),
 ]);
 
-const gridTheme = themeQuartz.withPart(colorSchemeDark).withParams({
-    backgroundColor: '#181a2d',
-    headerBackgroundColor: '#111322',
-    oddRowBackgroundColor: '#1b1d32',
-    borderColor: '#1f2937',
-    accentColor: '#ff6b4a',
-    foregroundColor: '#e5e7eb',
+// The colours come from the design tokens, so the grid follows the rest of the theme.
+const gridParams = {
+    backgroundColor: 'var(--rs-surface)',
+    headerBackgroundColor: 'var(--rs-sunken)',
+    oddRowBackgroundColor: 'var(--rs-surface)',
+    borderColor: 'var(--rs-line)',
+    accentColor: 'var(--rs-accent)',
+    foregroundColor: 'var(--rs-fg)',
+    fontFamily: 'inherit',
     fontSize: 13,
-});
+};
+const GRID_THEMES = {
+    dark: themeQuartz.withPart(colorSchemeDark).withParams(gridParams),
+    light: themeQuartz.withPart(colorSchemeLight).withParams(gridParams),
+};
 
 // One row per map. A match without maps still gets a single row so it shows up.
 interface MapRow {
@@ -120,9 +132,9 @@ const toRows = (matches: Match[]): MapRow[] =>
         });
 
 const resultStyle = (value: string): CellStyle => {
-    if (value === 'Win') return { color: '#4ade80', fontWeight: 600 };
-    if (value === 'Loss') return { color: '#f87171', fontWeight: 600 };
-    return { color: '#9ca3af', fontWeight: 400 };
+    if (value === 'Win') return { color: 'var(--rs-success-text)', fontWeight: 600 };
+    if (value === 'Loss') return { color: 'var(--rs-danger-text)', fontWeight: 600 };
+    return { color: 'var(--rs-fg-muted)', fontWeight: 400 };
 };
 
 const columnDefs: ColDef<MapRow>[] = [
@@ -188,72 +200,51 @@ const saveColumnState = (state: ColumnState[]) => {
 };
 
 export default function Statistics() {
-    const [teams, setTeams] = useState<Team[]>([]);
-    const [selectedTeamId, setSelectedTeamId] = useState<number | null>(null);
-    const [matches, setMatches] = useState<Match[]>([]);
-    const [stats, setStats] = useState<TeamStats | null>(null);
+    return (
+        <TeamGate title="Statistics">
+            {team => <StatisticsContent key={team.id} team={team} />}
+        </TeamGate>
+    );
+}
+
+function StatisticsContent({ team }: { team: Team }) {
+    const { theme } = useTheme();
     const [typeFilter, setTypeFilter] = useState<TypeFilter>('all');
-    const [loading, setLoading] = useState(true);
-    const [error, setError] = useState('');
-    const [isColumnMenuOpen, setIsColumnMenuOpen] = useState(false);
-    const [, setColumnsVersion] = useState(0);
+    const [columnState, setColumnState] = useState<ColumnState[]>([]);
     const gridApi = useRef<GridApi<MapRow> | null>(null);
-    const { teamsVersion } = useLayoutContext();
 
-    useEffect(() => {
-        const fetchTeams = async () => {
-            try {
-                const response = await api.get<Team[]>('/Teams/my-teams');
-                setTeams(response.data);
-                if (response.data.length > 0) setSelectedTeamId(prev => prev ?? response.data[0].id);
-            } catch (err: unknown) {
-                setError(getApiErrorMessage(err, 'Failed to load teams.'));
-            } finally {
-                setLoading(false);
-            }
-        };
-        fetchTeams();
-    }, [teamsVersion]);
-
-    const fetchMatches = useCallback(async (teamId: number) => {
-        try {
-            setError('');
-            const response = await api.get<Match[]>(`/Matches/${teamId}`);
-            setMatches(response.data);
-        } catch (err: unknown) {
-            setError(getApiErrorMessage(err, 'Failed to load matches.'));
-        }
-    }, []);
-
-    useEffect(() => {
-        if (selectedTeamId !== null) fetchMatches(selectedTeamId);
-    }, [selectedTeamId, fetchMatches]);
+    const loadMatches = useCallback<ResourceLoader<Match[]>>(
+        signal => api.get<Match[]>(`/Matches/${team.id}`, { signal }).then(response => response.data),
+        [team.id],
+    );
+    const matches = useResource(loadMatches, 'Failed to load matches.');
 
     // Map win rates are grouped on the server, so they're refetched when the type filter changes.
-    useEffect(() => {
-        if (selectedTeamId === null) return;
-        let cancelled = false;
-        api.get<TeamStats>(`/Matches/${selectedTeamId}/stats`, { params: typeFilter === 'all' ? {} : { type: typeFilter } })
-            .then(response => { if (!cancelled) setStats(response.data); })
-            .catch((err: unknown) => { if (!cancelled) setError(getApiErrorMessage(err, 'Failed to load statistics.')); });
-        return () => { cancelled = true; };
-    }, [selectedTeamId, typeFilter]);
+    const loadStats = useCallback<ResourceLoader<TeamStats>>(
+        signal => api.get<TeamStats>(`/Matches/${team.id}/stats`, { signal, params: typeFilter === 'all' ? {} : { type: typeFilter } }).then(response => response.data),
+        [team.id, typeFilter],
+    );
+    const stats = useResource(loadStats, 'Failed to load statistics.', { keepPrevious: true });
 
     const rows = useMemo(() => {
-        const all = toRows(matches);
+        const all = toRows(matches.data ?? []);
         return typeFilter === 'all' ? all : all.filter(r => r.type === typeFilter);
-    }, [matches, typeFilter]);
+    }, [matches.data, typeFilter]);
+
+    const syncColumnState = () => {
+        if (gridApi.current) setColumnState(gridApi.current.getColumnState());
+    };
 
     const onGridReady = (event: GridReadyEvent<MapRow>) => {
         gridApi.current = event.api;
         const saved = loadColumnState();
         if (saved) event.api.applyColumnState({ state: saved, applyOrder: true });
-        setColumnsVersion(v => v + 1);
+        syncColumnState();
     };
 
     const persistColumns = () => {
         if (gridApi.current) saveColumnState(gridApi.current.getColumnState());
-        setColumnsVersion(v => v + 1);
+        syncColumnState();
     };
 
     const resetLayout = () => {
@@ -263,7 +254,7 @@ export default function Statistics() {
         } catch {
             // ignore
         }
-        setColumnsVersion(v => v + 1);
+        syncColumnState();
     };
 
     const toggleColumn = (colId: string, visible: boolean) => {
@@ -271,113 +262,80 @@ export default function Statistics() {
         persistColumns();
     };
 
-    if (loading) return <div className="text-gray-400 p-8">Loading analytics...</div>;
-
-    if (teams.length === 0) {
-        return (
-            <div className="p-8">
-                <h1 className="text-3xl font-bold text-white mb-2">Statistics</h1>
-                <p className="text-gray-400">You need to create or join a team first.</p>
-            </div>
-        );
-    }
-
     return (
-        <div className="p-8">
-            <div className="flex flex-col md:flex-row justify-between items-start md:items-end mb-8 gap-4">
-                <div>
-                    <h1 className="text-3xl font-bold text-white mb-2">Statistics</h1>
-                    <p className="text-gray-400">How your team performs, per map and over time.</p>
-                </div>
+        <PageContainer>
+            <PageHeader title="Statistics" description="How your team performs, per map and over time." />
 
-                <div className="flex flex-col">
-                    <label className="text-xs text-gray-500 mb-1">Select Team:</label>
-                    <select
-                        className="bg-[#181a2d] border border-gray-700 text-white rounded-lg px-4 py-2 focus:outline-none focus:border-[#ff6b4a]"
-                        value={selectedTeamId || ''}
-                        onChange={(e) => setSelectedTeamId(Number(e.target.value))}
-                    >
-                        {teams.map(t => (
-                            <option key={t.id} value={t.id}>{t.name} ({t.currentUserRole})</option>
-                        ))}
-                    </select>
-                </div>
-            </div>
+            <SegmentedControl label="Match type" hideLabel value={typeFilter} options={TYPE_FILTERS} onChange={setTypeFilter} className="mb-6" />
 
-            {error && <div className="bg-red-500/10 border border-red-500 text-red-500 p-4 rounded mb-6">{error}</div>}
-
-            <div className="flex gap-2 mb-6">
-                {TYPE_FILTERS.map(f => (
-                    <button
-                        key={f.value}
-                        onClick={() => setTypeFilter(f.value)}
-                        className={`px-4 py-2 rounded-lg text-sm font-medium border transition-colors ${typeFilter === f.value
-                            ? 'bg-[#ff6b4a] border-[#ff6b4a] text-white'
-                            : 'bg-[#181a2d] border-gray-800 text-gray-400 hover:text-white'
-                            }`}
-                    >
-                        {f.label}
-                    </button>
-                ))}
-            </div>
-
-            {stats && <TeamCharts stats={stats} />}
-
-            <div className="flex flex-wrap items-end justify-between gap-2 mb-4">
-                <div>
-                    <h2 className="text-xl font-bold text-white">Scrim Analytics</h2>
-                    <p className="text-xs text-gray-500">Every played map, one row each. Drag headers to reorder, filter under each header, and pick columns.</p>
-                </div>
-
-                <div className="flex gap-2 relative">
-                    <button
-                        onClick={() => setIsColumnMenuOpen(open => !open)}
-                        className="px-4 py-2 rounded-lg text-sm font-medium border bg-[#181a2d] border-gray-800 text-gray-300 hover:text-white"
-                    >
-                        Columns
-                    </button>
-                    <button
-                        onClick={resetLayout}
-                        className="px-4 py-2 rounded-lg text-sm font-medium border bg-[#181a2d] border-gray-800 text-gray-400 hover:text-white"
-                    >
-                        Reset layout
-                    </button>
-
-                    {isColumnMenuOpen && (
-                        <div className="absolute right-0 top-12 z-20 w-56 bg-[#111322] border border-gray-700 rounded-lg shadow-xl p-2">
-                            {columnDefs.map(col => {
-                                const colId = col.field as string;
-                                const visible = gridApi.current?.getColumn(colId)?.isVisible() ?? !col.hide;
-                                return (
-                                    <label key={colId} className="flex items-center gap-2 px-2 py-1.5 rounded hover:bg-gray-800 text-sm text-gray-300 cursor-pointer">
-                                        <input
-                                            type="checkbox"
-                                            checked={visible}
-                                            onChange={(e) => toggleColumn(colId, e.target.checked)}
-                                            className="accent-[#ff6b4a]"
-                                        />
-                                        {col.headerName}
-                                    </label>
-                                );
-                            })}
+            <div aria-busy={stats.isFetching} className="mb-8">
+                {stats.isLoading ? (
+                    <LoadingRegion label="Loading statistics" className="flex flex-col gap-6">
+                        <StatsSkeleton />
+                        <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
+                            <PanelSkeleton height="h-80" />
+                            <PanelSkeleton height="h-80" />
                         </div>
-                    )}
+                    </LoadingRegion>
+                ) : stats.error && !stats.data ? (
+                    <Card><ErrorState title="Couldn't load statistics" message={stats.error} onRetry={stats.reload} retrying={stats.isFetching} /></Card>
+                ) : stats.data && (
+                    <div className="flex flex-col gap-4">
+                        {stats.error && <Alert tone="danger">{stats.error}</Alert>}
+                        <TeamCharts stats={stats.data} />
+                    </div>
+                )}
+            </div>
+
+            <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
+                <div className="min-w-0">
+                    <h2 className="text-xl font-black tracking-tight text-fg">Scrim analytics</h2>
+                    <p className="text-sm text-fg-subtle">Every played map, one row each. Drag headers to reorder, filter under each header, and pick columns.</p>
+                </div>
+
+                <div className="flex gap-2">
+                    <Popover
+                        label="Choose visible columns"
+                        className="w-56"
+                        renderTrigger={trigger => (
+                            <Button {...trigger} variant="secondary" size="sm" leftIcon={<Columns3 className="size-4" aria-hidden="true" />}>Columns</Button>
+                        )}
+                    >
+                        {columnDefs.map(col => {
+                            const colId = col.field as string;
+                            const saved = columnState.find(state => state.colId === colId);
+                            return (
+                                <Checkbox
+                                    key={colId}
+                                    label={col.headerName}
+                                    checked={saved ? !saved.hide : !col.hide}
+                                    onChange={(e) => toggleColumn(colId, e.target.checked)}
+                                />
+                            );
+                        })}
+                    </Popover>
+                    <Button variant="ghost" size="sm" onClick={resetLayout} leftIcon={<RotateCcw className="size-4" aria-hidden="true" />}>Reset layout</Button>
                 </div>
             </div>
 
-            <div style={{ height: 600 }}>
-                <AgGridReact<MapRow>
-                    theme={gridTheme}
-                    rowData={rows}
-                    columnDefs={columnDefs}
-                    defaultColDef={defaultColDef}
-                    onGridReady={onGridReady}
-                    onColumnMoved={(e) => { if (e.finished) persistColumns(); }}
-                    onColumnResized={(e) => { if (e.finished) persistColumns(); }}
-                    onSortChanged={persistColumns}
-                    overlayNoRowsTemplate="No played matches yet. Finished matches show up here, one row per map."
-                />
-            </div>
-        </div>
+            {matches.error && !matches.data ? (
+                <Card><ErrorState title="Couldn't load matches" message={matches.error} onRetry={matches.reload} retrying={matches.isFetching} /></Card>
+            ) : (
+                <div className="h-[600px] max-h-[80dvh] overflow-hidden rounded-lg">
+                    <AgGridReact<MapRow>
+                        theme={GRID_THEMES[theme]}
+                        rowData={rows}
+                        loading={matches.isLoading}
+                        columnDefs={columnDefs}
+                        defaultColDef={defaultColDef}
+                        onGridReady={onGridReady}
+                        onColumnMoved={(e) => { if (e.finished) persistColumns(); }}
+                        onColumnResized={(e) => { if (e.finished) persistColumns(); }}
+                        onSortChanged={persistColumns}
+                        overlayNoRowsTemplate="No played matches yet. Finished matches show up here, one row per map."
+                    />
+                </div>
+            )}
+        </PageContainer>
     );
 }
