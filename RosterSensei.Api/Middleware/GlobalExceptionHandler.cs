@@ -12,6 +12,16 @@ public class GlobalExceptionHandler : IExceptionHandler
         _logger = logger;
     }
 
+    private static string SanitizeForLog(string? value)
+    {
+        if (string.IsNullOrEmpty(value))
+        {
+            return string.Empty;
+        }
+
+        return value.Replace("\r", string.Empty).Replace("\n", string.Empty);
+    }
+
     public async ValueTask<bool> TryHandleAsync(
         HttpContext httpContext,
         Exception exception,
@@ -21,7 +31,7 @@ public class GlobalExceptionHandler : IExceptionHandler
         // waiting for an answer, so don't log it as a server error or try to write a response.
         if (exception is OperationCanceledException && httpContext.RequestAborted.IsCancellationRequested)
         {
-            _logger.LogDebug("Request {Path} was cancelled by the client.", httpContext.Request.Path);
+            _logger.LogDebug("Request {Path} was cancelled by the client.", SanitizeForLog(httpContext.Request.Path.Value));
             httpContext.Response.StatusCode = StatusCodes.Status499ClientClosedRequest;
             return true;
         }
