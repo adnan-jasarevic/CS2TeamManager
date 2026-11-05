@@ -3,6 +3,7 @@ import { motion } from 'framer-motion';
 import { CalendarDays, ChartNoAxesCombined, Moon, Sun, Swords } from 'lucide-react';
 import { useTheme } from '../theme/theme-context';
 import { Logo, LogoMark } from './brand/logo';
+import { SenseiKanji } from './brand/sensei-kanji';
 import { IconButton } from './ui';
 
 const HIGHLIGHTS = [
@@ -40,9 +41,7 @@ export default function AuthLayout({ title, subtitle, children, footer }: AuthLa
                     transition={{ duration: 0.9, ease: [0.16, 1, 0.3, 1] }}
                 >
                     <LogoMark size="100%" />
-                    <span lang="ja" className="absolute top-[13%] left-1/2 -translate-x-1/2 font-jp text-[clamp(2rem,6vh,3.5rem)] font-bold text-on-accent [writing-mode:vertical-rl]">
-                        先生
-                    </span>
+                    <SenseiKanji className="absolute top-[13%] left-1/2 -translate-x-1/2 text-[clamp(2rem,6vh,3.5rem)] text-on-accent" />
                 </motion.div>
 
                 <Logo className="relative" />
