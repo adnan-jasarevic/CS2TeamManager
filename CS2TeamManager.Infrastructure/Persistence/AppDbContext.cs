@@ -54,6 +54,26 @@ public class AppDbContext : IdentityDbContext<AppUser>
             .IsUnique()
             .HasFilter("[Role] = 1");
 
+        // Exactly one Owner per team: a transfer can never leave two.
+        builder.Entity<TeamMember>()
+            .HasIndex(tm => tm.TeamId, "IX_TeamMembers_OneOwnerPerTeam")
+            .IsUnique()
+            .HasFilter("[Role] = 0");
+
+        // At most one pending invite per user per team, even when two invites are sent at the same time.
+        builder.Entity<TeamInvite>(invite =>
+        {
+            invite.Property(i => i.TargetUserId)
+                .HasMaxLength(450);
+
+            // Plain index for the Team foreign key, kept alongside the filtered one below.
+            invite.HasIndex(i => i.TeamId);
+
+            invite.HasIndex(i => new { i.TeamId, i.TargetUserId }, "IX_TeamInvites_OnePendingPerUser")
+                .IsUnique()
+                .HasFilter("[Status] = 0 AND [TargetUserId] IS NOT NULL");
+        });
+
         builder.Entity<TeamMember>()
             .HasOne<AppUser>()
             .WithMany(u => u.TeamMemberships)

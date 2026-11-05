@@ -96,7 +96,8 @@ public class TeamService : ITeamService
             CreatedAt = DateTime.UtcNow
         };
 
-        await _teamRepository.CreateInviteAsync(invite);
+        if (!await _teamRepository.CreateInviteAsync(invite))
+            return Result<string>.Failure("An active invite has already been sent to this user.");
 
         return Result<string>.SuccessResult("Invite sent successfully.");
     }
@@ -238,7 +239,8 @@ public class TeamService : ITeamService
         }
 
         targetMember.Role = newRole;
-        await _teamRepository.UpdateTeamMemberAsync(targetMember);
+        if (!await _teamRepository.UpdateTeamMemberAsync(targetMember))
+            return Result<string>.Failure("This team already has a Captain. Change their role first.");
 
         return Result<string>.SuccessResult("Role updated successfully.");
     }
@@ -263,12 +265,9 @@ public class TeamService : ITeamService
         if (ownedCount >= 3)
             return Result<string>.Failure("This member already owns 3 teams and cannot take ownership of another.");
 
-        // The two swap places: the old Owner stays on as an Officer.
-        newOwner.Role = TeamRole.Owner;
-        currentOwner.Role = TeamRole.Officer;
-
-        // Single save so the team is never left with zero or two owners.
-        await _teamRepository.UpdateTeamMembersAsync(new[] { newOwner, currentOwner });
+        // The two swap places in one transaction: the old Owner stays on as an Officer.
+        if (!await _teamRepository.TransferOwnershipAsync(teamId, currentOwnerId, newOwnerId))
+            return Result<string>.Failure("The roles changed while transferring ownership. Refresh and try again.");
 
         return Result<string>.SuccessResult("Ownership transferred successfully.");
     }

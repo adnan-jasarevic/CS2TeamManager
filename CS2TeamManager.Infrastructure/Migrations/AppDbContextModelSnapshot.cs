@@ -269,7 +269,8 @@ namespace CS2TeamManager.Infrastructure.Migrations
                         .HasColumnType("nvarchar(max)");
 
                     b.Property<string>("TargetUserId")
-                        .HasColumnType("nvarchar(max)");
+                        .HasMaxLength(450)
+                        .HasColumnType("nvarchar(450)");
 
                     b.Property<int>("TeamId")
                         .HasColumnType("int");
@@ -277,6 +278,10 @@ namespace CS2TeamManager.Infrastructure.Migrations
                     b.HasKey("Id");
 
                     b.HasIndex("TeamId");
+
+                    b.HasIndex(new[] { "TeamId", "TargetUserId" }, "IX_TeamInvites_OnePendingPerUser")
+                        .IsUnique()
+                        .HasFilter("[Status] = 0 AND [TargetUserId] IS NOT NULL");
 
                     b.ToTable("TeamInvites");
                 });
@@ -302,6 +307,10 @@ namespace CS2TeamManager.Infrastructure.Migrations
                     b.HasIndex(new[] { "TeamId" }, "IX_TeamMembers_OneCaptainPerTeam")
                         .IsUnique()
                         .HasFilter("[Role] = 1");
+
+                    b.HasIndex(new[] { "TeamId" }, "IX_TeamMembers_OneOwnerPerTeam")
+                        .IsUnique()
+                        .HasFilter("[Role] = 0");
 
                     b.ToTable("TeamMembers");
                 });
