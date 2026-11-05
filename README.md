@@ -1,4 +1,4 @@
-# CS2 Team Manager
+# Roster Sensei
 
 A web app for amateur Counter-Strike 2 teams to manage their roster, schedule matches and track results.
 
@@ -29,12 +29,12 @@ A web app for amateur Counter-Strike 2 teams to manage their roster, schedule ma
 The backend follows Clean Architecture: dependencies point inward, so the domain knows nothing about the database or the web.
 
 ```
-CS2TeamManager.Domain          Entities and enums (Team, TeamMember, TeamInvite, Match, ...)
-CS2TeamManager.Application     DTOs, services, validators, repository interfaces
-CS2TeamManager.Infrastructure  EF Core DbContext, migrations, repositories, Identity
-CS2TeamManager.Api             Controllers, validation filter, exception handler, startup
-CS2TeamManager.Client          React frontend
-CS2TeamManager.Tests           xUnit tests for the services, run against an in-memory SQLite database
+RosterSensei.Domain            Entities and enums (Team, TeamMember, TeamInvite, Match, ...)
+RosterSensei.Application       DTOs, services, validators, repository interfaces
+RosterSensei.Infrastructure    EF Core DbContext, migrations, repositories, Identity
+RosterSensei.Api               Controllers, validation filter, exception handler, startup
+RosterSensei.Client            React frontend
+RosterSensei.Tests             xUnit tests for the services, run against an in-memory SQLite database
 ```
 
 ## Getting started
@@ -51,13 +51,13 @@ CS2TeamManager.Tests           xUnit tests for the services, run against an in-m
 The JWT signing key is not committed. Set one of at least 32 characters with user secrets:
 
 ```bash
-dotnet user-secrets set "Jwt:Key" "<at least 32 random characters>" --project CS2TeamManager.Api
+dotnet user-secrets set "Jwt:Key" "<at least 32 random characters>" --project RosterSensei.Api
 ```
 
 To use a database other than LocalDB, override the connection string the same way:
 
 ```bash
-dotnet user-secrets set "ConnectionStrings:DefaultConnection" "<your connection string>" --project CS2TeamManager.Api
+dotnet user-secrets set "ConnectionStrings:DefaultConnection" "<your connection string>" --project RosterSensei.Api
 ```
 
 The API only accepts browser requests from origins listed under `Cors:AllowedOrigins`. In Development that's `http://localhost:5173`, the Vite dev server (see `appsettings.Development.json`).
@@ -68,21 +68,21 @@ Restore the NuGet packages first, because `dotnet ef` fails on a fresh clone wit
 
 ```bash
 dotnet restore
-dotnet ef database update --project CS2TeamManager.Infrastructure --startup-project CS2TeamManager.Api
+dotnet ef database update --project RosterSensei.Infrastructure --startup-project RosterSensei.Api
 ```
 
 ### 3. Run the API
 
 ```bash
-dotnet run --project CS2TeamManager.Api --launch-profile https
+dotnet run --project RosterSensei.Api --launch-profile https
 ```
 
-The API listens on `https://localhost:7185`, and Swagger UI is at `/swagger` in Development. In Visual Studio, set `CS2TeamManager.Api` as the startup project and press F5.
+The API listens on `https://localhost:7185`, and Swagger UI is at `/swagger` in Development. In Visual Studio, set `RosterSensei.Api` as the startup project and press F5.
 
 ### 4. Run the frontend
 
 ```bash
-cd CS2TeamManager.Client
+cd RosterSensei.Client
 npm install
 npm run dev
 ```
@@ -94,7 +94,7 @@ Open http://localhost:5173. The frontend calls `https://localhost:7185/api` by d
 The backend tests run the real services and repositories against an in-memory SQLite database, so they need no SQL Server:
 
 ```bash
-dotnet test CS2TeamManager.Tests
+dotnet test RosterSensei.Tests
 ```
 
 They cover team membership, invites, roles and permissions, ownership transfer, and leaving and deleting teams.
@@ -105,6 +105,6 @@ GitHub Actions runs on every pull request and on every push to `master`: it buil
 
 Planned features:
 
-- [Match participation](https://github.com/adnan-jasarevic/CS2TeamManager/issues/18): who played each match
-- [Player stats per match](https://github.com/adnan-jasarevic/CS2TeamManager/issues/19)
-- [Link a Steam account](https://github.com/adnan-jasarevic/CS2TeamManager/issues/20)
+- [Match participation](https://github.com/adnan-jasarevic/Roster-Sensei/issues/18): who played each match
+- [Player stats per match](https://github.com/adnan-jasarevic/Roster-Sensei/issues/19)
+- [Link a Steam account](https://github.com/adnan-jasarevic/Roster-Sensei/issues/20)
