@@ -60,7 +60,9 @@ public class TeamEventService : ITeamEventService
             return Result<TeamEventDto>.NotFound("Event was not found.");
 
         Apply(teamEvent, dto);
-        await _eventRepository.UpdateAsync(teamEvent);
+        if (!await _eventRepository.UpdateAsync(teamEvent))
+            return Result<TeamEventDto>.NotFound("Event was not found. It may have just been deleted.");
+
         return Result<TeamEventDto>.SuccessResult(ToDto(teamEvent));
     }
 
@@ -69,11 +71,10 @@ public class TeamEventService : ITeamEventService
         if (!await CanManageAsync(teamId, userId))
             return Result<string>.Forbidden("Only the team Owner, Captain or Officers can delete events.");
 
-        var teamEvent = await _eventRepository.GetByIdAsync(teamId, eventId);
-        if (teamEvent == null)
+        // One conditional delete, so two people deleting the same event at once get a 404 instead of an error.
+        if (!await _eventRepository.DeleteAsync(teamId, eventId))
             return Result<string>.NotFound("Event was not found.");
 
-        await _eventRepository.DeleteAsync(teamEvent);
         return Result<string>.SuccessResult("Event deleted.");
     }
 

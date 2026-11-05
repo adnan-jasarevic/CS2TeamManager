@@ -3,6 +3,8 @@ using CS2TeamManager.Domain.Entities;
 using CS2TeamManager.Domain.Enums;
 using CS2TeamManager.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
+using System.Data;
+using System.Data.Common;
 
 namespace CS2TeamManager.Infrastructure.Repositories;
 
@@ -30,22 +32,26 @@ public class TeamRepository : ITeamRepository
             .ToListAsync();
     }
 
-    public async Task<int> GetOwnedTeamsCountAsync(string userId)
+    public async Task<WriteOutcome> AddOwnedTeamAsync(Team team, int maxOwnedTeams)
     {
-        return await _context.Teams.CountAsync(t => t.OwnerId == userId);
-    }
+        // Serializable keeps the counted range locked until commit, so a second create for the same
+        // user waits or becomes the deadlock victim instead of also passing the check.
+        await using var transaction = await _context.Database.BeginTransactionAsync(IsolationLevel.Serializable);
+        try
+        {
+            if (await _context.Teams.CountAsync(t => t.OwnerId == team.OwnerId) >= maxOwnedTeams)
+                return WriteOutcome.Rejected;
 
-    public async Task<Team> AddAsync(Team team)
-    {
-        _context.Teams.Add(team);
-        await _context.SaveChangesAsync();
-        return team;
-    }
-
-    public async Task UpdateAsync(Team team)
-    {
-        _context.Teams.Update(team);
-        await _context.SaveChangesAsync();
+            _context.Teams.Add(team);
+            await _context.SaveChangesAsync();
+            await transaction.CommitAsync();
+            return WriteOutcome.Done;
+        }
+        catch (Exception ex) when (ex is DbUpdateException or DbException)
+        {
+            _context.ChangeTracker.Clear();
+            return WriteOutcome.Conflict;
+        }
     }
 
     public async Task<bool> IsUserInTeamAsync(int teamId, string userId)
@@ -92,41 +98,64 @@ public class TeamRepository : ITeamRepository
             .FirstOrDefaultAsync(tm => tm.TeamId == teamId && tm.UserId == userId);
     }
 
-    public async Task<bool> UpdateTeamMemberAsync(TeamMember member)
+    public async Task<WriteOutcome> ChangeMemberRoleAsync(int teamId, string ownerId, string memberId, TeamRole newRole)
     {
-        // Marks only the member as changed, not the Team loaded with it.
-        _context.Entry(member).State = EntityState.Modified;
         try
         {
-            await _context.SaveChangesAsync();
-            return true;
+            // One conditional update that writes only the Role column, and only while the requester
+            // still owns the team, so an Owner who just handed the team on can't change roles any more.
+            var updated = await _context.TeamMembers
+                .Where(tm => tm.TeamId == teamId && tm.UserId == memberId && tm.Team.OwnerId == ownerId)
+                .ExecuteUpdateAsync(s => s.SetProperty(tm => tm.Role, newRole));
+
+            return updated == 1 ? WriteOutcome.Done : WriteOutcome.Conflict;
         }
-        catch (DbUpdateException)
+        catch (DbException)
         {
-            // A unique index (one Captain per team) rejected the change.
-            await _context.Entry(member).ReloadAsync();
-            return false;
+            // The one-Captain-per-team index rejected a second Captain made at the same time.
+            return WriteOutcome.Rejected;
         }
     }
 
-    public async Task<bool> TransferOwnershipAsync(int teamId, string currentOwnerId, string newOwnerId)
+    public async Task<WriteOutcome> TransferOwnershipAsync(int teamId, string currentOwnerId, string newOwnerId, int maxOwnedTeams)
     {
-        // One conditional update: it only applies while the requester still owns the team and the
-        // new Owner is still an Officer in it, so a concurrent change makes the transfer fail cleanly.
-        var updated = await _context.Teams
-            .Where(t => t.Id == teamId
-                && t.OwnerId == currentOwnerId
-                && t.Members.Any(m => m.UserId == newOwnerId && m.Role == TeamRole.Officer))
-            .ExecuteUpdateAsync(s => s.SetProperty(t => t.OwnerId, newOwnerId));
+        // Serializable for the same reason as AddOwnedTeamAsync: two teams handed to the same Officer at once
+        // can't both pass the limit.
+        await using var transaction = await _context.Database.BeginTransactionAsync(IsolationLevel.Serializable);
+        try
+        {
+            if (await _context.Teams.CountAsync(t => t.OwnerId == newOwnerId) >= maxOwnedTeams)
+                return WriteOutcome.Rejected;
 
-        return updated == 1;
+            // Only applies while the requester still owns the team and the new Owner is still an Officer in it.
+            var updated = await _context.Teams
+                .Where(t => t.Id == teamId
+                    && t.OwnerId == currentOwnerId
+                    && t.Members.Any(m => m.UserId == newOwnerId && m.Role == TeamRole.Officer))
+                .ExecuteUpdateAsync(s => s.SetProperty(t => t.OwnerId, newOwnerId));
+
+            if (updated != 1)
+                return WriteOutcome.Conflict;
+
+            await transaction.CommitAsync();
+            return WriteOutcome.Done;
+        }
+        catch (DbException)
+        {
+            // Deadlock victim of a concurrent transfer or create for the same user.
+            return WriteOutcome.Conflict;
+        }
     }
 
-    public async Task<bool> RemoveNonOwnerMemberAsync(int teamId, string userId)
+    public async Task<bool> RemoveMemberAsync(int teamId, string memberId, string requesterId)
     {
-        // Conditional delete, so a member who just received ownership can't leave the team without an Owner.
+        // Conditional delete: the member must not own the team (a team always keeps its Owner), and the
+        // requester must own it at this moment, unless members are removing themselves.
         var deleted = await _context.TeamMembers
-            .Where(tm => tm.TeamId == teamId && tm.UserId == userId && tm.Team.OwnerId != userId)
+            .Where(tm => tm.TeamId == teamId
+                && tm.UserId == memberId
+                && tm.Team.OwnerId != memberId
+                && (memberId == requesterId || tm.Team.OwnerId == requesterId))
             .ExecuteDeleteAsync();
 
         return deleted == 1;

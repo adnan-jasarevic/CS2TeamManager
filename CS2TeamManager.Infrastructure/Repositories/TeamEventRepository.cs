@@ -34,14 +34,27 @@ public class TeamEventRepository : ITeamEventRepository
         return teamEvent;
     }
 
-    public async Task UpdateAsync(TeamEvent teamEvent)
+    public async Task<bool> UpdateAsync(TeamEvent teamEvent)
     {
-        await _context.SaveChangesAsync();
+        try
+        {
+            await _context.SaveChangesAsync();
+            return true;
+        }
+        catch (DbUpdateConcurrencyException)
+        {
+            // The UPDATE matched no row: someone deleted the event while it was being edited.
+            _context.Entry(teamEvent).State = EntityState.Detached;
+            return false;
+        }
     }
 
-    public async Task DeleteAsync(TeamEvent teamEvent)
+    public async Task<bool> DeleteAsync(int teamId, int eventId)
     {
-        _context.TeamEvents.Remove(teamEvent);
-        await _context.SaveChangesAsync();
+        var deleted = await _context.TeamEvents
+            .Where(e => e.Id == eventId && e.TeamId == teamId)
+            .ExecuteDeleteAsync();
+
+        return deleted == 1;
     }
 }
