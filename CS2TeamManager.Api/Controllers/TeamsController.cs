@@ -32,6 +32,14 @@ public class TeamsController : ApiControllerBase
     public async Task<IActionResult> RemoveMember(int teamId, string memberId)
         => ToMessageResult(await _teamService.RemoveMemberAsync(teamId, UserId, memberId));
 
+    [HttpPost("{teamId}/leave")]
+    public async Task<IActionResult> LeaveTeam(int teamId)
+        => ToMessageResult(await _teamService.LeaveTeamAsync(teamId, UserId));
+
+    [HttpDelete("{teamId}")]
+    public async Task<IActionResult> DeleteTeam(int teamId)
+        => ToMessageResult(await _teamService.DeleteTeamAsync(teamId, UserId));
+
     [HttpGet("{teamId}/dashboard")]
     public async Task<IActionResult> GetTeamDashboard(int teamId)
         => ToActionResult(await _teamService.GetTeamDashboardAsync(teamId, UserId));

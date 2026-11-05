@@ -1,5 +1,5 @@
 ﻿import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react';
-import { ArrowRightLeft, EllipsisVertical, MailPlus, Shield, UserMinus, UserPlus, Users } from 'lucide-react';
+import { ArrowRightLeft, EllipsisVertical, LogOut, MailPlus, Shield, Trash2, UserMinus, UserPlus, Users } from 'lucide-react';
 import api from '../services/api';
 import { getApiErrorMessage } from '../services/errors';
 import { useResource, type ResourceLoader } from '../hooks/use-resource';
@@ -13,6 +13,7 @@ import {
     Avatar,
     Button,
     Card,
+    CardHeader,
     ConfirmDialog,
     EmptyState,
     ErrorState,
@@ -30,6 +31,7 @@ import {
 } from '../components/ui';
 
 type MemberAction = { type: 'kick' | 'role' | 'transfer'; member: TeamMember } | null;
+type TeamAction = 'leave' | 'delete' | null;
 
 const ASSIGNABLE_ROLES = ['Player', 'Officer', 'Captain'];
 
@@ -53,6 +55,7 @@ function RosterContent({ team }: { team: Team }) {
 
     const [isInviteOpen, setIsInviteOpen] = useState(false);
     const [action, setAction] = useState<MemberAction>(null);
+    const [teamAction, setTeamAction] = useState<TeamAction>(null);
     const [newRole, setNewRole] = useState('Player');
     const [actionError, setActionError] = useState('');
     const [isSubmitting, setIsSubmitting] = useState(false);
@@ -105,6 +108,37 @@ function RosterContent({ team }: { team: Team }) {
         `${member.username} is now ${newRole === 'Officer' ? 'an' : 'a'} ${newRole}.`,
         'Failed to change role.',
         member.isOwner ? reloadTeams : undefined, // The Owner changed their own role.
+    );
+
+    const openTeamAction = (next: NonNullable<TeamAction>) => {
+        setActionError('');
+        setTeamAction(next);
+    };
+
+    // Leaving or deleting removes the team from the list; the layout then falls back to another team or the empty state.
+    const runTeamAction = async (request: () => Promise<{ data: { message: string } }>, failureMessage: string) => {
+        setIsSubmitting(true);
+        setActionError('');
+        try {
+            const response = await request();
+            toast.success(response.data.message);
+            setTeamAction(null);
+            reloadTeams();
+        } catch (err) {
+            setActionError(getApiErrorMessage(err, failureMessage));
+        } finally {
+            setIsSubmitting(false);
+        }
+    };
+
+    const executeLeaveTeam = () => runTeamAction(
+        () => api.post<{ message: string }>(`/Teams/${team.id}/leave`),
+        'Failed to leave the team.',
+    );
+
+    const executeDeleteTeam = () => runTeamAction(
+        () => api.delete<{ message: string }>(`/Teams/${team.id}`),
+        'Failed to delete the team.',
     );
 
     const executeTransfer = (member: TeamMember) => runAction(
@@ -201,6 +235,48 @@ function RosterContent({ team }: { team: Team }) {
                 )}
             </Card>
 
+            <Card className="mt-6">
+                <CardHeader title="Team settings" />
+                <div className="divide-y divide-line border-t border-line">
+                    <div className="flex flex-col gap-3 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
+                        <div className="min-w-0">
+                            <p className="font-semibold text-fg">Leave team</p>
+                            <p className="text-sm text-fg-subtle">
+                                {isOwner
+                                    ? 'You own this team. Transfer ownership to an Officer or delete the team before leaving.'
+                                    : `You lose access to ${team.name}. You can only rejoin with a new invite.`}
+                            </p>
+                        </div>
+                        <Button
+                            variant="secondary"
+                            className="shrink-0"
+                            onClick={() => openTeamAction('leave')}
+                            disabled={isOwner}
+                            title={isOwner ? 'Transfer ownership or delete the team first' : undefined}
+                            leftIcon={<LogOut className="size-4" aria-hidden="true" />}
+                        >
+                            Leave team
+                        </Button>
+                    </div>
+                    {isOwner && (
+                        <div className="flex flex-col gap-3 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
+                            <div className="min-w-0">
+                                <p className="font-semibold text-fg">Delete team</p>
+                                <p className="text-sm text-fg-subtle">Permanently deletes the team with its roster, invites, matches and calendar events.</p>
+                            </div>
+                            <Button
+                                variant="danger"
+                                className="shrink-0"
+                                onClick={() => openTeamAction('delete')}
+                                leftIcon={<Trash2 className="size-4" aria-hidden="true" />}
+                            >
+                                Delete team
+                            </Button>
+                        </div>
+                    )}
+                </div>
+            </Card>
+
             <InviteDialog
                 open={isInviteOpen}
                 teamId={team.id}
@@ -236,6 +312,33 @@ function RosterContent({ team }: { team: Team }) {
                 confirmationText="CONFIRM"
             >
                 You are about to transfer full team ownership to <strong className="text-fg">{action?.member.username}</strong>. You keep your role ({team.currentUserRole}) but lose Owner privileges, including managing roles and the roster.
+            </ConfirmDialog>
+
+            <ConfirmDialog
+                open={teamAction === 'leave'}
+                onClose={() => setTeamAction(null)}
+                onConfirm={executeLeaveTeam}
+                title="Leave team"
+                confirmLabel="Leave team"
+                busyLabel="Leaving..."
+                busy={isSubmitting}
+                error={actionError}
+            >
+                Are you sure you want to leave <strong className="text-fg">{team.name}</strong>? You will need a new invite to rejoin.
+            </ConfirmDialog>
+
+            <ConfirmDialog
+                open={teamAction === 'delete'}
+                onClose={() => setTeamAction(null)}
+                onConfirm={executeDeleteTeam}
+                title="Delete team"
+                confirmLabel="Delete team"
+                busyLabel="Deleting..."
+                busy={isSubmitting}
+                error={actionError}
+                confirmationText={team.name}
+            >
+                This permanently deletes <strong className="text-fg">{team.name}</strong> with its roster, pending invites, matches and calendar events. This cannot be undone.
             </ConfirmDialog>
 
             <Modal
