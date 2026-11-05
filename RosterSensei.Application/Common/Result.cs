@@ -7,7 +7,9 @@ public enum ErrorType
     // The user is signed in but may not do this. Maps to 403.
     Forbidden,
     // The team, member, invite or event doesn't exist. Maps to 404.
-    NotFound
+    NotFound,
+    // Someone else changed the data since the user loaded it. Maps to 409.
+    Conflict
 }
 
 public class Result<T>
@@ -36,4 +38,7 @@ public class Result<T>
 
     public static Result<T> NotFound(string errorMessage)
         => Failure(errorMessage, ErrorType.NotFound);
+
+    public static Result<T> Conflict(string errorMessage)
+        => Failure(errorMessage, ErrorType.Conflict);
 }

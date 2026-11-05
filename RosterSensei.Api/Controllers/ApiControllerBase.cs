@@ -13,7 +13,7 @@ public abstract class ApiControllerBase : ControllerBase
         User.FindFirstValue(ClaimTypes.NameIdentifier)
         ?? throw new InvalidOperationException("The authenticated user has no ID claim.");
 
-    // Success returns the data; failure returns { message } with 400, 403 or 404.
+    // Success returns the data; failure returns { message } with 400, 403, 404 or 409.
     protected IActionResult ToActionResult<T>(Result<T> result)
         => result.Success ? Ok(result.Data) : Error(result);
 
@@ -27,6 +27,7 @@ public abstract class ApiControllerBase : ControllerBase
         {
             ErrorType.Forbidden => StatusCodes.Status403Forbidden,
             ErrorType.NotFound => StatusCodes.Status404NotFound,
+            ErrorType.Conflict => StatusCodes.Status409Conflict,
             _ => StatusCodes.Status400BadRequest
         };
 

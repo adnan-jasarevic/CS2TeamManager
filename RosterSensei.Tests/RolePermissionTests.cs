@@ -1,4 +1,4 @@
-using RosterSensei.Application.Common;
+﻿using RosterSensei.Application.Common;
 using RosterSensei.Application.DTOs;
 using RosterSensei.Domain.Entities;
 using RosterSensei.Domain.Enums;
@@ -102,7 +102,7 @@ public class RolePermissionTests : IDisposable
         Assert.True(created.Success);
 
         AssertAllowed(await _db.EventService().CreateEventAsync(userId, _teamId, NewEvent("VOD review")), allowed);
-        AssertAllowed(await _db.EventService().UpdateEventAsync(userId, _teamId, created.Data!.Id, NewEvent("Renamed")), allowed);
+        AssertAllowed(await _db.EventService().UpdateEventAsync(userId, _teamId, created.Data!.Id, Edit(NewEvent("Renamed"), created.Data.Version)), allowed);
         AssertAllowed(await _db.EventService().DeleteEventAsync(userId, _teamId, created.Data!.Id), allowed);
     }
 
@@ -157,6 +157,12 @@ public class RolePermissionTests : IDisposable
 
         Assert.Equal(ErrorType.Forbidden, result.ErrorType);
         Assert.Equal(_owner, _db.OwnerOf(_teamId));
+    }
+
+    private static SaveTeamEventDto Edit(SaveTeamEventDto dto, int version)
+    {
+        dto.Version = version;
+        return dto;
     }
 
     private static SaveTeamEventDto NewEvent(string title) => new()

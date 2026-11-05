@@ -113,6 +113,10 @@ public class AppDbContext : IdentityDbContext<AppUser>
                 .HasMaxLength(450);
 
             e.HasIndex(te => new { te.TeamId, te.StartTime });
+
+            // EF adds "AND Version = @original" to every UPDATE, so a concurrent edit makes the save fail.
+            e.Property(te => te.Version)
+                .IsConcurrencyToken();
         });
 
         builder.Entity<MatchMap>(map =>

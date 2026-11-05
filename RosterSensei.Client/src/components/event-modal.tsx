@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import axios from 'axios';
 import { format } from 'date-fns';
 import { Trash2 } from 'lucide-react';
 import api from '../services/api';
@@ -71,12 +72,16 @@ export default function EventModal({ teamId, event, initialStart, initialEnd, ca
 
         setIsSubmitting(true);
         try {
-            if (event) await api.put(`/teams/${teamId}/events/${event.id}`, payload);
+            if (event) await api.put(`/teams/${teamId}/events/${event.id}`, { ...payload, version: event.version });
             else await api.post(`/teams/${teamId}/events`, payload);
             onSaved();
             onClose();
         } catch (err: unknown) {
             setError(getApiErrorMessage(err, 'Failed to save the event.'));
+            // Someone else saved a newer version, or deleted the event: refresh the calendar behind the dialog
+            // so reopening the event shows what is there now. The dialog stays open so nothing typed is lost.
+            const status = axios.isAxiosError(err) ? err.response?.status : undefined;
+            if (status === 409 || status === 404) onSaved();
         } finally {
             setIsSubmitting(false);
         }

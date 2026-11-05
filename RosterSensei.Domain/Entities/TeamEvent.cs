@@ -18,6 +18,10 @@ public class TeamEvent
 
     public string CreatedByUserId { get; set; } = string.Empty;
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+
+    // Goes up by one on every edit. An edit sends the version it started from, so a save over
+    // someone else's newer changes is refused instead of silently overwriting them.
+    public int Version { get; set; }
 }
 
 public enum TeamEventType

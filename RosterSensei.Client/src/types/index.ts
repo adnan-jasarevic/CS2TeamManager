@@ -139,6 +139,8 @@ export interface TeamEvent {
     startTime: string;
     endTime: string;
     eventType: keyof typeof TeamEventType;
+    /** Goes up on every edit; sent back when saving so a newer edit isn't overwritten. */
+    version: number;
 }
 
 export interface SaveTeamEventRequest {
@@ -147,6 +149,8 @@ export interface SaveTeamEventRequest {
     startTime: string;
     endTime: string;
     eventType: TeamEventTypeValue;
+    /** Required when editing: the version of the event the edit started from. */
+    version?: number;
 }
 
 export interface MapStats {
