@@ -42,6 +42,7 @@ export interface MatchResponse {
     id: number;
     opponentName: string;
     scheduledDate: string;
+    playedDate?: string;
     status: string;
     finalScore?: string;
     matchOutcome?: string; // "WIN", "LOSS" or "DRAW"
