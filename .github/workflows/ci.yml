@@ -24,8 +24,6 @@ jobs:
         with:
           dotnet-version: 10.0.x
 
-      # The solution also lists the React client as a Visual Studio website project, which
-      # doesn't build on Linux, so the API and the tests are built on their own.
       - name: Build API
         run: dotnet build CS2TeamManager.Api/CS2TeamManager.Api.csproj --configuration Release
 
