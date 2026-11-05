@@ -122,6 +122,46 @@ public class TeamRepository : ITeamRepository
         return updated == 1;
     }
 
+    public async Task<bool> RemoveNonOwnerMemberAsync(int teamId, string userId)
+    {
+        // Conditional delete, so a member who just received ownership can't leave the team without an Owner.
+        var deleted = await _context.TeamMembers
+            .Where(tm => tm.TeamId == teamId && tm.UserId == userId && tm.Team.OwnerId != userId)
+            .ExecuteDeleteAsync();
+
+        return deleted == 1;
+    }
+
+    public async Task<bool> DeleteTeamAsync(int teamId, string ownerId)
+    {
+        await using var transaction = await _context.Database.BeginTransactionAsync();
+
+        // Only goes ahead while ownerId still owns the team.
+        if (!await _context.Teams.AnyAsync(t => t.Id == teamId && t.OwnerId == ownerId))
+        {
+            await transaction.RollbackAsync();
+            return false;
+        }
+
+        // Matches only set TeamId to null when their team goes, so delete them explicitly.
+        // Their maps, participations and stats cascade with them.
+        await _context.Matches.Where(m => m.TeamId == teamId).ExecuteDeleteAsync();
+
+        // Events, members and invites cascade from the team.
+        var deleted = await _context.Teams
+            .Where(t => t.Id == teamId && t.OwnerId == ownerId)
+            .ExecuteDeleteAsync();
+
+        if (deleted != 1)
+        {
+            await transaction.RollbackAsync();
+            return false;
+        }
+
+        await transaction.CommitAsync();
+        return true;
+    }
+
     public async Task<TeamInvite?> GetPendingInviteAsync(int teamId, string email)
     {
         return await _context.TeamInvites

@@ -10,6 +10,8 @@ public interface ITeamService
     Task<Result<string>> InviteMemberAsync(int teamId, string senderUserId, string targetEmail);
 
     Task<Result<string>> RemoveMemberAsync(int teamId, string ownerId, string memberIdToRemove);
+    Task<Result<string>> LeaveTeamAsync(int teamId, string userId);
+    Task<Result<string>> DeleteTeamAsync(int teamId, string userId);
     Task<Result<TeamDashboardDto>> GetTeamDashboardAsync(int teamId, string userId);
     Task<Result<List<TeamMemberDto>>> GetTeamMembersAsync(int teamId, string userId);
 
