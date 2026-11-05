@@ -18,7 +18,7 @@ public interface ITeamRepository
     // Returns false when the database rejects the change (for example a second Captain added at the same time).
     Task<bool> UpdateTeamMemberAsync(TeamMember member);
 
-    // Swaps the Owner and an Officer in one transaction. Returns false if either one's role changed meanwhile.
+    // Makes an Officer the Owner. Returns false if the Owner or the Officer's role changed meanwhile.
     Task<bool> TransferOwnershipAsync(int teamId, string currentOwnerId, string newOwnerId);
 
     Task<TeamInvite?> GetPendingInviteAsync(int teamId, string email);

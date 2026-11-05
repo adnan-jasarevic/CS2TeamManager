@@ -32,8 +32,7 @@ public class TeamRepository : ITeamRepository
 
     public async Task<int> GetOwnedTeamsCountAsync(string userId)
     {
-        return await _context.TeamMembers
-            .CountAsync(tm => tm.UserId == userId && tm.Role == Domain.Enums.TeamRole.Owner);
+        return await _context.Teams.CountAsync(t => t.OwnerId == userId);
     }
 
     public async Task<Team> AddAsync(Team team)
@@ -89,12 +88,14 @@ public class TeamRepository : ITeamRepository
     public async Task<TeamMember?> GetTeamMemberAsync(int teamId, string userId)
     {
         return await _context.TeamMembers
+            .Include(tm => tm.Team)
             .FirstOrDefaultAsync(tm => tm.TeamId == teamId && tm.UserId == userId);
     }
 
     public async Task<bool> UpdateTeamMemberAsync(TeamMember member)
     {
-        _context.TeamMembers.Update(member);
+        // Marks only the member as changed, not the Team loaded with it.
+        _context.Entry(member).State = EntityState.Modified;
         try
         {
             await _context.SaveChangesAsync();
@@ -110,28 +111,15 @@ public class TeamRepository : ITeamRepository
 
     public async Task<bool> TransferOwnershipAsync(int teamId, string currentOwnerId, string newOwnerId)
     {
-        await using var transaction = await _context.Database.BeginTransactionAsync();
+        // One conditional update: it only applies while the requester still owns the team and the
+        // new Owner is still an Officer in it, so a concurrent change makes the transfer fail cleanly.
+        var updated = await _context.Teams
+            .Where(t => t.Id == teamId
+                && t.OwnerId == currentOwnerId
+                && t.Members.Any(m => m.UserId == newOwnerId && m.Role == TeamRole.Officer))
+            .ExecuteUpdateAsync(s => s.SetProperty(t => t.OwnerId, newOwnerId));
 
-        // Demote first so the one-Owner index is never violated in between. Each update only applies
-        // while the role is still what we checked, so a concurrent change makes the transfer fail cleanly.
-        var demoted = await _context.TeamMembers
-            .Where(tm => tm.TeamId == teamId && tm.UserId == currentOwnerId && tm.Role == TeamRole.Owner)
-            .ExecuteUpdateAsync(s => s.SetProperty(tm => tm.Role, TeamRole.Officer));
-
-        var promoted = demoted == 1
-            ? await _context.TeamMembers
-                .Where(tm => tm.TeamId == teamId && tm.UserId == newOwnerId && tm.Role == TeamRole.Officer)
-                .ExecuteUpdateAsync(s => s.SetProperty(tm => tm.Role, TeamRole.Owner))
-            : 0;
-
-        if (promoted != 1)
-        {
-            await transaction.RollbackAsync();
-            return false;
-        }
-
-        await transaction.CommitAsync();
-        return true;
+        return updated == 1;
     }
 
     public async Task<TeamInvite?> GetPendingInviteAsync(int teamId, string email)

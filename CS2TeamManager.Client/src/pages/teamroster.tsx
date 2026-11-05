@@ -2,7 +2,7 @@
 import api from '../services/api';
 import { getApiErrorMessage } from '../services/errors';
 import { useLayoutContext } from '../components/layout-context';
-import { type Team, type TeamMember, canManageTeam } from '../types';
+import { type Team, type TeamMember, canManageTeam, roleLabel } from '../types';
 
 export default function TeamRoster() {
     const { teamsVersion } = useLayoutContext();
@@ -144,7 +144,7 @@ export default function TeamRoster() {
     };
 
     const currentTeam = teams.find(t => t.id === selectedTeamId);
-    const isOwner = currentTeam?.currentUserRole === 'Owner';
+    const isOwner = currentTeam?.isOwner ?? false;
 
     if (loading && teams.length === 0) return <div className="text-gray-400 p-8">Loading roster...</div>;
 
@@ -170,7 +170,7 @@ export default function TeamRoster() {
                 </div>
 
                 <div className="flex items-end gap-4 relative z-20">
-                    {canManageTeam(currentTeam?.currentUserRole) && (
+                    {canManageTeam(currentTeam) && (
                         <button
                             onClick={() => setIsAddModalOpen(true)}
                             className="bg-[#ff6b4a] hover:bg-[#e5593c] text-white font-bold px-4 py-2 rounded-lg transition-colors shadow-lg"
@@ -187,7 +187,7 @@ export default function TeamRoster() {
                             onChange={(e) => setSelectedTeamId(Number(e.target.value))}
                         >
                             {teams.map(t => (
-                                <option key={t.id} value={t.id}>{t.name} ({t.currentUserRole})</option>
+                                <option key={t.id} value={t.id}>{t.name} ({roleLabel(t)})</option>
                             ))}
                         </select>
                     </div>
@@ -223,9 +223,13 @@ export default function TeamRoster() {
                             </div>
                         </div>
 
-                        <div className="col-span-4 md:col-span-3">
-                            <span className={`px-3 py-1 rounded text-xs font-bold ${member.role === 'Owner' ? 'bg-[#ff6b4a]/20 text-[#ff6b4a] border border-[#ff6b4a]/30' :
-                                member.role === 'Captain' ? 'bg-yellow-500/15 text-yellow-400 border border-yellow-500/30' :
+                        <div className="col-span-4 md:col-span-3 flex flex-wrap gap-1">
+                            {member.isOwner && (
+                                <span className="px-3 py-1 rounded text-xs font-bold bg-[#ff6b4a]/20 text-[#ff6b4a] border border-[#ff6b4a]/30">
+                                    Owner
+                                </span>
+                            )}
+                            <span className={`px-3 py-1 rounded text-xs font-bold ${member.role === 'Captain' ? 'bg-yellow-500/15 text-yellow-400 border border-yellow-500/30' :
                                 member.role === 'Officer' ? 'bg-blue-500/15 text-blue-300 border border-blue-500/30' :
                                 'bg-gray-700/30 text-gray-300'
                                 }`}>
@@ -238,7 +242,7 @@ export default function TeamRoster() {
                         </div>
 
                         <div className="col-span-3 md:col-span-2 flex justify-end relative">
-                            {isOwner && member.role !== 'Owner' && (
+                            {isOwner && (
                                 <>
                                     <button
                                         onClick={() => setActiveDropdown(activeDropdown === member.id ? null : member.id)}
@@ -257,6 +261,8 @@ export default function TeamRoster() {
                                             >
                                                 Change Role
                                             </button>
+                                            {/* The Owner can change their own role, but can't transfer to or kick themselves. */}
+                                            {!member.isOwner && (<>
                                             {member.role === 'Officer' ? (
                                                 <button
                                                     onClick={() => { setActionState({ type: 'transfer', member }); setActiveDropdown(null); }}
@@ -276,6 +282,7 @@ export default function TeamRoster() {
                                             >
                                                 Kick Player
                                             </button>
+                                            </>)}
                                         </div>
                                     )}
                                 </>
@@ -359,7 +366,7 @@ export default function TeamRoster() {
                         <option value="Captain">Captain</option>
                         </select>
                         <p className="text-xs text-gray-500 -mt-4 mb-6">
-                            A team has one Captain and any number of Officers. Ownership can only be transferred to an Officer.
+                            A team has one Captain and any number of Officers, who have the same rights as the Captain. The Owner keeps Owner rights whatever their role. Ownership can only be transferred to an Officer.
                         </p>
 
                         <div className="flex justify-end gap-3">
@@ -384,7 +391,7 @@ export default function TeamRoster() {
                     </div>
                     <div className="p-6">
                         <p className="text-gray-300 mb-4 text-sm">
-                            You are about to transfer full team ownership to <strong className="text-white">{actionState.member.username}</strong>. You will become an Officer and lose Owner privileges, including managing roles and the roster.
+                            You are about to transfer full team ownership to <strong className="text-white">{actionState.member.username}</strong>. You keep your role ({currentTeam?.currentUserRole}) but lose Owner privileges, including managing roles and the roster.
                         </p>
                         <p className="text-gray-400 text-xs mb-2">Type <strong>CONFIRM</strong> below to proceed.</p>
                         <input

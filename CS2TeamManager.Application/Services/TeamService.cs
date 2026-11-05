@@ -27,14 +27,15 @@ public class TeamService : ITeamService
         var newTeam = new Team
         {
             Name = dto.Name,
-            CreatedAt = DateTime.UtcNow
+            CreatedAt = DateTime.UtcNow,
+            OwnerId = userId
         };
 
-        // The creator becomes the Owner.
+        // The creator owns the team and is its Captain.
         newTeam.Members.Add(new TeamMember
         {
             UserId = userId,
-            Role = TeamRole.Owner,
+            Role = TeamRole.Captain,
             JoinedAt = DateTime.UtcNow
         });
 
@@ -45,7 +46,8 @@ public class TeamService : ITeamService
             Id = savedTeam.Id,
             Name = savedTeam.Name,
             CreatedAt = savedTeam.CreatedAt,
-            CurrentUserRole = "Owner"
+            CurrentUserRole = TeamRole.Captain.ToString(),
+            IsOwner = true
         };
 
         return Result<TeamDto>.SuccessResult(teamDto);
@@ -60,7 +62,8 @@ public class TeamService : ITeamService
             Id = t.Id,
             Name = t.Name,
             CreatedAt = t.CreatedAt,
-            CurrentUserRole = t.Members.First(m => m.UserId == userId).Role.ToString()
+            CurrentUserRole = t.Members.First(m => m.UserId == userId).Role.ToString(),
+            IsOwner = t.OwnerId == userId
         }).ToList();
     }
 
@@ -74,7 +77,7 @@ public class TeamService : ITeamService
             return Result<string>.Failure("You cannot invite yourself to the team.");
 
         var sender = await _teamRepository.GetTeamMemberAsync(teamId, senderUserId);
-        if (sender == null || !sender.Role.CanManageTeam())
+        if (sender == null || !sender.CanManageTeam)
             return Result<string>.Forbidden("Only the team Owner, Captain or Officers can invite new players.");
 
         var existingMember = await _teamRepository.GetTeamMemberAsync(teamId, targetUserId);
@@ -112,13 +115,13 @@ public class TeamService : ITeamService
         if (requesterMembership == null) return Result<string>.Forbidden("You are not in this team.");
 
         // Members can remove themselves; only the Owner can remove someone else.
-        if (requesterMembership.Role != Domain.Enums.TeamRole.Owner && ownerId != memberIdToRemove)
+        if (team.OwnerId != ownerId && ownerId != memberIdToRemove)
             return Result<string>.Forbidden("Only the Team Owner can remove other players.");
 
         var memberToRemove = team.Members.FirstOrDefault(m => m.UserId == memberIdToRemove);
         if (memberToRemove == null) return Result<string>.NotFound("The User is not in the team.");
 
-        if (memberToRemove.Role == Domain.Enums.TeamRole.Owner)
+        if (team.OwnerId == memberIdToRemove)
             return Result<string>.Failure("The Owner cannot be removed. They have to delete the team.");
 
         team.Members.Remove(memberToRemove);
@@ -195,6 +198,7 @@ public class TeamService : ITeamService
         if (!isMember)
             return Result<List<TeamMemberDto>>.Forbidden("You are not a member of this team.");
 
+        var team = await _teamRepository.GetByIdAsync(teamId);
         var membersData = await _teamRepository.GetTeamMembersWithUserDetailsAsync(teamId);
 
         var dtoList = membersData.Select(data => new TeamMemberDto
@@ -203,6 +207,7 @@ public class TeamService : ITeamService
             Email = data.Email ?? "Unknown",
             Username = data.Username ?? "Unknown",
             Role = data.Member.Role.ToString(),
+            IsOwner = data.Member.UserId == team?.OwnerId,
             JoinedAt = data.Member.JoinedAt
         }).ToList();
 
@@ -212,21 +217,19 @@ public class TeamService : ITeamService
     public async Task<Result<string>> ChangeMemberRoleAsync(int teamId, string currentUserId, string targetMemberId, string newRoleStr)
     {
         var requester = await _teamRepository.GetTeamMemberAsync(teamId, currentUserId);
-        if (requester == null || requester.Role != TeamRole.Owner)
+        if (requester == null || !requester.IsOwner)
             return Result<string>.Forbidden("Only the team owner can change roles.");
 
+        // The Owner can change their own role too, for example to hand the Captain role to someone else.
         var targetMember = await _teamRepository.GetTeamMemberAsync(teamId, targetMemberId);
         if (targetMember == null)
             return Result<string>.NotFound("Member not found in the team.");
 
-        if (targetMember.Role == TeamRole.Owner)
-            return Result<string>.Failure("Cannot change the role of the Owner. Use transfer ownership instead.");
+        if (string.Equals(newRoleStr, "Owner", StringComparison.OrdinalIgnoreCase))
+            return Result<string>.Failure("Owner is not a role. Use transfer ownership instead.");
 
         if (!Enum.TryParse<TeamRole>(newRoleStr, ignoreCase: true, out var newRole) || !Enum.IsDefined(newRole))
             return Result<string>.Failure("Invalid role provided.");
-
-        if (newRole == TeamRole.Owner)
-            return Result<string>.Failure("A member cannot be made Owner here. Use transfer ownership instead.");
 
         if (newRole == TeamRole.Captain && targetMember.Role != TeamRole.Captain)
         {
@@ -246,7 +249,7 @@ public class TeamService : ITeamService
     public async Task<Result<string>> TransferOwnershipAsync(int teamId, string currentOwnerId, string newOwnerId)
     {
         var currentOwner = await _teamRepository.GetTeamMemberAsync(teamId, currentOwnerId);
-        if (currentOwner == null || currentOwner.Role != TeamRole.Owner)
+        if (currentOwner == null || !currentOwner.IsOwner)
             return Result<string>.Forbidden("Only the team owner can transfer ownership.");
 
         if (currentOwnerId == newOwnerId)
@@ -263,7 +266,7 @@ public class TeamService : ITeamService
         if (ownedCount >= 3)
             return Result<string>.Failure("This member already owns 3 teams and cannot take ownership of another.");
 
-        // The two swap places in one transaction: the old Owner stays on as an Officer.
+        // Only ownership moves: both keep their roles, so the old Owner stays on as Captain, Officer or Player.
         if (!await _teamRepository.TransferOwnershipAsync(teamId, currentOwnerId, newOwnerId))
             return Result<string>.Failure("The roles changed while transferring ownership. Refresh and try again.");
 
