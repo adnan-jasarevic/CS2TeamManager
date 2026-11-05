@@ -50,6 +50,7 @@ export default function UiKit() {
     const { theme, toggleTheme } = useTheme();
     const toast = useToast();
     const [segment, setSegment] = useState('all');
+    const [map, setMap] = useState('Mirage');
     const [chips, setChips] = useState<string[]>(['Mirage']);
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [isConfirmOpen, setIsConfirmOpen] = useState(false);
@@ -110,7 +111,8 @@ export default function UiKit() {
                     <Field label="Invalid" error="Enter the opponent's name."><Input /></Field>
                     <Field label="Disabled"><Input disabled value="Can't change this" /></Field>
                     <Field label="Password"><PasswordInput defaultValue="secret" autoComplete="off" /></Field>
-                    <Field label="Select"><Select><option>Mirage</option><option>Inferno</option></Select></Field>
+                    <Field label="Select"><Select value={map} onChange={setMap} options={[{ value: 'Mirage', label: 'Mirage' }, { value: 'Inferno', label: 'Inferno', hint: 'Optional second line' }]} /></Field>
+                    <Field label="Select, disabled"><Select disabled value={map} onChange={setMap} options={[{ value: map, label: map }]} /></Field>
                     <Field label="Date"><Input type="datetime-local" /></Field>
                     <Field label="Textarea" className="sm:col-span-2"><Textarea /></Field>
                 </div>
