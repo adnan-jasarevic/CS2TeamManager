@@ -1,8 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Text;
-
-namespace CS2TeamManager.Application.DTOs;
+﻿namespace CS2TeamManager.Application.DTOs;
 
 public class LoginDto
 {

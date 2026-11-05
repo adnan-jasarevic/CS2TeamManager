@@ -5,7 +5,6 @@ import { getApiErrorMessage } from '../services/errors';
 import { type LoginResponse } from '../types';
 
 export default function Login() {
-    // Initialize useNavigate for redirecting after login
     const navigate = useNavigate();
 
     const [email, setEmail] = useState('');
@@ -24,7 +23,6 @@ export default function Login() {
 
             localStorage.setItem('jwt_token', response.data.token);
 
-            // Redirect the user to the dashboard immediately
             navigate('/dashboard');
 
         } catch (err) {

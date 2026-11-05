@@ -40,9 +40,8 @@ public class AppDbContext : IdentityDbContext<AppUser>
     {
         base.OnModelCreating(builder);
 
-        // Teams and Members Config (many-to-many)
         builder.Entity<TeamMember>()
-            .HasKey(tm => new { tm.UserId, tm.TeamId }); // Composite key
+            .HasKey(tm => new { tm.UserId, tm.TeamId });
 
         // Plain index for the Team foreign key, kept alongside the filtered one below.
         builder.Entity<TeamMember>()
@@ -95,7 +94,6 @@ public class AppDbContext : IdentityDbContext<AppUser>
             .WithMany(u => u.MatchStats)
             .HasForeignKey(s => s.UserId);
 
-        // Match config
         builder.Entity<Match>()
             .HasOne(m => m.Team)
             .WithMany(t => t.Matches)

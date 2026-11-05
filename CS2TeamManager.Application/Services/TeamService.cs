@@ -24,14 +24,13 @@ public class TeamService : ITeamService
         if (ownedCount >= 3)
             return Result<TeamDto>.Failure("You cannot own more than 3 teams.");
 
-        // Team Creation
         var newTeam = new Team
         {
             Name = dto.Name,
             CreatedAt = DateTime.UtcNow
         };
 
-        // Automatically add creator as Owner
+        // The creator becomes the Owner.
         newTeam.Members.Add(new TeamMember
         {
             UserId = userId,
@@ -109,11 +108,10 @@ public class TeamService : ITeamService
         var team = await _teamRepository.GetByIdAsync(teamId);
         if (team == null) return Result<string>.NotFound("The team doesn't exist.");
 
-        // the owner removes a diff user, or the user leaves the team by themselves
         var requesterMembership = team.Members.FirstOrDefault(m => m.UserId == ownerId);
         if (requesterMembership == null) return Result<string>.Forbidden("You are not in this team.");
 
-        // prevent the player from removing other players (only owner can, or themselves)
+        // Members can remove themselves; only the Owner can remove someone else.
         if (requesterMembership.Role != Domain.Enums.TeamRole.Owner && ownerId != memberIdToRemove)
             return Result<string>.Forbidden("Only the Team Owner can remove other players.");
 

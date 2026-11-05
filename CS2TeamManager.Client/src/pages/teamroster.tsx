@@ -197,9 +197,7 @@ export default function TeamRoster() {
             {error && <div className="bg-red-500/10 border border-red-500 text-red-500 p-4 rounded mb-6">{error}</div>}
             {successMsg && <div className="bg-emerald-500/10 border border-emerald-500 text-emerald-500 p-4 rounded mb-6">{successMsg}</div>}
 
-            {/* Obrisano overflow-hidden ovdje */}
             <div className="bg-[#181a2d] rounded-xl border border-gray-800 shadow-md relative z-20">
-                {/* Dodano rounded-t-xl ovdje */}
                 <div className="grid grid-cols-12 gap-4 p-4 border-b border-gray-800 text-sm font-bold text-gray-400 uppercase tracking-wider rounded-t-xl bg-[#181a2d]">
                     <div className="col-span-5 md:col-span-4">Player</div>
                     <div className="col-span-4 md:col-span-3">Role</div>
@@ -251,7 +249,6 @@ export default function TeamRoster() {
                                         </svg>
                                     </button>
 
-                                    {/* Podignut z-index na z-50 */}
                                     {activeDropdown === member.id && (
                                         <div className="absolute right-0 top-10 w-48 bg-gray-800 border border-gray-700 rounded-lg shadow-xl py-1 z-50">
                                             <button

@@ -1,8 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Text;
-
-namespace CS2TeamManager.Domain.Entities
+﻿namespace CS2TeamManager.Domain.Entities
 {
     public class MatchStat
     {

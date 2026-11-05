@@ -71,7 +71,7 @@ export default function Dashboard() {
 
     if (loading) return <div className="text-gray-400 p-8">Loading dashboard...</div>;
 
-    // scenario 1: user has no teams - show empty state with option to create team
+    // No teams yet: offer to create one.
     if (teams.length === 0) {
         return (
             <div className="p-4 md:p-8">
@@ -97,7 +97,6 @@ export default function Dashboard() {
         );
     }
 
-    // scenario 2: user has teams - show dashboard with team selection dropdown and stats
     return (
         <div className="p-4 md:p-8 relative">
             <div className="flex flex-col md:flex-row justify-between items-start md:items-end mb-8 gap-4">

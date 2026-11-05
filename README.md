@@ -97,5 +97,4 @@ Planned features:
 
 Planned cleanup:
 
-- Responsive layout and frontend cleanup
 - Tests and CI
