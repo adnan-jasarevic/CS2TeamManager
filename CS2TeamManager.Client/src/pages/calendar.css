@@ -143,6 +143,11 @@
     outline-offset: 1px;
 }
 
+/* The scrolling time grid is focusable so it can be scrolled by keyboard; drawn inside so it isn't clipped. */
+.team-calendar .rbc-time-content:focus-visible {
+    outline-offset: -2px;
+}
+
 /* Tall enough that a 30-minute event is still a 24px target, the WCAG 2.2 AA minimum. */
 .team-calendar .rbc-timeslot-group {
     min-height: 48px;
