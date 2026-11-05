@@ -34,7 +34,7 @@ RosterSensei.Application       DTOs, services, validators, repository interfaces
 RosterSensei.Infrastructure    EF Core DbContext, migrations, repositories, Identity
 RosterSensei.Api               Controllers, validation filter, exception handler, startup
 RosterSensei.Client            React frontend
-RosterSensei.Tests           xUnit tests for the services, run against an in-memory SQLite database
+RosterSensei.Tests             xUnit tests for the services, run against an in-memory SQLite database
 ```
 
 ## Getting started
