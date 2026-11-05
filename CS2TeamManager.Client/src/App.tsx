@@ -8,7 +8,7 @@ import Matches from './pages/matches';
 import PrivateRoute from './components/private-route';
 import AppLayout from './components/app-layout';
 
-// AG Grid and react-big-calendar are large, so these pages are only loaded when opened.
+// Recharts and react-big-calendar are large, so these pages are only loaded when opened.
 const Statistics = lazy(() => import('./pages/statistics'));
 const CalendarPage = lazy(() => import('./pages/calendar'));
 

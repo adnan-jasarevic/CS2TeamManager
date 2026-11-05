@@ -1,242 +1,106 @@
-import { useMemo, useRef, useState } from 'react';
-import { AgGridReact } from 'ag-grid-react';
-import {
-    CellStyleModule,
-    ClientSideRowModelModule,
-    ColumnApiModule,
-    DateFilterModule,
-    NumberFilterModule,
-    TextFilterModule,
-    ValidationModule,
-    ModuleRegistry,
-    colorSchemeDark,
-    colorSchemeLight,
-    themeQuartz,
-    type CellStyle,
-    type ColDef,
-    type ColumnState,
-    type GridApi,
-    type GridReadyEvent,
-} from 'ag-grid-community';
-import { Columns3, RotateCcw } from 'lucide-react';
+import { useEffect, useMemo, useState, type DragEvent, type KeyboardEvent } from 'react';
+import { useTable, type Column, type Header } from '@tanstack/react-table';
+import { useCreateAtom } from '@tanstack/react-store';
+import { ArrowDown, ArrowUp, ChevronDown, ChevronUp, ChevronsUpDown, Columns3, FilterX, RotateCcw } from 'lucide-react';
 import { type Resource } from '../hooks/use-resource';
-import { useTheme } from '../theme/theme-context';
-import { Button, Card, Checkbox, ErrorState, Popover } from './ui';
+import { cx } from '../lib/cx';
+import { Button, Card, Checkbox, ErrorState, IconButton, Popover } from './ui';
 import { type Match } from '../types';
+import { DEFAULT_LAYOUT, columns, features, loadLayout, saveLayout, toRows, type MapRow } from './scrim-analytics-model';
 
 export type MatchTypeFilter = 'all' | 'Scrim' | 'Official';
 
-// Only the grid features this table uses, to keep the bundle small.
-ModuleRegistry.registerModules([
-    ClientSideRowModelModule,
-    ColumnApiModule,
-    TextFilterModule,
-    NumberFilterModule,
-    DateFilterModule,
-    CellStyleModule,
-    // Explains setup mistakes in the console during development only.
-    ...(import.meta.env.DEV ? [ValidationModule] : []),
-]);
-
-// The colours come from the design tokens, so the grid follows the rest of the theme.
-const gridParams = {
-    backgroundColor: 'var(--rs-surface)',
-    headerBackgroundColor: 'var(--rs-sunken)',
-    oddRowBackgroundColor: 'var(--rs-surface)',
-    borderColor: 'var(--rs-line)',
-    accentColor: 'var(--rs-accent)',
-    foregroundColor: 'var(--rs-fg)',
-    fontFamily: 'inherit',
-    fontSize: 13,
-};
-const GRID_THEMES = {
-    dark: themeQuartz.withPart(colorSchemeDark).withParams(gridParams),
-    light: themeQuartz.withPart(colorSchemeLight).withParams(gridParams),
-};
-
-// One row per map. A match without maps still gets a single row so it shows up.
-interface MapRow {
-    matchId: number;
-    date: Date;
-    opponent: string;
-    type: string;
-    tournament: string;
-    bestOf: number | null;
-    seriesScore: string;
-    seriesOutcome: string;
-    mapNumber: number | null;
-    map: string;
-    result: string;
-    roundsWon: number | null;
-    roundsLost: number | null;
-    roundDiff: number | null;
-    firstHalf: string;
-    secondHalf: string;
-    overtime: boolean | null;
-}
-
-const COLUMN_STATE_KEY = 'scrim-analytics-columns';
-
-const half = (ours?: number | null, theirs?: number | null) => (ours == null || theirs == null ? '' : `${ours}-${theirs}`);
-
-const toRows = (matches: Match[]): MapRow[] =>
-    matches
-        .filter(m => m.status === 'Finished')
-        .flatMap(match => {
-            const base = {
-                matchId: match.id,
-                date: new Date(match.playedDate ?? match.scheduledDate),
-                opponent: match.opponentName,
-                type: match.type,
-                tournament: match.tournament ?? '',
-                bestOf: match.bestOf ?? null,
-                seriesScore: match.finalScore,
-                seriesOutcome: match.matchOutcome,
-            };
-
-            if (match.maps.length === 0) {
-                return [{
-                    ...base, mapNumber: null, map: '', result: match.matchOutcome, roundsWon: null, roundsLost: null,
-                    roundDiff: null, firstHalf: '', secondHalf: '', overtime: null,
-                }];
-            }
-
-            return match.maps.map((map, index): MapRow => {
-                const played = map.ourScore != null && map.opponentScore != null;
-                const hasHalves = map.ourFirstHalf != null && map.opponentFirstHalf != null && map.ourSecondHalf != null && map.opponentSecondHalf != null;
-                const regulation = hasHalves ? map.ourFirstHalf! + map.opponentFirstHalf! + map.ourSecondHalf! + map.opponentSecondHalf! : null;
-                return {
-                    ...base,
-                    mapNumber: index + 1,
-                    map: map.mapName,
-                    result: !played ? 'Not played' : map.ourScore! > map.opponentScore! ? 'Win' : map.ourScore! < map.opponentScore! ? 'Loss' : 'Draw',
-                    roundsWon: played ? map.ourScore! : null,
-                    roundsLost: played ? map.opponentScore! : null,
-                    roundDiff: played ? map.ourScore! - map.opponentScore! : null,
-                    firstHalf: half(map.ourFirstHalf, map.opponentFirstHalf),
-                    secondHalf: half(map.ourSecondHalf, map.opponentSecondHalf),
-                    overtime: played && regulation !== null ? map.ourScore! + map.opponentScore! > regulation : null,
-                };
-            });
-        });
-
-const resultStyle = (value: string): CellStyle => {
-    if (value === 'Win') return { color: 'var(--rs-success-text)', fontWeight: 600 };
-    if (value === 'Loss') return { color: 'var(--rs-danger-text)', fontWeight: 600 };
-    return { color: 'var(--rs-fg-muted)', fontWeight: 400 };
-};
-
-const columnDefs: ColDef<MapRow>[] = [
-    {
-        field: 'date',
-        headerName: 'Date',
-        filter: 'agDateColumnFilter',
-        sort: 'desc',
-        valueFormatter: p => (p.value ? (p.value as Date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : ''),
-    },
-    { field: 'opponent', headerName: 'Opponent' },
-    { field: 'type', headerName: 'Type', width: 110 },
-    { field: 'tournament', headerName: 'Tournament', hide: true },
-    { field: 'map', headerName: 'Map', width: 120 },
-    { field: 'mapNumber', headerName: 'Map #', filter: 'agNumberColumnFilter', width: 100, hide: true },
-    { field: 'result', headerName: 'Map result', width: 130, cellStyle: p => resultStyle(p.value) },
-    { field: 'roundsWon', headerName: 'Rounds won', filter: 'agNumberColumnFilter', width: 130 },
-    { field: 'roundsLost', headerName: 'Rounds lost', filter: 'agNumberColumnFilter', width: 130 },
-    {
-        field: 'roundDiff',
-        headerName: 'Round diff',
-        filter: 'agNumberColumnFilter',
-        width: 120,
-        valueFormatter: p => (p.value == null ? '' : p.value > 0 ? `+${p.value}` : `${p.value}`),
-    },
-    { field: 'firstHalf', headerName: '1st half', width: 110 },
-    { field: 'secondHalf', headerName: '2nd half', width: 110 },
-    {
-        field: 'overtime',
-        headerName: 'OT',
-        width: 90,
-        valueFormatter: p => (p.value == null ? '' : p.value ? 'Yes' : 'No'),
-        filterValueGetter: p => (p.data?.overtime == null ? '' : p.data.overtime ? 'Yes' : 'No'),
-    },
-    { field: 'bestOf', headerName: 'Format', width: 100, valueFormatter: p => (p.value ? `Bo${p.value}` : '') },
-    { field: 'seriesScore', headerName: 'Series', width: 100 },
-    { field: 'seriesOutcome', headerName: 'Series result', width: 130, cellStyle: p => resultStyle(p.value) },
-];
-
-const defaultColDef: ColDef<MapRow> = {
-    sortable: true,
-    resizable: true,
-    filter: 'agTextColumnFilter',
-    floatingFilter: true,
-    minWidth: 90,
-};
-
-const loadColumnState = (): ColumnState[] | null => {
-    try {
-        const saved = localStorage.getItem(COLUMN_STATE_KEY);
-        return saved ? (JSON.parse(saved) as ColumnState[]) : null;
-    } catch {
-        return null;
-    }
-};
-
-const saveColumnState = (state: ColumnState[]) => {
-    try {
-        localStorage.setItem(COLUMN_STATE_KEY, JSON.stringify(state));
-    } catch {
-        // Storage can be blocked (private mode); the layout just won't be remembered.
-    }
-};
+type ScrimFeatures = typeof features;
 
 interface ScrimAnalyticsProps {
     matches: Resource<Match[]>;
     typeFilter: MatchTypeFilter;
 }
 
-/**
- * The per-map table on the Statistics page. AG Grid is most of the page's code, so the page
- * loads this lazily and the charts don't wait for it.
- */
-export default function ScrimAnalytics({ matches, typeFilter }: ScrimAnalyticsProps) {
-    const { theme } = useTheme();
-    const [columnState, setColumnState] = useState<ColumnState[]>([]);
-    const gridApi = useRef<GridApi<MapRow> | null>(null);
+const RESIZE_STEP = 10;
+const NO_ROWS: MapRow[] = [];
 
+/** Every played map, one row each: sortable, filterable, with columns you can hide, move and resize. */
+export default function ScrimAnalytics({ matches, typeFilter }: ScrimAnalyticsProps) {
     const rows = useMemo(() => {
-        const all = toRows(matches.data ?? []);
+        if (!matches.data) return NO_ROWS;
+        const all = toRows(matches.data);
         return typeFilter === 'all' ? all : all.filter(r => r.type === typeFilter);
     }, [matches.data, typeFilter]);
 
-    const syncColumnState = () => {
-        if (gridApi.current) setColumnState(gridApi.current.getColumnState());
-    };
+    // The layout is saved per browser, so the app owns those slices as atoms. Filters stay with the table.
+    const [savedLayout] = useState(loadLayout);
+    const sorting = useCreateAtom(savedLayout.sorting);
+    const columnOrder = useCreateAtom(savedLayout.columnOrder);
+    const columnVisibility = useCreateAtom(savedLayout.columnVisibility);
+    const columnSizing = useCreateAtom(savedLayout.columnSizing);
 
-    const onGridReady = (event: GridReadyEvent<MapRow>) => {
-        gridApi.current = event.api;
-        const saved = loadColumnState();
-        if (saved) event.api.applyColumnState({ state: saved, applyOrder: true });
-        syncColumnState();
-    };
+    useEffect(() => {
+        const save = () => saveLayout({
+            sorting: sorting.get(),
+            columnOrder: columnOrder.get(),
+            columnVisibility: columnVisibility.get(),
+            columnSizing: columnSizing.get(),
+        });
+        const subscriptions = [
+            sorting.subscribe(save),
+            columnOrder.subscribe(save),
+            columnVisibility.subscribe(save),
+            columnSizing.subscribe(save),
+        ];
+        return () => subscriptions.forEach(subscription => subscription.unsubscribe());
+    }, [sorting, columnOrder, columnVisibility, columnSizing]);
 
-    const persistColumns = () => {
-        if (gridApi.current) saveColumnState(gridApi.current.getColumnState());
-        syncColumnState();
-    };
+    const table = useTable(
+        {
+            features,
+            columns,
+            data: rows,
+            getRowId: row => row.id,
+            atoms: { sorting, columnOrder, columnVisibility, columnSizing },
+            enableMultiSort: false,
+            columnResizeMode: 'onChange',
+            defaultColumn: { minSize: 80, maxSize: 480 },
+        },
+        state => ({
+            sorting: state.sorting,
+            columnFilters: state.columnFilters,
+            columnOrder: state.columnOrder,
+            columnVisibility: state.columnVisibility,
+            columnSizing: state.columnSizing,
+            columnResizing: state.columnResizing,
+        }),
+    );
 
     const resetLayout = () => {
-        gridApi.current?.resetColumnState();
-        try {
-            localStorage.removeItem(COLUMN_STATE_KEY);
-        } catch {
-            // ignore
-        }
-        syncColumnState();
+        sorting.set(DEFAULT_LAYOUT.sorting);
+        columnOrder.set(DEFAULT_LAYOUT.columnOrder);
+        columnVisibility.set(DEFAULT_LAYOUT.columnVisibility);
+        columnSizing.set(DEFAULT_LAYOUT.columnSizing);
     };
 
-    const toggleColumn = (colId: string, visible: boolean) => {
-        gridApi.current?.setColumnsVisible([colId], visible);
-        persistColumns();
+    const moveColumn = (id: string, targetId: string) => {
+        if (id === targetId) return;
+        const next = table.state.columnOrder.filter(columnId => columnId !== id);
+        const targetIndex = next.indexOf(targetId);
+        const fromIndex = table.state.columnOrder.indexOf(id);
+        // Dropping onto a column further right places it after that column.
+        next.splice(fromIndex <= targetIndex ? targetIndex + 1 : targetIndex, 0, id);
+        table.setColumnOrder(next);
     };
+
+    const shiftColumn = (id: string, by: -1 | 1) => {
+        const order = table.state.columnOrder;
+        const index = order.indexOf(id);
+        const target = order[index + by];
+        if (target) moveColumn(id, target);
+    };
+
+    const totalRows = table.getCoreRowModel().rows.length;
+    const visibleRows = table.getRowModel().rows;
+    const hasFilters = table.state.columnFilters.length > 0;
+    const leafColumns = table.getAllLeafColumns();
+    const visibleColumns = table.getVisibleLeafColumns();
 
     return (
         <>
@@ -246,26 +110,34 @@ export default function ScrimAnalytics({ matches, typeFilter }: ScrimAnalyticsPr
                     <p className="text-sm text-fg-subtle">Every played map, one row each. Drag headers to reorder, filter under each header, and pick columns.</p>
                 </div>
 
-                <div className="flex gap-2">
+                <div className="flex flex-wrap gap-2">
+                    {hasFilters && (
+                        <Button variant="ghost" size="sm" onClick={() => table.resetColumnFilters(true)} leftIcon={<FilterX className="size-4" aria-hidden="true" />}>Clear filters</Button>
+                    )}
                     <Popover
-                        label="Choose visible columns"
-                        className="w-56"
+                        label="Choose and order columns"
+                        className="w-72"
                         renderTrigger={trigger => (
                             <Button {...trigger} variant="secondary" size="sm" leftIcon={<Columns3 className="size-4" aria-hidden="true" />}>Columns</Button>
                         )}
                     >
-                        {columnDefs.map(col => {
-                            const colId = col.field as string;
-                            const saved = columnState.find(state => state.colId === colId);
-                            return (
-                                <Checkbox
-                                    key={colId}
-                                    label={col.headerName}
-                                    checked={saved ? !saved.hide : !col.hide}
-                                    onChange={(e) => toggleColumn(colId, e.target.checked)}
-                                />
-                            );
-                        })}
+                        <ul className="flex flex-col">
+                            {leafColumns.map((column, index) => {
+                                const label = column.columnDef.meta?.label ?? column.id;
+                                return (
+                                    <li key={column.id} className="flex items-center gap-1">
+                                        <Checkbox
+                                            className="min-w-0 flex-1"
+                                            label={label}
+                                            checked={column.getIsVisible()}
+                                            onChange={event => column.toggleVisibility(event.target.checked)}
+                                        />
+                                        <IconButton size="sm" label={`Move ${label} earlier`} icon={<ArrowUp className="size-4" />} disabled={index === 0} onClick={() => shiftColumn(column.id, -1)} />
+                                        <IconButton size="sm" label={`Move ${label} later`} icon={<ArrowDown className="size-4" />} disabled={index === leafColumns.length - 1} onClick={() => shiftColumn(column.id, 1)} />
+                                    </li>
+                                );
+                            })}
+                        </ul>
                     </Popover>
                     <Button variant="ghost" size="sm" onClick={resetLayout} leftIcon={<RotateCcw className="size-4" aria-hidden="true" />}>Reset layout</Button>
                 </div>
@@ -274,21 +146,201 @@ export default function ScrimAnalytics({ matches, typeFilter }: ScrimAnalyticsPr
             {matches.error && !matches.data ? (
                 <Card><ErrorState title="Couldn't load matches" message={matches.error} onRetry={matches.reload} retrying={matches.isFetching} /></Card>
             ) : (
-                <div className="h-[600px] max-h-[80dvh] overflow-hidden rounded-lg">
-                    <AgGridReact<MapRow>
-                        theme={GRID_THEMES[theme]}
-                        rowData={rows}
-                        loading={matches.isLoading}
-                        columnDefs={columnDefs}
-                        defaultColDef={defaultColDef}
-                        onGridReady={onGridReady}
-                        onColumnMoved={(e) => { if (e.finished) persistColumns(); }}
-                        onColumnResized={(e) => { if (e.finished) persistColumns(); }}
-                        onSortChanged={persistColumns}
-                        overlayNoRowsTemplate="No played matches yet. Finished matches show up here, one row per map."
-                    />
-                </div>
+                <>
+                    <div
+                        className="h-[600px] max-h-[80dvh] overflow-auto rounded-lg border border-line bg-surface"
+                        aria-busy={matches.isLoading}
+                        // Scrollable regions need to be reachable by keyboard.
+                        tabIndex={0}
+                        role="region"
+                        aria-label="Scrim analytics table"
+                    >
+                        <table className="table-fixed border-separate border-spacing-0 text-sm" style={{ width: table.getTotalSize() }}>
+                            <caption className="sr-only">Played maps, one row per map. Column headers sort the table.</caption>
+                            <colgroup>
+                                {visibleColumns.map(column => <col key={column.id} style={{ width: column.getSize() }} />)}
+                            </colgroup>
+                            <thead className="sticky top-0 z-10 bg-sunken">
+                                {table.getHeaderGroups().map(group => (
+                                    <tr key={group.id}>
+                                        {group.headers.map(header => (
+                                            <HeaderCell key={header.id} header={header} onMove={moveColumn} />
+                                        ))}
+                                    </tr>
+                                ))}
+                                <tr>
+                                    {visibleColumns.map(column => (
+                                        <td key={column.id} className="border-b border-line px-2 pb-2">
+                                            <ColumnFilter column={column} />
+                                        </td>
+                                    ))}
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {matches.isLoading ? (
+                                    <StatusRow span={visibleColumns.length}>Loading matches...</StatusRow>
+                                ) : visibleRows.length === 0 ? (
+                                    <StatusRow span={visibleColumns.length}>
+                                        {totalRows === 0 ? 'No played matches yet. Finished matches show up here, one row per map.' : 'No maps match these filters.'}
+                                    </StatusRow>
+                                ) : visibleRows.map(row => (
+                                    <tr key={row.id} className="hover:bg-hover">
+                                        {row.getVisibleCells().map(cell => {
+                                            const meta = cell.column.columnDef.meta;
+                                            const value = cell.getValue();
+                                            const isResult = cell.column.id === 'result' || cell.column.id === 'seriesOutcome';
+                                            return (
+                                                <td
+                                                    key={cell.id}
+                                                    className={cx(
+                                                        'truncate border-b border-line px-3 py-2.5',
+                                                        meta?.numeric && 'text-right tabular-nums',
+                                                        isResult && resultClass(value as string),
+                                                    )}
+                                                >
+                                                    <table.FlexRender cell={cell} />
+                                                </td>
+                                            );
+                                        })}
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+                    {!matches.isLoading && totalRows > 0 && (
+                        <p className="mt-2 text-xs text-fg-subtle" aria-live="polite">
+                            {hasFilters ? `Showing ${visibleRows.length} of ${totalRows} maps` : `${totalRows} ${totalRows === 1 ? 'map' : 'maps'}`}
+                        </p>
+                    )}
+                </>
             )}
         </>
+    );
+}
+
+const resultClass = (value: string) =>
+    value === 'Win' ? 'font-semibold text-success' : value === 'Loss' ? 'font-semibold text-danger' : 'text-fg-muted';
+
+function StatusRow({ span, children }: { span: number; children: string }) {
+    return (
+        <tr>
+            <td colSpan={span} className="px-3 py-10 text-center text-fg-muted">{children}</td>
+        </tr>
+    );
+}
+
+function HeaderCell({ header, onMove }: { header: Header<ScrimFeatures, MapRow, unknown>; onMove: (id: string, targetId: string) => void }) {
+    const [isDropTarget, setIsDropTarget] = useState(false);
+    // A drag that starts on the resize handle resizes; anywhere else on the header moves the column.
+    const [canDrag, setCanDrag] = useState(true);
+    const { column } = header;
+    const label = column.columnDef.meta?.label ?? column.id;
+    const sorted = column.getIsSorted();
+    const numeric = column.columnDef.meta?.numeric;
+
+    const onDragStart = (event: DragEvent<HTMLTableCellElement>) => {
+        event.dataTransfer.setData('text/x-column-id', column.id);
+        event.dataTransfer.effectAllowed = 'move';
+    };
+    const onDragOver = (event: DragEvent<HTMLTableCellElement>) => {
+        if (!event.dataTransfer.types.includes('text/x-column-id')) return;
+        event.preventDefault();
+        setIsDropTarget(true);
+    };
+    const onDrop = (event: DragEvent<HTMLTableCellElement>) => {
+        event.preventDefault();
+        setIsDropTarget(false);
+        const id = event.dataTransfer.getData('text/x-column-id');
+        if (id) onMove(id, column.id);
+    };
+
+    // Arrow keys resize from the keyboard; the drag handle covers mouse and touch.
+    const onResizeKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
+        const delta = event.key === 'ArrowRight' ? RESIZE_STEP : event.key === 'ArrowLeft' ? -RESIZE_STEP : 0;
+        if (!delta) return;
+        event.preventDefault();
+        const { minSize = 80, maxSize = 480 } = column.columnDef;
+        const size = Math.min(maxSize, Math.max(minSize, column.getSize() + delta));
+        header.getContext().table.setColumnSizing(current => ({ ...current, [column.id]: size }));
+    };
+    const resizeHandler = header.getResizeHandler();
+
+    return (
+        <th
+            scope="col"
+            aria-sort={sorted === 'asc' ? 'ascending' : sorted === 'desc' ? 'descending' : undefined}
+            draggable={canDrag}
+            onPointerDown={event => setCanDrag(!(event.target as HTMLElement).closest('[role="separator"]'))}
+            onDragStart={onDragStart}
+            onDragOver={onDragOver}
+            onDragLeave={() => setIsDropTarget(false)}
+            onDrop={onDrop}
+            className={cx(
+                'relative h-11 cursor-grab px-3 text-left font-semibold text-fg select-none active:cursor-grabbing',
+                isDropTarget && 'shadow-[inset_2px_0_0_var(--rs-accent)]',
+            )}
+        >
+            {column.getCanSort() ? (
+                <button
+                    type="button"
+                    onClick={column.getToggleSortingHandler()}
+                    className={cx('-mx-1 flex w-[calc(100%+0.5rem)] items-center gap-1 rounded px-1 py-1 hover:text-accent-text', numeric && 'flex-row-reverse')}
+                >
+                    <span className="truncate">{label}</span>
+                    {sorted === 'asc' ? <ChevronUp className="size-4 shrink-0" aria-hidden="true" />
+                        : sorted === 'desc' ? <ChevronDown className="size-4 shrink-0" aria-hidden="true" />
+                            : <ChevronsUpDown className="size-3.5 shrink-0 text-fg-subtle" aria-hidden="true" />}
+                </button>
+            ) : (
+                <span className={cx('block truncate', numeric && 'text-right')}>{label}</span>
+            )}
+            <div
+                role="separator"
+                aria-orientation="vertical"
+                aria-label={`Resize ${label}`}
+                aria-valuenow={column.getSize()}
+                aria-valuemin={column.columnDef.minSize}
+                aria-valuemax={column.columnDef.maxSize}
+                tabIndex={0}
+                onMouseDown={resizeHandler}
+                onTouchStart={resizeHandler}
+                onDoubleClick={() => column.resetSize()}
+                onKeyDown={onResizeKeyDown}
+                className={cx(
+                    'absolute top-2 right-0 bottom-2 w-1.5 cursor-col-resize touch-none rounded-full',
+                    'after:absolute after:inset-y-0 after:right-0.5 after:w-px after:bg-line-strong hover:after:bg-fg-subtle focus-visible:after:bg-fg',
+                    column.getIsResizing() && 'after:bg-accent',
+                )}
+            />
+        </th>
+    );
+}
+
+function ColumnFilter({ column }: { column: Column<ScrimFeatures, MapRow, unknown> }) {
+    const meta = column.columnDef.meta;
+    if (!meta) return null;
+    const value = (column.getFilterValue() as string | undefined) ?? '';
+    const label = `Filter ${meta.label}`;
+    const classes = 'h-8 w-full min-w-0 rounded border border-line-strong bg-canvas px-2 text-sm font-normal text-fg placeholder:text-fg-subtle focus:border-fg focus:outline-none';
+
+    if (meta.filter === 'select') {
+        return (
+            <select aria-label={label} value={value} onChange={event => column.setFilterValue(event.target.value || undefined)} className={classes}>
+                <option value="">All</option>
+                {meta.options?.map(option => <option key={option} value={option}>{option}</option>)}
+            </select>
+        );
+    }
+
+    return (
+        <input
+            type="text"
+            aria-label={label}
+            title={meta.filter === 'number' ? 'A number, a comparison like >10, or a range like 5-10' : undefined}
+            placeholder={meta.filter === 'number' ? 'e.g. >10' : ''}
+            value={value}
+            onChange={event => column.setFilterValue(event.target.value)}
+            className={classes}
+        />
     );
 }

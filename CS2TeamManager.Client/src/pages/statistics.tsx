@@ -1,16 +1,13 @@
-import { Suspense, lazy, useCallback, useState } from 'react';
+import { useCallback, useState } from 'react';
 import api from '../services/api';
 import { useResource, type ResourceLoader } from '../hooks/use-resource';
 import PageHeader, { PageContainer } from '../components/page-header';
 import { PanelSkeleton, StatsSkeleton } from '../components/page-skeletons';
-import type { MatchTypeFilter } from '../components/scrim-analytics';
+import ScrimAnalytics, { type MatchTypeFilter } from '../components/scrim-analytics';
 import TeamCharts from '../components/team-charts';
 import TeamGate from '../components/team-gate';
 import { Alert, Card, ErrorState, LoadingRegion, SegmentedControl } from '../components/ui';
 import { type Match, type Team, type TeamStats } from '../types';
-
-// AG Grid is most of this page's code, so the table loads separately and the charts show first.
-const ScrimAnalytics = lazy(() => import('../components/scrim-analytics'));
 
 type TypeFilter = MatchTypeFilter;
 
@@ -69,9 +66,7 @@ function StatisticsContent({ team }: { team: Team }) {
                 )}
             </div>
 
-            <Suspense fallback={<LoadingRegion label="Loading scrim analytics"><PanelSkeleton height="h-[600px]" /></LoadingRegion>}>
-                <ScrimAnalytics matches={matches} typeFilter={typeFilter} />
-            </Suspense>
+            <ScrimAnalytics matches={matches} typeFilter={typeFilter} />
         </PageContainer>
     );
 }
