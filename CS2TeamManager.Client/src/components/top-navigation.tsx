@@ -7,11 +7,12 @@ import { type TeamInvite } from '../types';
 
 interface TopNavigationProps {
     onInviteAccepted: () => void;
+    onOpenMenu: () => void;
 }
 
 type Feedback = { type: 'success' | 'error'; text: string } | null;
 
-export default function TopNavigation({ onInviteAccepted }: TopNavigationProps) {
+export default function TopNavigation({ onInviteAccepted, onOpenMenu }: TopNavigationProps) {
     const location = useLocation();
 
     const [invites, setInvites] = useState<TeamInvite[]>([]);
@@ -32,8 +33,8 @@ export default function TopNavigation({ onInviteAccepted }: TopNavigationProps) 
         try {
             const response = await api.get<TeamInvite[]>('/Teams/my-invites');
             if (seq === fetchSeq.current) setInvites(response.data);
-        } catch (err) {
-            console.error('Failed to load invites', err);
+        } catch {
+            // Keep showing the last list that loaded; the next refresh tries again.
         }
     }, []);
 
@@ -81,7 +82,6 @@ export default function TopNavigation({ onInviteAccepted }: TopNavigationProps) 
 
             if (isAccepted) onInviteAccepted();
         } catch (err) {
-            console.error('Failed to respond to invite', err);
             setFeedback({ type: 'error', text: getApiErrorMessage(err, 'Failed to process your response. Please try again.') });
 
             // A 400, 403 or 404 means the invite is no longer answerable (already answered, already a
@@ -96,7 +96,16 @@ export default function TopNavigation({ onInviteAccepted }: TopNavigationProps) 
 
     return (
         <>
-            <header className="h-16 border-b border-gray-800 flex items-center justify-end px-8 bg-[#181a2d] shrink-0 z-10">
+            <header className="h-16 border-b border-gray-800 flex items-center justify-between md:justify-end px-4 md:px-8 bg-[#181a2d] shrink-0 z-10">
+                <button
+                    onClick={onOpenMenu}
+                    className="p-2 text-gray-400 hover:text-white transition-colors md:hidden"
+                    aria-label="Open menu"
+                >
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+                    </svg>
+                </button>
                 <button
                     ref={bellRef}
                     onClick={openModal}

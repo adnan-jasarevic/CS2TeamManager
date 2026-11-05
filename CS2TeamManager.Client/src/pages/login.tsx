@@ -2,7 +2,7 @@
 import React, { useState } from 'react';
 import api from '../services/api';
 import { getApiErrorMessage } from '../services/errors';
-import { type UserUser } from '../types';
+import { type LoginResponse } from '../types';
 
 export default function Login() {
     // Initialize useNavigate for redirecting after login
@@ -17,21 +17,17 @@ export default function Login() {
         setError('');
 
         try {
-            const response = await api.post<UserUser>('/Auth/login', {
+            const response = await api.post<LoginResponse>('/Auth/login', {
                 email,
                 password
             });
 
-            // Save the JWT token to local storage
             localStorage.setItem('jwt_token', response.data.token);
-
-            console.log('Successful login! Welcome:', response.data.username);
 
             // Redirect the user to the dashboard immediately
             navigate('/dashboard');
 
         } catch (err) {
-            console.error('Error while trying to log in:', err);
             setError(getApiErrorMessage(err, 'Wrong email or password. Try again.'));
         }
     };

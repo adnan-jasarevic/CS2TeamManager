@@ -1,10 +1,11 @@
-﻿import React, { useEffect, useState, useCallback } from 'react';
+﻿import { useEffect, useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api from '../services/api';
-import axios from 'axios';
+import { getApiErrorMessage } from '../services/errors';
 import { useLayoutContext } from '../components/layout-context';
 import { type Team, type TeamDashboardData, canManageTeam } from '../types';
 import AddMatchModal from '../components/add-match-modal';
+import CreateTeamModal from '../components/create-team-modal';
 
 export default function Dashboard() {
     const navigate = useNavigate();
@@ -17,8 +18,6 @@ export default function Dashboard() {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
     const [isModalOpen, setIsModalOpen] = useState(false);
-    const [newTeamName, setNewTeamName] = useState('');
-    const [isCreating, setIsCreating] = useState(false);
     const [isAddMatchOpen, setIsAddMatchOpen] = useState(false);
 
     const fetchTeams = useCallback(async () => {
@@ -30,17 +29,12 @@ export default function Dashboard() {
                 setSelectedTeamId(response.data[0].id);
             }
         } catch (err: unknown) {
-            console.error('Error fetching teams:', err);
-            if (axios.isAxiosError(err) && err.response?.status === 401) {
-                localStorage.removeItem('jwt_token');
-                navigate('/login');
-            } else {
-                setError('Failed to load teams.');
-            }
+            // A 401 is handled by the API client, which sends the user back to the login page.
+            setError(getApiErrorMessage(err, 'Failed to load teams.'));
         } finally {
             setLoading(false);
         }
-    }, [navigate, selectedTeamId]);
+    }, [selectedTeamId]);
 
 
     const fetchDashboardStats = async (teamId: number) => {
@@ -49,8 +43,7 @@ export default function Dashboard() {
             const response = await api.get<TeamDashboardData>(`/Teams/${teamId}/dashboard`);
             setDashboardData(response.data);
         } catch (err: unknown) {
-            console.error('Error fetching dashboard data:', err);
-            setError('Failed to load team statistics.');
+            setError(getApiErrorMessage(err, 'Failed to load team statistics.'));
         }
     };
 
@@ -73,21 +66,6 @@ export default function Dashboard() {
         return new Date(dateString).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
     };
 
-    const handleCreateTeam = async (e: React.FormEvent<HTMLFormElement>) => {
-        e.preventDefault();
-        setIsCreating(true);
-        try {
-            await api.post('/Teams', { name: newTeamName });
-            setNewTeamName('');
-            setIsModalOpen(false);
-            await fetchTeams();
-        } catch (err) {
-            console.error('Failed to create team', err);
-        } finally {
-            setIsCreating(false);
-        }
-    };
-
     const selectedTeam = teams.find(t => t.id === selectedTeamId);
     const canManageMatches = canManageTeam(selectedTeam?.currentUserRole);
 
@@ -96,7 +74,7 @@ export default function Dashboard() {
     // scenario 1: user has no teams - show empty state with option to create team
     if (teams.length === 0) {
         return (
-            <div className="p-8">
+            <div className="p-4 md:p-8">
                 <div className="mb-8">
                     <h1 className="text-3xl font-bold text-white mb-2">Dashboard</h1>
                     <p className="text-gray-400">Welcome! Get started by creating your first team.</p>
@@ -113,31 +91,7 @@ export default function Dashboard() {
                 </div>
 
                 {isModalOpen && (
-                    <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
-                        <div className="bg-gray-800 rounded-xl shadow-xl border border-gray-700 w-full max-w-md overflow-hidden">
-                            <div className="p-6 border-b border-gray-700 flex justify-between items-center">
-                                <h2 className="text-xl font-bold text-white">Create New Team</h2>
-                                <button onClick={() => setIsModalOpen(false)} className="text-gray-400 hover:text-white text-2xl">&times;</button>
-                            </div>
-                            <form onSubmit={handleCreateTeam} className="p-6">
-                                <label className="block text-gray-400 text-sm mb-2">Team Name</label>
-                                <input
-                                    type="text"
-                                    value={newTeamName}
-                                    onChange={(e) => setNewTeamName(e.target.value)}
-                                    className="w-full px-4 py-3 bg-[#111322] border border-gray-700 rounded-lg text-white focus:outline-none focus:border-[#ff6b4a]"
-                                    placeholder="e.g. Natus Vincere"
-                                    autoFocus
-                                />
-                                <div className="mt-6 flex justify-end gap-3">
-                                    <button type="button" onClick={() => setIsModalOpen(false)} className="px-4 py-2 text-gray-400 hover:text-white">Cancel</button>
-                                    <button type="submit" disabled={isCreating || !newTeamName.trim()} className="bg-[#ff6b4a] hover:bg-[#e5593c] px-6 py-2 rounded-lg font-bold text-white transition-colors disabled:opacity-50">
-                                        {isCreating ? 'Creating...' : 'Create Team'}
-                                    </button>
-                                </div>
-                            </form>
-                        </div>
-                    </div>
+                    <CreateTeamModal onClose={() => setIsModalOpen(false)} onCreated={fetchTeams} />
                 )}
             </div>
         );
@@ -145,7 +99,7 @@ export default function Dashboard() {
 
     // scenario 2: user has teams - show dashboard with team selection dropdown and stats
     return (
-        <div className="p-8 relative">
+        <div className="p-4 md:p-8 relative">
             <div className="flex flex-col md:flex-row justify-between items-start md:items-end mb-8 gap-4">
                 <div>
                     <h1 className="text-3xl font-bold text-white mb-2">Dashboard</h1>
@@ -297,31 +251,7 @@ export default function Dashboard() {
             )}
 
             {isModalOpen && (
-                <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
-                    <div className="bg-gray-800 rounded-xl shadow-xl border border-gray-700 w-full max-w-md overflow-hidden">
-                        <div className="p-6 border-b border-gray-700 flex justify-between items-center">
-                            <h2 className="text-xl font-bold text-white">Create New Team</h2>
-                            <button onClick={() => setIsModalOpen(false)} className="text-gray-400 hover:text-white text-2xl">&times;</button>
-                        </div>
-                        <form onSubmit={handleCreateTeam} className="p-6">
-                            <label className="block text-gray-400 text-sm mb-2">Team Name</label>
-                            <input
-                                type="text"
-                                value={newTeamName}
-                                onChange={(e) => setNewTeamName(e.target.value)}
-                                className="w-full px-4 py-3 bg-[#111322] border border-gray-700 rounded-lg text-white focus:outline-none focus:border-[#ff6b4a]"
-                                placeholder="e.g. Natus Vincere"
-                                autoFocus
-                            />
-                            <div className="mt-6 flex justify-end gap-3">
-                                <button type="button" onClick={() => setIsModalOpen(false)} className="px-4 py-2 text-gray-400 hover:text-white">Cancel</button>
-                                <button type="submit" disabled={isCreating || !newTeamName.trim()} className="bg-[#ff6b4a] hover:bg-[#e5593c] px-6 py-2 rounded-lg font-bold text-white transition-colors disabled:opacity-50">
-                                    {isCreating ? 'Creating...' : 'Create Team'}
-                                </button>
-                            </div>
-                        </form>
-                    </div>
-                </div>
+                <CreateTeamModal onClose={() => setIsModalOpen(false)} onCreated={fetchTeams} />
             )}
         </div>
     );

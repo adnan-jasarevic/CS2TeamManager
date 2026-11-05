@@ -1,8 +1,8 @@
 ﻿// types/index.ts
 
-export interface UserUser {
+// Response of POST /Auth/login.
+export interface LoginResponse {
     username: string;
-    email: string;
     token: string;
 }
 

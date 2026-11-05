@@ -99,7 +99,7 @@ export default function Matches() {
 
     if (teams.length === 0) {
         return (
-            <div className="p-8">
+            <div className="p-4 md:p-8">
                 <h1 className="text-3xl font-bold text-white mb-2">Matches</h1>
                 <p className="text-gray-400">You need to create or join a team first.</p>
             </div>
@@ -107,7 +107,7 @@ export default function Matches() {
     }
 
     return (
-        <div className="p-8">
+        <div className="p-4 md:p-8">
             <div className="flex flex-col md:flex-row justify-between items-start md:items-end mb-8 gap-4">
                 <div>
                     <h1 className="text-3xl font-bold text-white mb-2">Matches</h1>

@@ -1,12 +1,10 @@
 ﻿import React, { useEffect, useState, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
 import api from '../services/api';
-import axios from 'axios';
+import { getApiErrorMessage } from '../services/errors';
 import { useLayoutContext } from '../components/layout-context';
 import { type Team, type TeamMember, canManageTeam } from '../types';
 
 export default function TeamRoster() {
-    const navigate = useNavigate();
     const { teamsVersion } = useLayoutContext();
 
     const [teams, setTeams] = useState<Team[]>([]);
@@ -37,15 +35,11 @@ export default function TeamRoster() {
                 setLoading(false);
             }
         } catch (err: unknown) {
-            if (axios.isAxiosError(err) && err.response?.status === 401) {
-                localStorage.removeItem('jwt_token');
-                navigate('/login');
-            } else {
-                setError('Failed to load teams.');
-                setLoading(false);
-            }
+            // A 401 is handled by the API client, which sends the user back to the login page.
+            setError(getApiErrorMessage(err, 'Failed to load teams.'));
+            setLoading(false);
         }
-    }, [navigate, selectedTeamId]);
+    }, [selectedTeamId]);
 
     const fetchTeamMembers = async (teamId: number) => {
         setLoading(true);
@@ -54,8 +48,7 @@ export default function TeamRoster() {
             const response = await api.get<TeamMember[]>(`/Teams/${teamId}/members`);
             setMembers(response.data);
         } catch (err: unknown) {
-            console.error('Error fetching members:', err);
-            setError('Failed to load team members.');
+            setError(getApiErrorMessage(err, 'Failed to load team members.'));
         } finally {
             setLoading(false);
         }
@@ -90,7 +83,7 @@ export default function TeamRoster() {
             setIsAddModalOpen(false);
             fetchTeamMembers(selectedTeamId);
         } catch (err: unknown) {
-            showMessage(axios.isAxiosError(err) ? err.response?.data?.message || 'Failed to add member.' : 'Failed to add member.', true);
+            showMessage(getApiErrorMessage(err, 'Failed to add member.'), true);
         } finally {
             setIsSubmitting(false);
         }
@@ -105,7 +98,7 @@ export default function TeamRoster() {
             fetchTeamMembers(selectedTeamId);
             closeModals();
         } catch (err: unknown) {
-            showMessage(axios.isAxiosError(err) ? err.response?.data?.message || 'Failed to remove member.' : 'Failed to remove member.', true);
+            showMessage(getApiErrorMessage(err, 'Failed to remove member.'), true);
         } finally {
             setIsSubmitting(false);
         }
@@ -120,7 +113,7 @@ export default function TeamRoster() {
             fetchTeamMembers(selectedTeamId);
             closeModals();
         } catch (err: unknown) {
-            showMessage(axios.isAxiosError(err) ? err.response?.data?.message || 'Failed to change role.' : 'Failed to change role.', true);
+            showMessage(getApiErrorMessage(err, 'Failed to change role.'), true);
         } finally {
             setIsSubmitting(false);
         }
@@ -138,7 +131,7 @@ export default function TeamRoster() {
             fetchTeamMembers(selectedTeamId);
             closeModals();
         } catch (err: unknown) {
-            showMessage(axios.isAxiosError(err) ? err.response?.data?.message || 'Failed to transfer ownership.' : 'Failed to transfer ownership.', true);
+            showMessage(getApiErrorMessage(err, 'Failed to transfer ownership.'), true);
         } finally {
             setIsSubmitting(false);
         }
@@ -157,7 +150,7 @@ export default function TeamRoster() {
 
     if (teams.length === 0) {
         return (
-            <div className="p-8">
+            <div className="p-4 md:p-8">
                 <h1 className="text-3xl font-bold text-white mb-2">Team Roster</h1>
                 <p className="text-gray-400">You need to create or join a team first.</p>
             </div>
@@ -165,7 +158,7 @@ export default function TeamRoster() {
     }
 
     return (
-        <div className="p-8 relative min-h-screen">
+        <div className="p-4 md:p-8 relative min-h-screen">
             {activeDropdown && (
                 <div className="fixed inset-0 z-10" onClick={() => setActiveDropdown(null)}></div>
             )}
@@ -223,7 +216,7 @@ export default function TeamRoster() {
                         {members.map((member, index) => (
                             <div key={member.id} className={`grid grid-cols-12 gap-4 p-4 items-center hover:bg-[#111322] transition-colors ${index === members.length - 1 ? 'rounded-b-xl' : ''}`}>
                         <div className="col-span-5 md:col-span-4 flex items-center gap-3">
-                            <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-purple-600 to-[#ff6b4a] flex items-center justify-center text-white font-bold">
+                            <div className="w-10 h-10 shrink-0 rounded-full bg-gradient-to-tr from-purple-600 to-[#ff6b4a] flex items-center justify-center text-white font-bold">
                                 {member.username.charAt(0).toUpperCase()}
                             </div>
                             <div>
