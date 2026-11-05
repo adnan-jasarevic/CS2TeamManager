@@ -1,0 +1,49 @@
+name: CI
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  backend:
+    name: Backend build and tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+
+      # The solution also lists the React client as a Visual Studio website project, which
+      # doesn't build on Linux, so the API and the tests are built on their own.
+      - name: Build API
+        run: dotnet build CS2TeamManager.Api/CS2TeamManager.Api.csproj --configuration Release
+
+      - name: Run tests
+        run: dotnet test CS2TeamManager.Tests/CS2TeamManager.Tests.csproj --configuration Release --logger "console;verbosity=normal"
+
+  frontend:
+    name: Frontend lint and build
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: CS2TeamManager.Client
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: CS2TeamManager.Client/package-lock.json
+
+      - run: npm ci
+      - run: npm run lint
+      # Type-checks with tsc, then bundles with Vite.
+      - run: npm run build

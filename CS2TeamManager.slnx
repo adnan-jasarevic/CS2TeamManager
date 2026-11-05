@@ -24,4 +24,5 @@
   </Project>
   <Project Path="CS2TeamManager.Domain/CS2TeamManager.Domain.csproj" />
   <Project Path="CS2TeamManager.Infrastructure/CS2TeamManager.Infrastructure.csproj" />
+  <Project Path="CS2TeamManager.Tests/CS2TeamManager.Tests.csproj" />
 </Solution>
