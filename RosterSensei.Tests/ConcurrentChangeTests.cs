@@ -1,4 +1,4 @@
-using RosterSensei.Application.Common;
+﻿using RosterSensei.Application.Common;
 using RosterSensei.Application.DTOs;
 using RosterSensei.Application.Interfaces;
 using RosterSensei.Domain.Entities;
@@ -138,14 +138,68 @@ public class ConcurrentChangeTests : IDisposable
 
         loaded!.Title = "Renamed";
 
-        Assert.False(await repository.UpdateAsync(loaded));
+        Assert.False(await repository.UpdateAsync(loaded, loaded.Version));
     }
 
-    private static SaveTeamEventDto NewEvent(string title) => new()
+    [Fact]
+    public async Task Editing_an_event_moves_it_to_the_next_version()
+    {
+        var created = await _db.EventService().CreateEventAsync(_owner, _teamId, NewEvent("Pracc"));
+
+        var edited = await _db.EventService().UpdateEventAsync(_officer, _teamId, created.Data!.Id, NewEvent("Renamed", created.Data.Version));
+
+        Assert.True(edited.Success, edited.ErrorMessage);
+        Assert.Equal(created.Data.Version + 1, edited.Data!.Version);
+        Assert.Equal("Renamed", edited.Data.Title);
+    }
+
+    [Fact]
+    public async Task Saving_over_a_newer_edit_is_refused()
+    {
+        var created = await _db.EventService().CreateEventAsync(_owner, _teamId, NewEvent("Pracc"));
+        var version = created.Data!.Version;
+
+        // Both opened the event at the same version; the officer saves first.
+        Assert.True((await _db.EventService().UpdateEventAsync(_officer, _teamId, created.Data.Id, NewEvent("Officer's title", version))).Success);
+        var late = await _db.EventService().UpdateEventAsync(_owner, _teamId, created.Data.Id, NewEvent("Owner's title", version));
+
+        Assert.Equal(ErrorType.Conflict, late.ErrorType);
+        var events = await _db.EventService().GetEventsAsync(_owner, _teamId, DateTime.UtcNow, DateTime.UtcNow.AddDays(7));
+        Assert.Equal("Officer's title", Assert.Single(events.Data!).Title);
+    }
+
+    [Fact]
+    public async Task A_newer_edit_saved_between_loading_and_saving_is_caught()
+    {
+        var created = await _db.EventService().CreateEventAsync(_owner, _teamId, NewEvent("Pracc"));
+
+        // This request loaded the event, then another edit was saved before this one.
+        await using var context = _db.CreateContext();
+        var repository = new TeamEventRepository(context);
+        var loaded = await repository.GetByIdAsync(_teamId, created.Data!.Id);
+        Assert.True((await _db.EventService().UpdateEventAsync(_officer, _teamId, created.Data.Id, NewEvent("Officer's title", loaded!.Version))).Success);
+
+        loaded.Title = "Owner's title";
+
+        Assert.False(await repository.UpdateAsync(loaded, created.Data.Version));
+    }
+
+    [Fact]
+    public async Task Editing_without_a_version_is_rejected()
+    {
+        var created = await _db.EventService().CreateEventAsync(_owner, _teamId, NewEvent("Pracc"));
+
+        var result = await _db.EventService().UpdateEventAsync(_owner, _teamId, created.Data!.Id, NewEvent("Renamed"));
+
+        Assert.Equal(ErrorType.Validation, result.ErrorType);
+    }
+
+    private static SaveTeamEventDto NewEvent(string title, int? version = null) => new()
     {
         Title = title,
         StartTime = DateTime.UtcNow.AddDays(1),
         EndTime = DateTime.UtcNow.AddDays(1).AddHours(2),
-        EventType = TeamEventType.Pracc
+        EventType = TeamEventType.Pracc,
+        Version = version
     };
 }

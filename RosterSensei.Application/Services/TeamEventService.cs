@@ -11,6 +11,9 @@ public class TeamEventService : ITeamEventService
     // Keeps a single request from pulling years of events at once.
     private static readonly TimeSpan MaxRange = TimeSpan.FromDays(400);
 
+    private const string EditConflictMessage =
+        "Someone else changed this event while you were editing it. Open it again to see their changes.";
+
     private readonly ITeamEventRepository _eventRepository;
     private readonly ITeamRepository _teamRepository;
 
@@ -55,13 +58,24 @@ public class TeamEventService : ITeamEventService
         if (!await CanManageAsync(teamId, userId))
             return Result<TeamEventDto>.Forbidden("Only the team Owner, Captain or Officers can edit events.");
 
+        if (dto.Version == null)
+            return Result<TeamEventDto>.Failure("The event version is required when editing.");
+
         var teamEvent = await _eventRepository.GetByIdAsync(teamId, eventId);
         if (teamEvent == null)
             return Result<TeamEventDto>.NotFound("Event was not found.");
 
+        if (teamEvent.Version != dto.Version)
+            return Result<TeamEventDto>.Conflict(EditConflictMessage);
+
         Apply(teamEvent, dto);
-        if (!await _eventRepository.UpdateAsync(teamEvent))
-            return Result<TeamEventDto>.NotFound("Event was not found. It may have just been deleted.");
+        if (!await _eventRepository.UpdateAsync(teamEvent, dto.Version.Value))
+        {
+            // Lost the race between loading and saving: tell a deleted event apart from a newer edit.
+            return await _eventRepository.GetByIdAsync(teamId, eventId) == null
+                ? Result<TeamEventDto>.NotFound("Event was not found. It may have just been deleted.")
+                : Result<TeamEventDto>.Conflict(EditConflictMessage);
+        }
 
         return Result<TeamEventDto>.SuccessResult(ToDto(teamEvent));
     }
@@ -101,6 +115,7 @@ public class TeamEventService : ITeamEventService
         Description = e.Description,
         StartTime = e.StartTime,
         EndTime = e.EndTime,
-        EventType = e.EventType.ToString()
+        EventType = e.EventType.ToString(),
+        Version = e.Version
     };
 }

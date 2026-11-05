@@ -34,8 +34,12 @@ public class TeamEventRepository : ITeamEventRepository
         return teamEvent;
     }
 
-    public async Task<bool> UpdateAsync(TeamEvent teamEvent)
+    public async Task<bool> UpdateAsync(TeamEvent teamEvent, int expectedVersion)
     {
+        // The WHERE clause checks the version the user started from, not the one loaded by this request,
+        // so changes saved between opening the editor and pressing Save are caught too.
+        _context.Entry(teamEvent).Property(e => e.Version).OriginalValue = expectedVersion;
+        teamEvent.Version = expectedVersion + 1;
         try
         {
             await _context.SaveChangesAsync();
@@ -43,7 +47,7 @@ public class TeamEventRepository : ITeamEventRepository
         }
         catch (DbUpdateConcurrencyException)
         {
-            // The UPDATE matched no row: someone deleted the event while it was being edited.
+            // The UPDATE matched no row: someone changed or deleted the event meanwhile.
             _context.Entry(teamEvent).State = EntityState.Detached;
             return false;
         }
