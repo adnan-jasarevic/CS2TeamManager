@@ -18,8 +18,8 @@ public class EventsController : ApiControllerBase
 
     // GET: /api/teams/{teamId}/events?from=...&to=...
     [HttpGet]
-    public async Task<IActionResult> GetEvents(int teamId, [FromQuery] DateTime from, [FromQuery] DateTime to)
-        => ToActionResult(await _eventService.GetEventsAsync(UserId, teamId, from.ToUniversalTime(), to.ToUniversalTime()));
+    public async Task<IActionResult> GetEvents(int teamId, [FromQuery] DateTime from, [FromQuery] DateTime to, CancellationToken cancellationToken)
+        => ToActionResult(await _eventService.GetEventsAsync(UserId, teamId, from.ToUniversalTime(), to.ToUniversalTime(), cancellationToken));
 
     // POST: /api/teams/{teamId}/events
     [HttpPost]

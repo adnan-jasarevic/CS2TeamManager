@@ -21,8 +21,8 @@ public class TeamsController : ApiControllerBase
         => ToActionResult(await _teamService.CreateTeamAsync(UserId, dto));
 
     [HttpGet("my-teams")]
-    public async Task<IActionResult> GetMyTeams()
-        => Ok(await _teamService.GetUserTeamsAsync(UserId));
+    public async Task<IActionResult> GetMyTeams(CancellationToken cancellationToken)
+        => Ok(await _teamService.GetUserTeamsAsync(UserId, cancellationToken));
 
     [HttpPost("{teamId}/members")]
     public async Task<IActionResult> AddMember(int teamId, [FromBody] AddTeamMemberDto dto)
@@ -41,12 +41,12 @@ public class TeamsController : ApiControllerBase
         => ToMessageResult(await _teamService.DeleteTeamAsync(teamId, UserId));
 
     [HttpGet("{teamId}/dashboard")]
-    public async Task<IActionResult> GetTeamDashboard(int teamId)
-        => ToActionResult(await _teamService.GetTeamDashboardAsync(teamId, UserId));
+    public async Task<IActionResult> GetTeamDashboard(int teamId, CancellationToken cancellationToken)
+        => ToActionResult(await _teamService.GetTeamDashboardAsync(teamId, UserId, cancellationToken));
 
     [HttpGet("{teamId}/members")]
-    public async Task<IActionResult> GetTeamMembers(int teamId)
-        => ToActionResult(await _teamService.GetTeamMembersAsync(teamId, UserId));
+    public async Task<IActionResult> GetTeamMembers(int teamId, CancellationToken cancellationToken)
+        => ToActionResult(await _teamService.GetTeamMembersAsync(teamId, UserId, cancellationToken));
 
     [HttpPut("{teamId}/members/{memberId}/role")]
     public async Task<IActionResult> ChangeMemberRole(int teamId, string memberId, [FromBody] ChangeRoleDto dto)

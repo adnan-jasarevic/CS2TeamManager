@@ -65,31 +65,31 @@ public class MatchService : IMatchService
         return Result<MatchDto>.SuccessResult(resultDto);
     }
 
-    public async Task<Result<List<MatchDto>>> GetTeamMatchesAsync(string userId, int teamId)
+    public async Task<Result<List<MatchDto>>> GetTeamMatchesAsync(string userId, int teamId, CancellationToken cancellationToken = default)
     {
-        var team = await _teamRepository.GetByIdAsync(teamId);
+        var team = await _teamRepository.GetByIdAsync(teamId, cancellationToken);
         if (team == null) return Result<List<MatchDto>>.NotFound("Team was not found.");
 
         if (!team.Members.Any(m => m.UserId == userId))
             return Result<List<MatchDto>>.Forbidden("You don't have access to the matches of this team.");
 
-        var matches = await _matchRepository.GetMatchesByTeamIdAsync(teamId);
+        var matches = await _matchRepository.GetMatchesByTeamIdAsync(teamId, cancellationToken);
         
         var dtoList = matches.Select(m => MapToDto(m)).ToList();
 
         return Result<List<MatchDto>>.SuccessResult(dtoList);
     }
 
-    public async Task<Result<TeamStatsDto>> GetTeamStatsAsync(string userId, int teamId, MatchKind? type)
+    public async Task<Result<TeamStatsDto>> GetTeamStatsAsync(string userId, int teamId, MatchKind? type, CancellationToken cancellationToken = default)
     {
-        if (await _teamRepository.GetTeamMemberAsync(teamId, userId) == null)
+        if (await _teamRepository.GetTeamMemberAsync(teamId, userId, cancellationToken) == null)
             return Result<TeamStatsDto>.Forbidden("You don't have access to the statistics of this team.");
 
-        var maps = await _matchRepository.GetMapStatsAsync(teamId, type);
+        var maps = await _matchRepository.GetMapStatsAsync(teamId, type, cancellationToken);
         foreach (var map in maps)
             map.WinRatePercentage = Percentage(map.Wins, map.Played);
 
-        var finished = (await _matchRepository.GetMatchesByTeamIdAsync(teamId))
+        var finished = (await _matchRepository.GetMatchesByTeamIdAsync(teamId, cancellationToken))
             .Where(m => m.Status == MatchStatus.Finished && (!type.HasValue || m.Type == type.Value))
             .OrderBy(m => m.PlayedDate ?? m.ScheduledDate)
             .ToList();

@@ -23,17 +23,17 @@ public class TeamEventService : ITeamEventService
         _teamRepository = teamRepository;
     }
 
-    public async Task<Result<List<TeamEventDto>>> GetEventsAsync(string userId, int teamId, DateTime from, DateTime to)
+    public async Task<Result<List<TeamEventDto>>> GetEventsAsync(string userId, int teamId, DateTime from, DateTime to, CancellationToken cancellationToken = default)
     {
         if (to <= from)
             return Result<List<TeamEventDto>>.Failure("The end of the range must be after its start.");
         if (to - from > MaxRange)
             return Result<List<TeamEventDto>>.Failure("The date range is too long.");
 
-        if (await _teamRepository.GetTeamMemberAsync(teamId, userId) == null)
+        if (await _teamRepository.GetTeamMemberAsync(teamId, userId, cancellationToken) == null)
             return Result<List<TeamEventDto>>.Forbidden("You don't have access to the calendar of this team.");
 
-        var events = await _eventRepository.GetEventsAsync(teamId, from, to);
+        var events = await _eventRepository.GetEventsAsync(teamId, from, to, cancellationToken);
         return Result<List<TeamEventDto>>.SuccessResult(events.Select(ToDto).ToList());
     }
 

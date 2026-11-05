@@ -5,7 +5,7 @@ namespace RosterSensei.Application.Interfaces;
 public interface ITeamEventRepository
 {
     // Events that overlap the [from, to) range.
-    Task<List<TeamEvent>> GetEventsAsync(int teamId, DateTime from, DateTime to);
+    Task<List<TeamEvent>> GetEventsAsync(int teamId, DateTime from, DateTime to, CancellationToken cancellationToken = default);
     Task<TeamEvent?> GetByIdAsync(int teamId, int eventId);
     Task<TeamEvent> AddAsync(TeamEvent teamEvent);
     // Saves an edit made from expectedVersion and moves the event to the next version.

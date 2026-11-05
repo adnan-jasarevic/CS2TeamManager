@@ -14,12 +14,12 @@ public class TeamEventRepository : ITeamEventRepository
         _context = context;
     }
 
-    public async Task<List<TeamEvent>> GetEventsAsync(int teamId, DateTime from, DateTime to)
+    public async Task<List<TeamEvent>> GetEventsAsync(int teamId, DateTime from, DateTime to, CancellationToken cancellationToken = default)
     {
         return await _context.TeamEvents
             .Where(e => e.TeamId == teamId && e.StartTime < to && e.EndTime > from)
             .OrderBy(e => e.StartTime)
-            .ToListAsync();
+            .ToListAsync(cancellationToken);
     }
 
     public async Task<TeamEvent?> GetByIdAsync(int teamId, int eventId)

@@ -55,9 +55,9 @@ public class TeamService : ITeamService
         return Result<TeamDto>.SuccessResult(teamDto);
     }
 
-    public async Task<List<TeamDto>> GetUserTeamsAsync(string userId)
+    public async Task<List<TeamDto>> GetUserTeamsAsync(string userId, CancellationToken cancellationToken = default)
     {
-        var teams = await _teamRepository.GetTeamsByUserIdAsync(userId);
+        var teams = await _teamRepository.GetTeamsByUserIdAsync(userId, cancellationToken);
 
         return teams.Select(t => new TeamDto
         {
@@ -168,15 +168,15 @@ public class TeamService : ITeamService
     }
 
 
-    public async Task<Result<TeamDashboardDto>> GetTeamDashboardAsync(int teamId, string userId)
+    public async Task<Result<TeamDashboardDto>> GetTeamDashboardAsync(int teamId, string userId, CancellationToken cancellationToken = default)
     {
-        var isMember = await _teamRepository.IsUserInTeamAsync(teamId, userId);
+        var isMember = await _teamRepository.IsUserInTeamAsync(teamId, userId, cancellationToken);
         if (!isMember)
             return Result<TeamDashboardDto>.Forbidden("You do not have access to this team's dashboard.");
 
-        var totalMembers = await _teamRepository.GetTeamMemberCountAsync(teamId);
+        var totalMembers = await _teamRepository.GetTeamMemberCountAsync(teamId, cancellationToken);
 
-        var allMatches = await _teamRepository.GetTeamMatchesAsync(teamId);
+        var allMatches = await _teamRepository.GetTeamMatchesAsync(teamId, cancellationToken);
 
         var dashboard = new TeamDashboardDto
         {
@@ -231,14 +231,14 @@ public class TeamService : ITeamService
         return Result<TeamDashboardDto>.SuccessResult(dashboard);
     }
 
-    public async Task<Result<List<TeamMemberDto>>> GetTeamMembersAsync(int teamId, string userId)
+    public async Task<Result<List<TeamMemberDto>>> GetTeamMembersAsync(int teamId, string userId, CancellationToken cancellationToken = default)
     {
-        var isMember = await _teamRepository.IsUserInTeamAsync(teamId, userId);
+        var isMember = await _teamRepository.IsUserInTeamAsync(teamId, userId, cancellationToken);
         if (!isMember)
             return Result<List<TeamMemberDto>>.Forbidden("You are not a member of this team.");
 
-        var team = await _teamRepository.GetByIdAsync(teamId);
-        var membersData = await _teamRepository.GetTeamMembersWithUserDetailsAsync(teamId);
+        var team = await _teamRepository.GetByIdAsync(teamId, cancellationToken);
+        var membersData = await _teamRepository.GetTeamMembersWithUserDetailsAsync(teamId, cancellationToken);
 
         var dtoList = membersData.Select(data => new TeamMemberDto
         {

@@ -17,19 +17,19 @@ public class TeamRepository : ITeamRepository
         _context = context;
     }
 
-    public async Task<Team?> GetByIdAsync(int id)
+    public async Task<Team?> GetByIdAsync(int id, CancellationToken cancellationToken = default)
     {
         return await _context.Teams
             .Include(t => t.Members)
-            .FirstOrDefaultAsync(t => t.Id == id);
+            .FirstOrDefaultAsync(t => t.Id == id, cancellationToken);
     }
 
-    public async Task<List<Team>> GetTeamsByUserIdAsync(string userId)
+    public async Task<List<Team>> GetTeamsByUserIdAsync(string userId, CancellationToken cancellationToken = default)
     {
         return await _context.Teams
             .Include(t => t.Members)
             .Where(t => t.Members.Any(m => m.UserId == userId))
-            .ToListAsync();
+            .ToListAsync(cancellationToken);
     }
 
     public async Task<WriteOutcome> AddOwnedTeamAsync(Team team, int maxOwnedTeams)
@@ -54,27 +54,27 @@ public class TeamRepository : ITeamRepository
         }
     }
 
-    public async Task<bool> IsUserInTeamAsync(int teamId, string userId)
+    public async Task<bool> IsUserInTeamAsync(int teamId, string userId, CancellationToken cancellationToken = default)
     {
         return await _context.TeamMembers
-            .AnyAsync(tm => tm.TeamId == teamId && tm.UserId == userId);
+            .AnyAsync(tm => tm.TeamId == teamId && tm.UserId == userId, cancellationToken);
     }
 
-    public async Task<int> GetTeamMemberCountAsync(int teamId)
+    public async Task<int> GetTeamMemberCountAsync(int teamId, CancellationToken cancellationToken = default)
     {
         return await _context.TeamMembers
-            .CountAsync(tm => tm.TeamId == teamId);
+            .CountAsync(tm => tm.TeamId == teamId, cancellationToken);
     }
 
-    public async Task<List<Match>> GetTeamMatchesAsync(int teamId)
+    public async Task<List<Match>> GetTeamMatchesAsync(int teamId, CancellationToken cancellationToken = default)
     {
         return await _context.Matches
             .Where(m => m.TeamId == teamId)
             .OrderBy(m => m.ScheduledDate)
-            .ToListAsync();
+            .ToListAsync(cancellationToken);
     }
 
-    public async Task<List<(TeamMember Member, string Email, string Username)>> GetTeamMembersWithUserDetailsAsync(int teamId)
+    public async Task<List<(TeamMember Member, string Email, string Username)>> GetTeamMembersWithUserDetailsAsync(int teamId, CancellationToken cancellationToken = default)
     {
         var query = from tm in _context.TeamMembers
                     join user in _context.Users on tm.UserId equals user.Id
@@ -86,16 +86,16 @@ public class TeamRepository : ITeamRepository
                         Username = user.UserName
                     };
 
-        var result = await query.ToListAsync();
+        var result = await query.ToListAsync(cancellationToken);
 
         return result.Select(x => (x.Member, x.Email, x.Username)).ToList();
     }
 
-    public async Task<TeamMember?> GetTeamMemberAsync(int teamId, string userId)
+    public async Task<TeamMember?> GetTeamMemberAsync(int teamId, string userId, CancellationToken cancellationToken = default)
     {
         return await _context.TeamMembers
             .Include(tm => tm.Team)
-            .FirstOrDefaultAsync(tm => tm.TeamId == teamId && tm.UserId == userId);
+            .FirstOrDefaultAsync(tm => tm.TeamId == teamId && tm.UserId == userId, cancellationToken);
     }
 
     public async Task<WriteOutcome> ChangeMemberRoleAsync(int teamId, string ownerId, string memberId, TeamRole newRole)
