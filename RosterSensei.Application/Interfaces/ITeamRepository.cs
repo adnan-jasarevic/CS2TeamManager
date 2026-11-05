@@ -5,19 +5,19 @@ namespace RosterSensei.Application.Interfaces;
 
 public interface ITeamRepository
 {
-    Task<Team?> GetByIdAsync(int id);
-    Task<List<Team>> GetTeamsByUserIdAsync(string userId);
+    Task<Team?> GetByIdAsync(int id, CancellationToken cancellationToken = default);
+    Task<List<Team>> GetTeamsByUserIdAsync(string userId, CancellationToken cancellationToken = default);
 
     // Saves a new team owned by team.OwnerId unless they already own maxOwnedTeams.
     // The count and the insert run in one serializable transaction, so two requests at once can't both get past the limit.
     // Rejected: the limit is reached. Conflict: a concurrent request for the same user won.
     Task<WriteOutcome> AddOwnedTeamAsync(Team team, int maxOwnedTeams);
 
-    Task<bool> IsUserInTeamAsync(int teamId, string userId);
-    Task<int> GetTeamMemberCountAsync(int teamId);
-    Task<List<Match>> GetTeamMatchesAsync(int teamId);
-    Task<List<(TeamMember Member, string Email, string Username)>> GetTeamMembersWithUserDetailsAsync(int teamId);
-    Task<TeamMember?> GetTeamMemberAsync(int teamId, string userId);
+    Task<bool> IsUserInTeamAsync(int teamId, string userId, CancellationToken cancellationToken = default);
+    Task<int> GetTeamMemberCountAsync(int teamId, CancellationToken cancellationToken = default);
+    Task<List<Match>> GetTeamMatchesAsync(int teamId, CancellationToken cancellationToken = default);
+    Task<List<(TeamMember Member, string Email, string Username)>> GetTeamMembersWithUserDetailsAsync(int teamId, CancellationToken cancellationToken = default);
+    Task<TeamMember?> GetTeamMemberAsync(int teamId, string userId, CancellationToken cancellationToken = default);
 
     // Sets a member's role, only while ownerId still owns the team.
     // Rejected: the team already has a Captain. Conflict: ownership changed or the member left meanwhile.

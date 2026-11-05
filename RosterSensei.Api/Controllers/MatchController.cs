@@ -24,11 +24,11 @@ public class MatchesController : ApiControllerBase
 
     // GET: /api/Matches/{teamId}
     [HttpGet("{teamId}")]
-    public async Task<IActionResult> GetTeamMatches(int teamId)
-        => ToActionResult(await _matchService.GetTeamMatchesAsync(UserId, teamId));
+    public async Task<IActionResult> GetTeamMatches(int teamId, CancellationToken cancellationToken)
+        => ToActionResult(await _matchService.GetTeamMatchesAsync(UserId, teamId, cancellationToken));
 
     // GET: /api/Matches/{teamId}/stats?type=Scrim
     [HttpGet("{teamId}/stats")]
-    public async Task<IActionResult> GetTeamStats(int teamId, [FromQuery] MatchKind? type)
-        => ToActionResult(await _matchService.GetTeamStatsAsync(UserId, teamId, type));
+    public async Task<IActionResult> GetTeamStats(int teamId, [FromQuery] MatchKind? type, CancellationToken cancellationToken)
+        => ToActionResult(await _matchService.GetTeamStatsAsync(UserId, teamId, type, cancellationToken));
 }

@@ -22,16 +22,16 @@ public class MatchRepository : IMatchRepository
         return match;
     }
 
-    public async Task<List<Match>> GetMatchesByTeamIdAsync(int teamId)
+    public async Task<List<Match>> GetMatchesByTeamIdAsync(int teamId, CancellationToken cancellationToken = default)
     {
         return await _context.Matches
             .Include(m => m.Maps)
             .Where(m => m.TeamId == teamId)
             .OrderByDescending(m => m.ScheduledDate)
-            .ToListAsync();
+            .ToListAsync(cancellationToken);
     }
 
-    public async Task<List<MapStatsDto>> GetMapStatsAsync(int teamId, MatchKind? type)
+    public async Task<List<MapStatsDto>> GetMapStatsAsync(int teamId, MatchKind? type, CancellationToken cancellationToken = default)
     {
         var maps = _context.MatchMaps.Where(mm =>
             mm.Match.TeamId == teamId
@@ -54,6 +54,6 @@ public class MatchRepository : IMatchRepository
                 RoundsWon = g.Sum(mm => mm.OurScore!.Value),
                 RoundsLost = g.Sum(mm => mm.OpponentScore!.Value)
             })
-            .ToListAsync();
+            .ToListAsync(cancellationToken);
     }
 }

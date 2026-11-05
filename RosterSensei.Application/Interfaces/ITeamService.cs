@@ -6,14 +6,14 @@ namespace RosterSensei.Application.Interfaces;
 public interface ITeamService
 {
     Task<Result<TeamDto>> CreateTeamAsync(string userId, CreateTeamDto dto);
-    Task<List<TeamDto>> GetUserTeamsAsync(string userId);
+    Task<List<TeamDto>> GetUserTeamsAsync(string userId, CancellationToken cancellationToken = default);
     Task<Result<string>> InviteMemberAsync(int teamId, string senderUserId, string targetEmail);
 
     Task<Result<string>> RemoveMemberAsync(int teamId, string ownerId, string memberIdToRemove);
     Task<Result<string>> LeaveTeamAsync(int teamId, string userId);
     Task<Result<string>> DeleteTeamAsync(int teamId, string userId);
-    Task<Result<TeamDashboardDto>> GetTeamDashboardAsync(int teamId, string userId);
-    Task<Result<List<TeamMemberDto>>> GetTeamMembersAsync(int teamId, string userId);
+    Task<Result<TeamDashboardDto>> GetTeamDashboardAsync(int teamId, string userId, CancellationToken cancellationToken = default);
+    Task<Result<List<TeamMemberDto>>> GetTeamMembersAsync(int teamId, string userId, CancellationToken cancellationToken = default);
 
     Task<Result<string>> ChangeMemberRoleAsync(int teamId, string currentUserId, string targetMemberId, string newRoleStr);
     Task<Result<string>> TransferOwnershipAsync(int teamId, string currentOwnerId, string newOwnerId);
