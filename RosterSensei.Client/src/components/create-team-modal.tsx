@@ -48,7 +48,7 @@ export default function CreateTeamModal({ onClose, onCreated }: CreateTeamModalP
             <form id="create-team-form" onSubmit={handleSubmit} className="flex flex-col gap-4">
                 {error && <Alert tone="danger">{error}</Alert>}
                 <Field label="Team name">
-                    <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Tokyo Ronin" maxLength={100} autoComplete="off" data-autofocus />
+                    <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Tokyo Ronin" maxLength={50} autoComplete="off" data-autofocus />
                 </Field>
             </form>
         </Modal>

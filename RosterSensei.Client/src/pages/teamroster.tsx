@@ -241,7 +241,7 @@ function RosterContent({ team }: { team: Team }) {
                     <div className="flex flex-col gap-3 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
                         <div className="min-w-0">
                             <p className="font-semibold text-fg">Leave team</p>
-                            <p className="text-sm text-fg-subtle">
+                            <p className="text-sm break-words text-fg-subtle">
                                 {isOwner
                                     ? 'You own this team. Transfer ownership to an Officer or delete the team before leaving.'
                                     : `You lose access to ${team.name}. You can only rejoin with a new invite.`}
@@ -357,9 +357,12 @@ function RosterContent({ team }: { team: Team }) {
                 <div className="flex flex-col gap-4">
                     {actionError && <Alert tone="danger">{actionError}</Alert>}
                     <Field label="Role" hint="A team has one Captain and any number of Officers, who have the same rights as the Captain. The Owner keeps Owner rights whatever their role. Ownership can only be transferred to an Officer.">
-                        <Select value={newRole} onChange={e => setNewRole(e.target.value)} data-autofocus>
-                            {ASSIGNABLE_ROLES.map(role => <option key={role} value={role}>{role}</option>)}
-                        </Select>
+                        <Select
+                            value={newRole}
+                            onChange={setNewRole}
+                            options={ASSIGNABLE_ROLES.map(role => ({ value: role, label: role }))}
+                            data-autofocus
+                        />
                     </Field>
                 </div>
             </Modal>

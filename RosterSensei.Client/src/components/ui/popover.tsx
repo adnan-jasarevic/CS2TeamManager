@@ -13,7 +13,7 @@ export interface PopoverTriggerProps {
     ref: RefObject<HTMLButtonElement | null>;
     onClick: () => void;
     'aria-expanded': boolean;
-    'aria-haspopup': 'menu' | 'dialog';
+    'aria-haspopup': 'menu' | 'dialog' | 'listbox';
     'aria-controls': string | undefined;
 }
 
@@ -22,10 +22,12 @@ export interface PopoverProps {
     renderTrigger: (props: PopoverTriggerProps) => ReactNode;
     /** Names the panel for screen readers. */
     label: string;
-    role?: 'menu' | 'dialog';
+    role?: 'menu' | 'dialog' | 'listbox';
     align?: 'start' | 'end';
+    /** Makes the panel at least as wide as its trigger. */
+    matchTriggerWidth?: boolean;
     className?: string;
-    onPanelKeyDown?: (event: KeyboardEvent<HTMLDivElement>) => void;
+    onPanelKeyDown?: (event: KeyboardEvent<HTMLDivElement>, close: () => void) => void;
     children: ReactNode;
 }
 
@@ -33,9 +35,10 @@ export interface PopoverProps {
  * A floating panel anchored to a button. It renders into the landmark that holds the trigger
  * (or <body> if there is none) with fixed positioning, so an `overflow: hidden` card or table
  * can't clip it, and flips above the trigger when there's no room below. Closes on Esc, an
- * outside click, scrolling and focus leaving.
+ * outside click, scrolling and focus leaving. Focus starts on the element marked
+ * `data-popover-focus`, or otherwise the first menu item, input or button.
  */
-export function Popover({ renderTrigger, label, role = 'dialog', align = 'end', className, onPanelKeyDown, children }: PopoverProps) {
+export function Popover({ renderTrigger, label, role = 'dialog', align = 'end', matchTriggerWidth = false, className, onPanelKeyDown, children }: PopoverProps) {
     const [open, setOpen] = useState(false);
     const [container, setContainer] = useState<Element | null>(null);
     const triggerRef = useRef<HTMLButtonElement>(null);
@@ -53,6 +56,7 @@ export function Popover({ renderTrigger, label, role = 'dialog', align = 'end', 
         if (!open || !trigger || !panel) return;
 
         const anchor = trigger.getBoundingClientRect();
+        if (matchTriggerWidth) panel.style.minWidth = `${anchor.width}px`;
         const { width, height } = panel.getBoundingClientRect();
         const preferredLeft = align === 'end' ? anchor.right - width : anchor.left;
         const left = Math.min(Math.max(VIEWPORT_MARGIN, preferredLeft), window.innerWidth - width - VIEWPORT_MARGIN);
@@ -61,8 +65,8 @@ export function Popover({ renderTrigger, label, role = 'dialog', align = 'end', 
 
         panel.style.left = `${left}px`;
         panel.style.top = `${Math.max(VIEWPORT_MARGIN, top)}px`;
-        panel.querySelector<HTMLElement>('[role="menuitem"], input, button')?.focus();
-    }, [open, align]);
+        (panel.querySelector<HTMLElement>('[data-popover-focus]') ?? panel.querySelector<HTMLElement>('[role="menuitem"], input, button'))?.focus();
+    }, [open, align, matchTriggerWidth]);
 
     useEffect(() => {
         if (!open) return;
@@ -72,7 +76,10 @@ export function Popover({ renderTrigger, label, role = 'dialog', align = 'end', 
             if (!panelRef.current?.contains(target) && !triggerRef.current?.contains(target)) close(false);
         };
         const onKeyDown = (event: globalThis.KeyboardEvent) => {
-            if (event.key === 'Escape') close();
+            if (event.key !== 'Escape') return;
+            // Inside a modal, this stops the same key press closing the <dialog> as well.
+            event.preventDefault();
+            close();
         };
         // The panel is fixed, so it would drift away from its trigger if the page moved under it.
         const onScroll = (event: Event) => {
@@ -116,7 +123,7 @@ export function Popover({ renderTrigger, label, role = 'dialog', align = 'end', 
                     role={role}
                     aria-label={label}
                     onBlur={handleBlur}
-                    onKeyDown={onPanelKeyDown}
+                    onKeyDown={onPanelKeyDown && (event => onPanelKeyDown(event, close))}
                     className={cx(
                         'fixed top-0 left-0 z-40 max-h-[70dvh] overflow-y-auto rounded-md border border-line bg-raised p-1 text-fg shadow-overlay',
                         className,

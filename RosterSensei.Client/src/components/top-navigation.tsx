@@ -104,11 +104,11 @@ export default function TopNavigation({ teams, selectedTeam, onSelectTeam, onInv
                 <div className="min-w-0 flex-1 lg:max-w-xs">
                     {teams.length > 0 && selectedTeam && (
                         <Field label="Team" hideLabel>
-                            <Select value={selectedTeam.id} onChange={e => onSelectTeam(Number(e.target.value))}>
-                                {teams.map(team => (
-                                    <option key={team.id} value={team.id}>{team.name} ({roleLabel(team)})</option>
-                                ))}
-                            </Select>
+                            <Select
+                                value={selectedTeam.id}
+                                onChange={onSelectTeam}
+                                options={teams.map(team => ({ value: team.id, label: team.name, hint: roleLabel(team) }))}
+                            />
                         </Field>
                     )}
                 </div>
