@@ -80,6 +80,8 @@ builder.Services.AddScoped<IMatchRepository, MatchRepository>();
 builder.Services.AddScoped<IMatchService, MatchService>();
 builder.Services.AddScoped<ITeamEventRepository, TeamEventRepository>();
 builder.Services.AddScoped<ITeamEventService, TeamEventService>();
+builder.Services.AddScoped<IUserRepository, UserRepository>();
+builder.Services.AddScoped<IAccountService, AccountService>();
 
 var app = builder.Build();
 app.UseExceptionHandler();

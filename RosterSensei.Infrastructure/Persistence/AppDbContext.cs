@@ -40,6 +40,18 @@ public class AppDbContext : IdentityDbContext<AppUser>
     {
         base.OnModelCreating(builder);
 
+        // A Steam account can be linked to one user at most, even when two users link it at the same time.
+        builder.Entity<AppUser>(user =>
+        {
+            user.Property(u => u.SteamId)
+                .HasMaxLength(17)
+                .IsUnicode(false);
+
+            user.HasIndex(u => u.SteamId)
+                .IsUnique()
+                .HasFilter("[SteamId] IS NOT NULL");
+        });
+
         builder.Entity<TeamMember>()
             .HasKey(tm => new { tm.UserId, tm.TeamId });
 
