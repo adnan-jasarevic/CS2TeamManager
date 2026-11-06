@@ -38,7 +38,7 @@ public sealed class TestDatabase : IDisposable
     public MatchService MatchService()
     {
         var context = CreateContext();
-        return new MatchService(new MatchRepository(context), new TeamRepository(context));
+        return new MatchService(new MatchRepository(context), new TeamRepository(context), new FakeIdentityService(context));
     }
 
     public TeamEventService EventService()

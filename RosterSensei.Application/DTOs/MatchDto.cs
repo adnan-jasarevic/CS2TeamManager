@@ -14,4 +14,6 @@ public class MatchDto
     public List<MatchMapDto> Maps { get; set; } = new List<MatchMapDto>();
     public string MatchOutcome { get; set; } = string.Empty; // "Win", "Loss" or "Draw"
     public string? Notes { get; set; }
+    // Who was in the lineup. Empty when it wasn't recorded.
+    public List<MatchLineupEntryDto> Lineup { get; set; } = new List<MatchLineupEntryDto>();
 }

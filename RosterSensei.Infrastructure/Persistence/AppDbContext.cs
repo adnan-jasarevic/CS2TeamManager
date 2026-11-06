@@ -90,10 +90,20 @@ public class AppDbContext : IdentityDbContext<AppUser>
             .HasForeignKey(tm => tm.TeamId);
 
         // Participations and stats point at the Identity user, the only user model.
-        builder.Entity<MatchParticipation>()
-            .HasOne<AppUser>()
-            .WithMany(u => u.MatchParticipations)
-            .HasForeignKey(p => p.UserId);
+        builder.Entity<MatchParticipation>(participation =>
+        {
+            participation.HasOne<AppUser>()
+                .WithMany(u => u.MatchParticipations)
+                .HasForeignKey(p => p.UserId);
+
+            participation.Property(p => p.Role)
+                .HasMaxLength(30);
+
+            // A player is in a match's lineup at most once. Also the range that a lineup
+            // replacement locks, so two replacements of the same lineup run one after the other.
+            participation.HasIndex(p => new { p.MatchId, p.UserId })
+                .IsUnique();
+        });
 
         builder.Entity<MatchStat>()
             .HasOne<AppUser>()
