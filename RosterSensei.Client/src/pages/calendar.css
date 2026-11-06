@@ -121,11 +121,6 @@
     filter: brightness(1.12);
 }
 
-.team-calendar .rbc-kind-pracc { background: var(--rs-event-pracc); color: var(--rs-event-pracc-fg); }
-.team-calendar .rbc-kind-official { background: var(--rs-event-official); color: var(--rs-event-official-fg); }
-.team-calendar .rbc-kind-vod { background: var(--rs-event-vod); color: var(--rs-event-vod-fg); }
-.team-calendar .rbc-kind-match { background: var(--rs-event-match); color: var(--rs-event-match-fg); }
-.team-calendar .rbc-kind-other { background: var(--rs-event-other); color: var(--rs-event-other-fg); }
 
 .team-calendar .rs-event-label {
     display: flex;
@@ -268,4 +263,34 @@
     .team-calendar .rbc-agenda-view .rs-event-label {
         min-height: 32px;
     }
+}
+
+/* Off days: grayed out and hatched, so they read as "not playing" without relying on colour alone. */
+.team-calendar .rbc-day-bg.is-off-day,
+.team-calendar .rbc-day-slot.is-off-day,
+.rs-off-day-swatch {
+    background-color: var(--rs-sunken);
+    background-image: repeating-linear-gradient(135deg, transparent 0 6px, var(--rs-line) 6px 7px);
+}
+
+.team-calendar .rs-off-day-tag {
+    border-radius: 3px;
+    padding: 0 4px;
+    background: var(--rs-neutral-soft);
+    color: var(--rs-fg-muted);
+    font-size: 0.625rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+
+.team-calendar button.rs-off-day-tag:hover {
+    color: var(--rs-fg);
+}
+
+/* Events on an off day stay visible but read as cancelled. */
+.team-calendar .rbc-event.is-cancelled {
+    opacity: 0.55;
+    filter: grayscale(0.7);
+    text-decoration: line-through;
 }

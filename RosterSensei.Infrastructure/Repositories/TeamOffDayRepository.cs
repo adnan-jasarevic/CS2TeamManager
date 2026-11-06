@@ -25,6 +25,10 @@ public class TeamOffDayRepository : ITeamOffDayRepository
 
     public async Task<bool> AddAsync(TeamOffDay offDay)
     {
+        // Cheap check for the usual case; the unique index below still catches two requests at once.
+        if (await _context.TeamOffDays.AnyAsync(d => d.TeamId == offDay.TeamId && d.Date == offDay.Date))
+            return false;
+
         _context.TeamOffDays.Add(offDay);
         try
         {
