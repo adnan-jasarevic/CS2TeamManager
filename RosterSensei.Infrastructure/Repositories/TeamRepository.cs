@@ -179,7 +179,10 @@ public class TeamRepository : ITeamRepository
         // Their maps, participations and stats cascade with them.
         await _context.Matches.Where(m => m.TeamId == teamId).ExecuteDeleteAsync();
 
-        // Events, members and invites cascade from the team.
+        // Events go before the team so they're gone before their event types cascade away.
+        await _context.TeamEvents.Where(e => e.TeamId == teamId).ExecuteDeleteAsync();
+
+        // Event types, off days, members and invites cascade from the team.
         var deleted = await _context.Teams
             .Where(t => t.Id == teamId && t.OwnerId == ownerId)
             .ExecuteDeleteAsync();

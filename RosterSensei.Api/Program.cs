@@ -80,6 +80,10 @@ builder.Services.AddScoped<IMatchRepository, MatchRepository>();
 builder.Services.AddScoped<IMatchService, MatchService>();
 builder.Services.AddScoped<ITeamEventRepository, TeamEventRepository>();
 builder.Services.AddScoped<ITeamEventService, TeamEventService>();
+builder.Services.AddScoped<ITeamEventTypeRepository, TeamEventTypeRepository>();
+builder.Services.AddScoped<ITeamEventTypeService, TeamEventTypeService>();
+builder.Services.AddScoped<ITeamOffDayRepository, TeamOffDayRepository>();
+builder.Services.AddScoped<ITeamOffDayService, TeamOffDayService>();
 builder.Services.AddScoped<IUserRepository, UserRepository>();
 builder.Services.AddScoped<IAccountService, AccountService>();
 

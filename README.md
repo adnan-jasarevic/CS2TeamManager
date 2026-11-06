@@ -14,6 +14,10 @@ A web app for amateur Counter-Strike 2 teams to manage their roster, schedule ma
 - **Invites:** invite registered users by email. They accept or decline from the notification bell.
 - **Dashboard:** win rate, member count, recent results and upcoming matches for the selected team.
 - **Matches:** schedule or record matches with opponent, tournament, format (Bo1/Bo2/Bo3/Bo5), maps in play order, score and notes. Filter by upcoming or results.
+- **Calendar:** plan praccs, official matches, VOD reviews and more in month, week, day and agenda views.
+  - **Event types:** each team picks its own. New teams start with Pracc, Official Match, VOD Review, Theory and Other; Scrim, Recorded Match, Break, Warmup and Meet can be added, as can custom types. Types can be renamed, recoloured and removed. Removing a type keeps its events and moves them to Other, which every team always has and which can't be changed.
+  - **Recorded matches:** with the Recorded Match type on, matches from the Matches page show on the calendar, and one that starts during a Scrim or Official Match event takes that event's place.
+  - **Off days:** a day marked off is grayed out and no events can be added to it. Events already on it show as cancelled and come back if the day is unmarked.
 - **Steam (API only, no screen yet):** link your Steam account by SteamID64, profile URL, or STEAM_0/[U:1] ID (`PUT /api/Account/steam`). The roster returns each member's SteamID64 and profile link. One Steam account can be linked to one user.
 
 ## Tech stack

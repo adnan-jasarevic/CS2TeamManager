@@ -114,22 +114,47 @@ export interface CreateMatchRequest {
     notes?: string;
 }
 
-// Numeric values match the TeamEventType enum in RosterSensei.Domain.
-export const TeamEventType = {
-    Pracc: 0,
-    OfficialMatch: 1,
-    VodReview: 2,
-    Other: 3,
-} as const;
+/** The premade types, by the name the API uses. Matches EventTypePreset in RosterSensei.Domain. */
+export type EventTypePreset =
+    | 'Pracc' | 'OfficialMatch' | 'Scrim' | 'VodReview' | 'RecordedMatch'
+    | 'Theory' | 'Break' | 'Warmup' | 'Meet' | 'Other';
 
-export type TeamEventTypeValue = typeof TeamEventType[keyof typeof TeamEventType];
+/** One of the team's own event types. */
+export interface TeamEventType {
+    id: number;
+    name: string;
+    /** "#RRGGBB" */
+    color: string;
+    /** The premade type it was made from (kept when renamed), or null for a custom type. */
+    preset: EventTypePreset | null;
+    /** True for "Other", which can't be changed or removed. */
+    isLocked: boolean;
+}
 
-export const EVENT_TYPE_LABELS: Record<keyof typeof TeamEventType, string> = {
-    Pracc: 'Pracc',
-    OfficialMatch: 'Official Match',
-    VodReview: 'VOD Review',
-    Other: 'Other',
-};
+export interface EventTypePresetOption {
+    preset: EventTypePreset;
+    name: string;
+    color: string;
+}
+
+export interface TeamEventTypes {
+    types: TeamEventType[];
+    /** Premade types the team doesn't have right now. */
+    availablePresets: EventTypePresetOption[];
+}
+
+export interface SaveEventTypeRequest {
+    name: string;
+    color: string;
+}
+
+/** A day with no play. Events on it show as cancelled; no new ones can be added. */
+export interface TeamOffDay {
+    /** "yyyy-MM-dd" */
+    date: string;
+    startTime: string;
+    endTime: string;
+}
 
 export interface TeamEvent {
     id: number;
@@ -138,7 +163,7 @@ export interface TeamEvent {
     description?: string | null;
     startTime: string;
     endTime: string;
-    eventType: keyof typeof TeamEventType;
+    eventTypeId: number;
     /** Goes up on every edit; sent back when saving so a newer edit isn't overwritten. */
     version: number;
 }
@@ -148,7 +173,7 @@ export interface SaveTeamEventRequest {
     description?: string;
     startTime: string;
     endTime: string;
-    eventType: TeamEventTypeValue;
+    eventTypeId: number;
     /** Required when editing: the version of the event the edit started from. */
     version?: number;
 }

@@ -1,10 +1,11 @@
 import { useState } from 'react';
 import axios from 'axios';
 import { format } from 'date-fns';
-import { Trash2 } from 'lucide-react';
+import { CalendarOff, Trash2 } from 'lucide-react';
 import api from '../services/api';
 import { getApiErrorMessage } from '../services/errors';
-import { EVENT_TYPE_LABELS, TeamEventType, type SaveTeamEventRequest, type TeamEvent, type TeamEventTypeValue } from '../types';
+import { otherTypeOf, pickableTypes } from '../lib/event-types';
+import type { SaveTeamEventRequest, TeamEvent, TeamEventType } from '../types';
 import { Alert, Button, ConfirmDialog, Field, Input, Modal, SegmentedControl, Textarea } from './ui';
 
 interface EventModalProps {
@@ -14,22 +15,30 @@ interface EventModalProps {
     // Prefilled times when creating from a calendar selection.
     initialStart?: Date;
     initialEnd?: Date;
+    // The team's event types, "Other" last.
+    types: TeamEventType[];
+    // True when the event sits on an off day, which makes it cancelled.
+    onOffDay?: boolean;
     canManage: boolean;
     onClose: () => void;
     onSaved: () => void;
+    // Offered instead of a new event: marks the day of the selected start as an off day.
+    onMarkOffDay?: (day: Date) => void;
 }
 
 // datetime-local wants "yyyy-MM-ddTHH:mm" in the user's local time.
 const toInputValue = (date: Date) => format(date, "yyyy-MM-dd'T'HH:mm");
 
-const TYPE_OPTIONS = (Object.entries(TeamEventType) as [keyof typeof TeamEventType, TeamEventTypeValue][])
-    .map(([key, value]) => ({ value, label: EVENT_TYPE_LABELS[key] }));
+// The type a new event starts with: Pracc when the team has it, otherwise the first type on the list.
+const defaultTypeId = (types: TeamEventType[]) =>
+    (types.find(t => t.preset === 'Pracc') ?? pickableTypes(types)[0] ?? otherTypeOf(types))?.id ?? 0;
 
-export default function EventModal({ teamId, event, initialStart, initialEnd, canManage, onClose, onSaved }: EventModalProps) {
+export default function EventModal({ teamId, event, initialStart, initialEnd, types, onOffDay = false, canManage, onClose, onSaved, onMarkOffDay }: EventModalProps) {
     const [title, setTitle] = useState(event?.title ?? '');
     const [description, setDescription] = useState(event?.description ?? '');
-    const [eventType, setEventType] = useState<TeamEventTypeValue>(
-        event ? TeamEventType[event.eventType as keyof typeof TeamEventType] : TeamEventType.Pracc,
+    // An event whose type was removed a moment ago is under Other by now.
+    const [eventTypeId, setEventTypeId] = useState(() =>
+        event && types.some(t => t.id === event.eventTypeId) ? event.eventTypeId : event ? otherTypeOf(types)?.id ?? 0 : defaultTypeId(types),
     );
     const [start, setStart] = useState(() => toInputValue(event ? new Date(event.startTime) : initialStart ?? new Date()));
     const [end, setEnd] = useState(() => {
@@ -67,7 +76,7 @@ export default function EventModal({ teamId, event, initialStart, initialEnd, ca
             // new Date() reads the datetime-local value as local time; toISOString() sends UTC.
             startTime: new Date(start).toISOString(),
             endTime: new Date(end).toISOString(),
-            eventType,
+            eventTypeId,
         };
 
         setIsSubmitting(true);
@@ -103,6 +112,18 @@ export default function EventModal({ teamId, event, initialStart, initialEnd, ca
 
     const heading = readOnly ? 'Event' : event ? 'Edit event' : 'New event';
 
+    const typeOptions = types
+        .filter(t => t.preset !== 'RecordedMatch' || t.id === eventTypeId)
+        .map(t => ({
+            value: t.id,
+            label: (
+                <span className="flex items-center gap-1.5">
+                    <span className="size-2.5 shrink-0 rounded-full ring-1 ring-line-strong" style={{ backgroundColor: t.color }} aria-hidden="true" />
+                    {t.name}
+                </span>
+            ),
+        }));
+
     return (
         <Modal
             open
@@ -114,6 +135,17 @@ export default function EventModal({ teamId, event, initialStart, initialEnd, ca
                 <Button variant="secondary" onClick={onClose}>Close</Button>
             ) : (
                 <>
+                    {!event && onMarkOffDay && (
+                        <Button
+                            variant="ghost"
+                            className="mr-auto"
+                            onClick={() => onMarkOffDay(new Date(start || Date.now()))}
+                            disabled={isSubmitting}
+                            leftIcon={<CalendarOff className="size-4" aria-hidden="true" />}
+                        >
+                            Make it an off day
+                        </Button>
+                    )}
                     {event && (
                         <Button
                             variant="ghost"
@@ -132,6 +164,11 @@ export default function EventModal({ teamId, event, initialStart, initialEnd, ca
         >
             <form id="event-form" onSubmit={handleSubmit} noValidate className="flex flex-col gap-5">
                 {error && <Alert tone="danger">{error}</Alert>}
+                {onOffDay && (
+                    <Alert tone="warning">
+                        This day is an off day, so the event is cancelled. It comes back if the day stops being an off day.
+                    </Alert>
+                )}
 
                 <Field label="Title" required={!readOnly} error={titleError}>
                     <Input
@@ -145,7 +182,7 @@ export default function EventModal({ teamId, event, initialStart, initialEnd, ca
                     />
                 </Field>
 
-                <SegmentedControl label="Type" value={eventType} options={TYPE_OPTIONS} onChange={setEventType} disabled={readOnly} />
+                <SegmentedControl label="Type" value={eventTypeId} options={typeOptions} onChange={setEventTypeId} disabled={readOnly} />
 
                 <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                     <Field label="Starts" required={!readOnly} error={startError}>
