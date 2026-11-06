@@ -47,6 +47,8 @@ public sealed class TestDatabase : IDisposable
         return new TeamEventService(new TeamEventRepository(context), new TeamRepository(context));
     }
 
+    public AccountService AccountService() => new(new UserRepository(CreateContext()));
+
     public string AddUser(string name)
     {
         using var context = CreateContext();

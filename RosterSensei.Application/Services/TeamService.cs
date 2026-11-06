@@ -247,7 +247,9 @@ public class TeamService : ITeamService
             Username = data.Username ?? "Unknown",
             Role = data.Member.Role.ToString(),
             IsOwner = data.Member.UserId == team?.OwnerId,
-            JoinedAt = data.Member.JoinedAt
+            JoinedAt = data.Member.JoinedAt,
+            SteamId = data.SteamId,
+            SteamProfileUrl = data.SteamId == null ? null : SteamId.ProfileUrl(data.SteamId)
         }).ToList();
 
         return Result<List<TeamMemberDto>>.SuccessResult(dtoList);
