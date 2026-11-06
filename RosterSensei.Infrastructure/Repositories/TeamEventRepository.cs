@@ -27,11 +27,34 @@ public class TeamEventRepository : ITeamEventRepository
         return await _context.TeamEvents.FirstOrDefaultAsync(e => e.Id == eventId && e.TeamId == teamId);
     }
 
-    public async Task<TeamEvent> AddAsync(TeamEvent teamEvent)
+    public async Task<TeamEvent?> AddAsync(TeamEvent teamEvent)
     {
         _context.TeamEvents.Add(teamEvent);
-        await _context.SaveChangesAsync();
-        return teamEvent;
+        try
+        {
+            await _context.SaveChangesAsync();
+            return teamEvent;
+        }
+        catch (DbUpdateException ex) when (ex is not DbUpdateConcurrencyException)
+        {
+            // The foreign key to the event type failed: the type was removed after the service checked it.
+            _context.ChangeTracker.Clear();
+            return null;
+        }
+    }
+
+    public async Task<bool> EventTypeExistsAsync(int teamId, int typeId)
+    {
+        return await _context.TeamEventTypes.AnyAsync(t => t.Id == typeId && t.TeamId == teamId);
+    }
+
+    public async Task<TeamOffDay?> GetOverlappingOffDayAsync(int teamId, DateTime start, DateTime end)
+    {
+        return await _context.TeamOffDays
+            .AsNoTracking()
+            .Where(d => d.TeamId == teamId && d.StartTime < end && d.EndTime > start)
+            .OrderBy(d => d.StartTime)
+            .FirstOrDefaultAsync();
     }
 
     public async Task<bool> UpdateAsync(TeamEvent teamEvent, int expectedVersion)
@@ -45,9 +68,10 @@ public class TeamEventRepository : ITeamEventRepository
             await _context.SaveChangesAsync();
             return true;
         }
-        catch (DbUpdateConcurrencyException)
+        catch (DbUpdateException)
         {
-            // The UPDATE matched no row: someone changed or deleted the event meanwhile.
+            // The UPDATE matched no row (someone changed or deleted the event meanwhile), or the new
+            // event type was removed after the service checked it.
             _context.Entry(teamEvent).State = EntityState.Detached;
             return false;
         }

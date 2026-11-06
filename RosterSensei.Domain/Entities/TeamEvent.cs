@@ -14,7 +14,9 @@ public class TeamEvent
     public DateTime StartTime { get; set; }
     public DateTime EndTime { get; set; }
 
-    public TeamEventType EventType { get; set; }
+    // One of the team's own event types. Removing a type moves its events to the team's "Other" type.
+    public int EventTypeId { get; set; }
+    public TeamEventType EventType { get; set; } = null!;
 
     public string CreatedByUserId { get; set; } = string.Empty;
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
@@ -22,12 +24,4 @@ public class TeamEvent
     // Goes up by one on every edit. An edit sends the version it started from, so a save over
     // someone else's newer changes is refused instead of silently overwriting them.
     public int Version { get; set; }
-}
-
-public enum TeamEventType
-{
-    Pracc,
-    OfficialMatch,
-    VodReview,
-    Other
 }

@@ -16,6 +16,8 @@ public class AppDbContext : IdentityDbContext<AppUser>
     public DbSet<TeamMember> TeamMembers { get; set; }
     public DbSet<TeamInvite> TeamInvites { get; set; }
     public DbSet<TeamEvent> TeamEvents { get; set; }
+    public DbSet<TeamEventType> TeamEventTypes { get; set; }
+    public DbSet<TeamOffDay> TeamOffDays { get; set; }
 
 
     protected override void ConfigureConventions(ModelConfigurationBuilder configurationBuilder)
@@ -114,9 +116,55 @@ public class AppDbContext : IdentityDbContext<AppUser>
 
             e.HasIndex(te => new { te.TeamId, te.StartTime });
 
+            // A type can't be deleted while events still use it; the service moves them to "Other" first.
+            e.HasOne(te => te.EventType)
+                .WithMany()
+                .HasForeignKey(te => te.EventTypeId)
+                .OnDelete(DeleteBehavior.Restrict);
+
             // EF adds "AND Version = @original" to every UPDATE, so a concurrent edit makes the save fail.
             e.Property(te => te.Version)
                 .IsConcurrencyToken();
+        });
+
+        builder.Entity<TeamEventType>(type =>
+        {
+            type.HasOne(t => t.Team)
+                .WithMany(t => t.EventTypes)
+                .HasForeignKey(t => t.TeamId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            type.Property(t => t.Name)
+                .IsRequired()
+                .HasMaxLength(50);
+
+            type.Property(t => t.Color)
+                .IsRequired()
+                .HasMaxLength(7);
+
+            // Each premade type at most once per team, so a team has exactly one "Other" even when two
+            // requests add a premade type at the same time.
+            type.HasIndex(t => new { t.TeamId, t.Preset }, "IX_TeamEventTypes_OnePresetPerTeam")
+                .IsUnique()
+                .HasFilter("[Preset] IS NOT NULL");
+
+            type.HasIndex(t => new { t.TeamId, t.Name })
+                .IsUnique();
+        });
+
+        builder.Entity<TeamOffDay>(day =>
+        {
+            day.HasOne(d => d.Team)
+                .WithMany()
+                .HasForeignKey(d => d.TeamId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            day.Property(d => d.CreatedByUserId)
+                .IsRequired()
+                .HasMaxLength(450);
+
+            day.HasIndex(d => new { d.TeamId, d.Date })
+                .IsUnique();
         });
 
         builder.Entity<MatchMap>(map =>

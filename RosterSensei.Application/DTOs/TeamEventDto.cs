@@ -1,5 +1,3 @@
-using RosterSensei.Domain.Entities;
-
 namespace RosterSensei.Application.DTOs;
 
 public class TeamEventDto
@@ -10,7 +8,7 @@ public class TeamEventDto
     public string? Description { get; set; }
     public DateTime StartTime { get; set; }
     public DateTime EndTime { get; set; }
-    public string EventType { get; set; } = string.Empty; // "Pracc", "OfficialMatch", "VodReview", "Other"
+    public int EventTypeId { get; set; }
     public int Version { get; set; }
 }
 
@@ -21,7 +19,8 @@ public class SaveTeamEventDto
     public string? Description { get; set; }
     public DateTime StartTime { get; set; }
     public DateTime EndTime { get; set; }
-    public TeamEventType EventType { get; set; }
+    // One of the team's event types.
+    public int EventTypeId { get; set; }
 
     // Required when editing: the Version of the event the user started from. Ignored when creating.
     public int? Version { get; set; }

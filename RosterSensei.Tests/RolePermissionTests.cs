@@ -165,12 +165,12 @@ public class RolePermissionTests : IDisposable
         return dto;
     }
 
-    private static SaveTeamEventDto NewEvent(string title) => new()
+    private SaveTeamEventDto NewEvent(string title) => new()
     {
         Title = title,
         StartTime = DateTime.UtcNow.AddDays(1),
         EndTime = DateTime.UtcNow.AddDays(1).AddHours(2),
-        EventType = TeamEventType.Pracc
+        EventTypeId = _db.TypeId(_teamId, EventTypePreset.Pracc)
     };
 
     private static void AssertAllowed<T>(Result<T> result, bool allowed)

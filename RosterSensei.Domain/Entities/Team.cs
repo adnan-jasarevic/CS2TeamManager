@@ -13,7 +13,10 @@
         public ICollection<TeamMember> Members { get; set; } = new List<TeamMember>();
 
         public ICollection<Match> Matches { get; set; } = new List<Match>();
-        public ICollection<TeamInvite> Invites { get; set; } = new List<TeamInvite>(); 
+        public ICollection<TeamInvite> Invites { get; set; } = new List<TeamInvite>();
+
+        // The event types the team's calendar uses. Always includes "Other".
+        public ICollection<TeamEventType> EventTypes { get; set; } = new List<TeamEventType>();
 
     }
 }

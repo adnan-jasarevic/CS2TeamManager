@@ -3,6 +3,7 @@ using RosterSensei.Application.DTOs;
 using RosterSensei.Application.Interfaces;
 using RosterSensei.Domain.Entities;
 using RosterSensei.Domain.Enums;
+using System.Globalization;
 
 namespace RosterSensei.Application.Services;
 
@@ -13,6 +14,9 @@ public class TeamEventService : ITeamEventService
 
     private const string EditConflictMessage =
         "Someone else changed this event while you were editing it. Open it again to see their changes.";
+
+    private const string TypeRemovedMessage =
+        "That event type was just removed. Pick another type and save again.";
 
     private readonly ITeamEventRepository _eventRepository;
     private readonly ITeamRepository _teamRepository;
@@ -42,6 +46,10 @@ public class TeamEventService : ITeamEventService
         if (!await CanManageAsync(teamId, userId))
             return Result<TeamEventDto>.Forbidden("Only the team Owner, Captain or Officers can add events.");
 
+        var problem = await CheckTypeAndDayAsync(teamId, dto, timesChanged: true);
+        if (problem != null)
+            return Result<TeamEventDto>.Failure(problem);
+
         var teamEvent = new TeamEvent
         {
             TeamId = teamId,
@@ -50,6 +58,9 @@ public class TeamEventService : ITeamEventService
         Apply(teamEvent, dto);
 
         var saved = await _eventRepository.AddAsync(teamEvent);
+        if (saved == null)
+            return Result<TeamEventDto>.Conflict(TypeRemovedMessage);
+
         return Result<TeamEventDto>.SuccessResult(ToDto(saved));
     }
 
@@ -68,13 +79,21 @@ public class TeamEventService : ITeamEventService
         if (teamEvent.Version != dto.Version)
             return Result<TeamEventDto>.Conflict(EditConflictMessage);
 
+        // An event already on an off day can still be renamed or deleted, but nothing can be moved onto one.
+        var timesChanged = teamEvent.StartTime != dto.StartTime || teamEvent.EndTime != dto.EndTime;
+        var problem = await CheckTypeAndDayAsync(teamId, dto, timesChanged);
+        if (problem != null)
+            return Result<TeamEventDto>.Failure(problem);
+
         Apply(teamEvent, dto);
         if (!await _eventRepository.UpdateAsync(teamEvent, dto.Version.Value))
         {
-            // Lost the race between loading and saving: tell a deleted event apart from a newer edit.
-            return await _eventRepository.GetByIdAsync(teamId, eventId) == null
-                ? Result<TeamEventDto>.NotFound("Event was not found. It may have just been deleted.")
-                : Result<TeamEventDto>.Conflict(EditConflictMessage);
+            // Lost the race between loading and saving: tell a deleted event, a removed type and a newer edit apart.
+            if (await _eventRepository.GetByIdAsync(teamId, eventId) == null)
+                return Result<TeamEventDto>.NotFound("Event was not found. It may have just been deleted.");
+            if (!await _eventRepository.EventTypeExistsAsync(teamId, dto.EventTypeId))
+                return Result<TeamEventDto>.Conflict(TypeRemovedMessage);
+            return Result<TeamEventDto>.Conflict(EditConflictMessage);
         }
 
         return Result<TeamEventDto>.SuccessResult(ToDto(teamEvent));
@@ -92,6 +111,23 @@ public class TeamEventService : ITeamEventService
         return Result<string>.SuccessResult("Event deleted.");
     }
 
+    // Returns why the event can't be saved, or null when it can. An off day marked between this check
+    // and the save is fine: the event then simply shows as cancelled, like any event already on that day.
+    private async Task<string?> CheckTypeAndDayAsync(int teamId, SaveTeamEventDto dto, bool timesChanged)
+    {
+        if (!await _eventRepository.EventTypeExistsAsync(teamId, dto.EventTypeId))
+            return "That event type doesn't exist in this team. Pick another one.";
+
+        if (timesChanged)
+        {
+            var offDay = await _eventRepository.GetOverlappingOffDayAsync(teamId, dto.StartTime, dto.EndTime);
+            if (offDay != null)
+                return string.Create(CultureInfo.InvariantCulture, $"{offDay.Date:dddd d MMMM} is an off day, so no events can be planned on it.");
+        }
+
+        return null;
+    }
+
     private async Task<bool> CanManageAsync(int teamId, string userId)
     {
         var member = await _teamRepository.GetTeamMemberAsync(teamId, userId);
@@ -104,7 +140,7 @@ public class TeamEventService : ITeamEventService
         teamEvent.Description = string.IsNullOrWhiteSpace(dto.Description) ? null : dto.Description.Trim();
         teamEvent.StartTime = dto.StartTime;
         teamEvent.EndTime = dto.EndTime;
-        teamEvent.EventType = dto.EventType;
+        teamEvent.EventTypeId = dto.EventTypeId;
     }
 
     private static TeamEventDto ToDto(TeamEvent e) => new()
@@ -115,7 +151,7 @@ public class TeamEventService : ITeamEventService
         Description = e.Description,
         StartTime = e.StartTime,
         EndTime = e.EndTime,
-        EventType = e.EventType.ToString(),
+        EventTypeId = e.EventTypeId,
         Version = e.Version
     };
 }

@@ -362,7 +362,7 @@ namespace RosterSensei.Infrastructure.Migrations
                     b.Property<DateTime>("EndTime")
                         .HasColumnType("datetime2");
 
-                    b.Property<int>("EventType")
+                    b.Property<int>("EventTypeId")
                         .HasColumnType("int");
 
                     b.Property<DateTime>("StartTime")
@@ -382,9 +382,50 @@ namespace RosterSensei.Infrastructure.Migrations
 
                     b.HasKey("Id");
 
+                    b.HasIndex("EventTypeId");
+
                     b.HasIndex("TeamId", "StartTime");
 
                     b.ToTable("TeamEvents");
+                });
+
+            modelBuilder.Entity("RosterSensei.Domain.Entities.TeamEventType", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("Color")
+                        .IsRequired()
+                        .HasMaxLength(7)
+                        .HasColumnType("nvarchar(7)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<int?>("Preset")
+                        .HasColumnType("int");
+
+                    b.Property<int>("TeamId")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("TeamId", "Name")
+                        .IsUnique();
+
+                    b.HasIndex(new[] { "TeamId", "Preset" }, "IX_TeamEventTypes_OnePresetPerTeam")
+                        .IsUnique()
+                        .HasFilter("[Preset] IS NOT NULL");
+
+                    b.ToTable("TeamEventTypes");
                 });
 
             modelBuilder.Entity("RosterSensei.Domain.Entities.TeamInvite", b =>
@@ -453,6 +494,42 @@ namespace RosterSensei.Infrastructure.Migrations
                         .HasFilter("[Role] = 1");
 
                     b.ToTable("TeamMembers");
+                });
+
+            modelBuilder.Entity("RosterSensei.Domain.Entities.TeamOffDay", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("CreatedByUserId")
+                        .IsRequired()
+                        .HasMaxLength(450)
+                        .HasColumnType("nvarchar(450)");
+
+                    b.Property<DateOnly>("Date")
+                        .HasColumnType("date");
+
+                    b.Property<DateTime>("EndTime")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime>("StartTime")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int>("TeamId")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("TeamId", "Date")
+                        .IsUnique();
+
+                    b.ToTable("TeamOffDays");
                 });
 
             modelBuilder.Entity("RosterSensei.Infrastructure.Identity.AppUser", b =>
@@ -635,8 +712,27 @@ namespace RosterSensei.Infrastructure.Migrations
 
             modelBuilder.Entity("RosterSensei.Domain.Entities.TeamEvent", b =>
                 {
+                    b.HasOne("RosterSensei.Domain.Entities.TeamEventType", "EventType")
+                        .WithMany()
+                        .HasForeignKey("EventTypeId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
                     b.HasOne("RosterSensei.Domain.Entities.Team", "Team")
                         .WithMany()
+                        .HasForeignKey("TeamId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("EventType");
+
+                    b.Navigation("Team");
+                });
+
+            modelBuilder.Entity("RosterSensei.Domain.Entities.TeamEventType", b =>
+                {
+                    b.HasOne("RosterSensei.Domain.Entities.Team", "Team")
+                        .WithMany("EventTypes")
                         .HasForeignKey("TeamId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
@@ -672,6 +768,17 @@ namespace RosterSensei.Infrastructure.Migrations
                     b.Navigation("Team");
                 });
 
+            modelBuilder.Entity("RosterSensei.Domain.Entities.TeamOffDay", b =>
+                {
+                    b.HasOne("RosterSensei.Domain.Entities.Team", "Team")
+                        .WithMany()
+                        .HasForeignKey("TeamId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Team");
+                });
+
             modelBuilder.Entity("RosterSensei.Domain.Entities.Match", b =>
                 {
                     b.Navigation("Maps");
@@ -683,6 +790,8 @@ namespace RosterSensei.Infrastructure.Migrations
 
             modelBuilder.Entity("RosterSensei.Domain.Entities.Team", b =>
                 {
+                    b.Navigation("EventTypes");
+
                     b.Navigation("Invites");
 
                     b.Navigation("Matches");

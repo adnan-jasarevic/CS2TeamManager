@@ -26,7 +26,7 @@ public class SaveTeamEventDtoValidator : AbstractValidator<SaveTeamEventDto>
             .OverridePropertyName("EndTime")
             .WithMessage("An event cannot last longer than 14 days.");
 
-        RuleFor(e => e.EventType)
-            .IsInEnum().WithMessage("Invalid event type.");
+        RuleFor(e => e.EventTypeId)
+            .GreaterThan(0).WithMessage("Pick an event type.");
     }
 }

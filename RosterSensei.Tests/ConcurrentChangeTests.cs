@@ -194,12 +194,12 @@ public class ConcurrentChangeTests : IDisposable
         Assert.Equal(ErrorType.Validation, result.ErrorType);
     }
 
-    private static SaveTeamEventDto NewEvent(string title, int? version = null) => new()
+    private SaveTeamEventDto NewEvent(string title, int? version = null) => new()
     {
         Title = title,
         StartTime = DateTime.UtcNow.AddDays(1),
         EndTime = DateTime.UtcNow.AddDays(1).AddHours(2),
-        EventType = TeamEventType.Pracc,
+        EventTypeId = _db.TypeId(_teamId, EventTypePreset.Pracc),
         Version = version
     };
 }

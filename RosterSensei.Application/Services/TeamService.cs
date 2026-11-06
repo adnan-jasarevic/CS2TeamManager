@@ -26,7 +26,8 @@ public class TeamService : ITeamService
         {
             Name = dto.Name,
             CreatedAt = DateTime.UtcNow,
-            OwnerId = userId
+            OwnerId = userId,
+            EventTypes = EventTypeCatalog.CreateDefaults()
         };
 
         // The creator owns the team and is its Captain.

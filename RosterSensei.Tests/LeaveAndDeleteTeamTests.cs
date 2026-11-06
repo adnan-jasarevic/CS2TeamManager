@@ -170,6 +170,7 @@ public class LeaveAndDeleteTeamTests : IDisposable
             Title = "Practice",
             StartTime = DateTime.UtcNow,
             EndTime = DateTime.UtcNow.AddHours(2),
+            EventTypeId = _db.TypeId(teamId, EventTypePreset.Pracc),
             CreatedByUserId = _owner
         });
         context.SaveChanges();

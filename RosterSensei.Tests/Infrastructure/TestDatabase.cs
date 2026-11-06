@@ -47,6 +47,25 @@ public sealed class TestDatabase : IDisposable
         return new TeamEventService(new TeamEventRepository(context), new TeamRepository(context));
     }
 
+    public TeamEventTypeService EventTypeService()
+    {
+        var context = CreateContext();
+        return new TeamEventTypeService(new TeamEventTypeRepository(context), new TeamRepository(context));
+    }
+
+    public TeamOffDayService OffDayService()
+    {
+        var context = CreateContext();
+        return new TeamOffDayService(new TeamOffDayRepository(context), new TeamRepository(context));
+    }
+
+    // The ID of the team's type made from the given premade type.
+    public int TypeId(int teamId, EventTypePreset preset)
+    {
+        using var context = CreateContext();
+        return context.TeamEventTypes.Where(t => t.TeamId == teamId && t.Preset == preset).Select(t => t.Id).Single();
+    }
+
     public string AddUser(string name)
     {
         using var context = CreateContext();
@@ -73,7 +92,7 @@ public sealed class TestDatabase : IDisposable
     public int AddTeam(string ownerId, TeamRole ownerRole, params (string UserId, TeamRole Role)[] members)
     {
         using var context = CreateContext();
-        var team = new Team { Name = $"Team of {ownerId}", OwnerId = ownerId };
+        var team = new Team { Name = $"Team of {ownerId}", OwnerId = ownerId, EventTypes = EventTypeCatalog.CreateDefaults() };
         team.Members.Add(new TeamMember { UserId = ownerId, Role = ownerRole });
         foreach (var (userId, role) in members)
             team.Members.Add(new TeamMember { UserId = userId, Role = role });
