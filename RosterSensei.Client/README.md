@@ -7,7 +7,10 @@ npm install
 npm run dev     # http://localhost:5173
 npm run build
 npm run lint
+npm run test:e2e  # browser tests; run `npx playwright install chromium` once first
 ```
+
+The browser tests in `e2e/` build the app and answer every `/api` request from an in-memory mock (`e2e/support/mock-api.ts`), so no backend is needed. A test can hold, fail or replace any endpoint, and check the exact request the app sent.
 
 The app calls `https://localhost:7185/api` by default. To point it elsewhere, copy `.env.example` to `.env.local` and set `VITE_API_BASE_URL`.
 
