@@ -99,7 +99,17 @@ dotnet test RosterSensei.Tests
 
 They cover team membership, invites, roles and permissions, ownership transfer, and leaving and deleting teams.
 
-GitHub Actions runs on every pull request and on every push to `master`: it builds the API and runs the tests, then lints and builds the frontend (`npm run lint` and `npm run build`).
+The frontend has browser tests (Playwright and axe) that run the production build against a mocked API, so they need no backend either:
+
+```bash
+cd RosterSensei.Client
+npx playwright install chromium   # once
+npm run test:e2e
+```
+
+They cover logging in, modal and menu focus, switching teams, loading, empty and error states, what each role can do, the Add Match request, and accessibility scans in both themes.
+
+GitHub Actions runs on every pull request and on every push to `master`: it builds the API and runs the tests, then lints and builds the frontend and runs its browser tests.
 
 ## Roadmap
 
