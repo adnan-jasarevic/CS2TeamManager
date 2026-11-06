@@ -18,6 +18,7 @@ A web app for amateur Counter-Strike 2 teams to manage their roster, schedule ma
   - **Event types:** each team picks its own. New teams start with Pracc, Official Match, VOD Review, Theory and Other; Scrim, Recorded Match, Break, Warmup and Meet can be added, as can custom types. Types can be renamed, recoloured and removed. Removing a type keeps its events and moves them to Other, which every team always has and which can't be changed.
   - **Recorded matches:** with the Recorded Match type on, matches from the Matches page show on the calendar, and one that starts during a Scrim or Official Match event takes that event's place.
   - **Off days:** a day marked off is grayed out and no events can be added to it. Events already on it show as cancelled and come back if the day is unmarked.
+- **Steam (API only, no screen yet):** link your Steam account by SteamID64, profile URL, or STEAM_0/[U:1] ID (`PUT /api/Account/steam`). The roster returns each member's SteamID64 and profile link. One Steam account can be linked to one user.
 
 ## Tech stack
 
@@ -101,9 +102,19 @@ The backend tests run the real services and repositories against an in-memory SQ
 dotnet test RosterSensei.Tests
 ```
 
-They cover team membership, invites, roles and permissions, ownership transfer, and leaving and deleting teams.
+They cover team membership, invites, roles and permissions, ownership transfer, leaving and deleting teams, and Steam account linking.
 
-GitHub Actions runs on every pull request and on every push to `master`: it builds the API and runs the tests, then lints and builds the frontend (`npm run lint` and `npm run build`).
+The frontend has browser tests (Playwright and axe) that run the production build against a mocked API, so they need no backend either:
+
+```bash
+cd RosterSensei.Client
+npx playwright install chromium   # once
+npm run test:e2e
+```
+
+They cover logging in, modal and menu focus, switching teams, loading, empty and error states, what each role can do, the Add Match request, and accessibility scans in both themes.
+
+GitHub Actions runs on every pull request and on every push to `master`: it builds the API and runs the tests, then lints and builds the frontend and runs its browser tests.
 
 ## Roadmap
 

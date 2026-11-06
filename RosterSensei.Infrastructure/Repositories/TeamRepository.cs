@@ -74,7 +74,7 @@ public class TeamRepository : ITeamRepository
             .ToListAsync(cancellationToken);
     }
 
-    public async Task<List<(TeamMember Member, string Email, string Username)>> GetTeamMembersWithUserDetailsAsync(int teamId, CancellationToken cancellationToken = default)
+    public async Task<List<(TeamMember Member, string Email, string Username, string? SteamId)>> GetTeamMembersWithUserDetailsAsync(int teamId, CancellationToken cancellationToken = default)
     {
         var query = from tm in _context.TeamMembers
                     join user in _context.Users on tm.UserId equals user.Id
@@ -83,12 +83,15 @@ public class TeamRepository : ITeamRepository
                     {
                         Member = tm,
                         Email = user.Email,
-                        Username = user.UserName
+                        Username = user.UserName,
+                        user.SteamId
                     };
 
         var result = await query.ToListAsync(cancellationToken);
 
-        return result.Select(x => (x.Member, x.Email, x.Username)).ToList();
+        return result
+            .Select(x => (x.Member, x.Email, x.Username, (string?)x.SteamId))
+            .ToList();
     }
 
     public async Task<TeamMember?> GetTeamMemberAsync(int teamId, string userId, CancellationToken cancellationToken = default)

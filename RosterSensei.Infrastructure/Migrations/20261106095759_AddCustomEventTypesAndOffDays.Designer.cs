@@ -12,7 +12,7 @@ using RosterSensei.Infrastructure.Persistence;
 namespace RosterSensei.Infrastructure.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    [Migration("20261106000339_AddCustomEventTypesAndOffDays")]
+    [Migration("20261106095759_AddCustomEventTypesAndOffDays")]
     partial class AddCustomEventTypesAndOffDays
     {
         /// <inheritdoc />
@@ -580,6 +580,11 @@ namespace RosterSensei.Infrastructure.Migrations
                     b.Property<string>("SecurityStamp")
                         .HasColumnType("nvarchar(max)");
 
+                    b.Property<string>("SteamId")
+                        .HasMaxLength(17)
+                        .IsUnicode(false)
+                        .HasColumnType("varchar(17)");
+
                     b.Property<bool>("TwoFactorEnabled")
                         .HasColumnType("bit");
 
@@ -596,6 +601,10 @@ namespace RosterSensei.Infrastructure.Migrations
                         .IsUnique()
                         .HasDatabaseName("UserNameIndex")
                         .HasFilter("[NormalizedUserName] IS NOT NULL");
+
+                    b.HasIndex("SteamId")
+                        .IsUnique()
+                        .HasFilter("[SteamId] IS NOT NULL");
 
                     b.ToTable("AspNetUsers", (string)null);
                 });

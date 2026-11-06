@@ -16,7 +16,7 @@ public interface ITeamRepository
     Task<bool> IsUserInTeamAsync(int teamId, string userId, CancellationToken cancellationToken = default);
     Task<int> GetTeamMemberCountAsync(int teamId, CancellationToken cancellationToken = default);
     Task<List<Match>> GetTeamMatchesAsync(int teamId, CancellationToken cancellationToken = default);
-    Task<List<(TeamMember Member, string Email, string Username)>> GetTeamMembersWithUserDetailsAsync(int teamId, CancellationToken cancellationToken = default);
+    Task<List<(TeamMember Member, string Email, string Username, string? SteamId)>> GetTeamMembersWithUserDetailsAsync(int teamId, CancellationToken cancellationToken = default);
     Task<TeamMember?> GetTeamMemberAsync(int teamId, string userId, CancellationToken cancellationToken = default);
 
     // Sets a member's role, only while ownerId still owns the team.

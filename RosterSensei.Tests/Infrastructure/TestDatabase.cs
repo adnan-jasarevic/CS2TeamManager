@@ -66,6 +66,8 @@ public sealed class TestDatabase : IDisposable
         return context.TeamEventTypes.Where(t => t.TeamId == teamId && t.Preset == preset).Select(t => t.Id).Single();
     }
 
+    public AccountService AccountService() => new(new UserRepository(CreateContext()));
+
     public string AddUser(string name)
     {
         using var context = CreateContext();
