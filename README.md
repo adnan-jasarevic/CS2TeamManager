@@ -14,6 +14,7 @@ A web app for amateur Counter-Strike 2 teams to manage their roster, schedule ma
 - **Invites:** invite registered users by email. They accept or decline from the notification bell.
 - **Dashboard:** win rate, member count, recent results and upcoming matches for the selected team.
 - **Matches:** schedule or record matches with opponent, tournament, format (Bo1/Bo2/Bo3/Bo5), maps in play order, score and notes. Filter by upcoming or results.
+- **Steam (API only, no screen yet):** link your Steam account by SteamID64, profile URL, or STEAM_0/[U:1] ID (`PUT /api/Account/steam`). The roster returns each member's SteamID64 and profile link. One Steam account can be linked to one user.
 
 ## Tech stack
 
@@ -97,7 +98,7 @@ The backend tests run the real services and repositories against an in-memory SQ
 dotnet test RosterSensei.Tests
 ```
 
-They cover team membership, invites, roles and permissions, ownership transfer, and leaving and deleting teams.
+They cover team membership, invites, roles and permissions, ownership transfer, leaving and deleting teams, and Steam account linking.
 
 GitHub Actions runs on every pull request and on every push to `master`: it builds the API and runs the tests, then lints and builds the frontend (`npm run lint` and `npm run build`).
 
