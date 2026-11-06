@@ -10,11 +10,13 @@ public class MatchService : IMatchService
 {
     private readonly IMatchRepository _matchRepository;
     private readonly ITeamRepository _teamRepository;
+    private readonly IIdentityService _identityService;
 
-    public MatchService(IMatchRepository matchRepository, ITeamRepository teamRepository)
+    public MatchService(IMatchRepository matchRepository, ITeamRepository teamRepository, IIdentityService identityService)
     {
         _matchRepository = matchRepository;
         _teamRepository = teamRepository;
+        _identityService = identityService;
     }
 
     public async Task<Result<MatchDto>> AddMatchAsync(string userId, int teamId, CreateMatchDto dto)
@@ -61,7 +63,7 @@ public class MatchService : IMatchService
 
         var savedMatch = await _matchRepository.AddAsync(newMatch);
 
-        var resultDto = MapToDto(savedMatch);
+        var resultDto = MapToDto(savedMatch, new Dictionary<string, string>());
         return Result<MatchDto>.SuccessResult(resultDto);
     }
 
@@ -74,8 +76,10 @@ public class MatchService : IMatchService
             return Result<List<MatchDto>>.Forbidden("You don't have access to the matches of this team.");
 
         var matches = await _matchRepository.GetMatchesByTeamIdAsync(teamId, cancellationToken);
-        
-        var dtoList = matches.Select(m => MapToDto(m)).ToList();
+
+        // One query for every name in every lineup.
+        var usernames = await _identityService.GetUsernamesByIdsAsync(matches.SelectMany(m => m.Participations).Select(p => p.UserId));
+        var dtoList = matches.Select(m => MapToDto(m, usernames)).ToList();
 
         return Result<List<MatchDto>>.SuccessResult(dtoList);
     }
@@ -118,6 +122,57 @@ public class MatchService : IMatchService
         });
     }
 
+    public async Task<Result<List<MatchLineupEntryDto>>> SetLineupAsync(string userId, int teamId, int matchId, SetMatchLineupDto dto)
+    {
+        var team = await _teamRepository.GetByIdAsync(teamId);
+        if (team == null)
+            return Result<List<MatchLineupEntryDto>>.NotFound("Team was not found.");
+
+        var requester = team.Members.FirstOrDefault(m => m.UserId == userId);
+        if (requester == null || !requester.CanManageTeam)
+            return Result<List<MatchLineupEntryDto>>.Forbidden("Only the team Owner, Captain or Officers can set a lineup.");
+
+        var players = dto.Players ?? new List<LineupPlayerDto>();
+        if (players.Select(p => p.UserId).Distinct().Count() != players.Count)
+            return Result<List<MatchLineupEntryDto>>.Failure("A player can only be in the lineup once.");
+
+        var lineup = players
+            .Select(p => new MatchParticipation
+            {
+                UserId = p.UserId,
+                Role = string.IsNullOrWhiteSpace(p.Role) ? null : p.Role.Trim(),
+                Played = p.Played
+            })
+            .ToList();
+
+        // Match and membership checks run in the same transaction as the write.
+        switch (await _matchRepository.ReplaceLineupAsync(teamId, matchId, lineup))
+        {
+            case LineupWriteOutcome.MatchNotFound:
+                return Result<List<MatchLineupEntryDto>>.NotFound("Match was not found.");
+            case LineupWriteOutcome.NotTeamMembers:
+                return Result<List<MatchLineupEntryDto>>.Failure("Every player in the lineup must be a member of the team.");
+            case LineupWriteOutcome.Conflict:
+                return Result<List<MatchLineupEntryDto>>.Conflict("Someone else changed this lineup at the same time. Refresh and try again.");
+        }
+
+        var usernames = await _identityService.GetUsernamesByIdsAsync(lineup.Select(p => p.UserId));
+        return Result<List<MatchLineupEntryDto>>.SuccessResult(ToLineupDto(lineup, usernames));
+    }
+
+    private static List<MatchLineupEntryDto> ToLineupDto(IEnumerable<MatchParticipation> lineup, IReadOnlyDictionary<string, string> usernames) =>
+        lineup
+            .OrderByDescending(p => p.Played)
+            .ThenBy(p => p.Id)
+            .Select(p => new MatchLineupEntryDto
+            {
+                UserId = p.UserId,
+                Username = usernames.GetValueOrDefault(p.UserId) ?? "Unknown",
+                Role = p.Role,
+                Played = p.Played
+            })
+            .ToList();
+
     private static int Percentage(int part, int total) =>
         total == 0 ? 0 : (int)Math.Round((double)part / total * 100);
 
@@ -137,7 +192,7 @@ public class MatchService : IMatchService
             played.Count(m => m.OpponentScore > m.OurScore));
     }
 
-    private MatchDto MapToDto(Match match)
+    private static MatchDto MapToDto(Match match, IReadOnlyDictionary<string, string> usernames)
     {
         return new MatchDto
         {
@@ -164,7 +219,8 @@ public class MatchService : IMatchService
                 })
                 .ToList(),
             MatchOutcome = match.Outcome.ToString(),
-            Notes = match.Notes
+            Notes = match.Notes,
+            Lineup = ToLineupDto(match.Participations, usernames)
         };
     }
 }

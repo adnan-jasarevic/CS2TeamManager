@@ -1,15 +1,17 @@
-﻿namespace RosterSensei.Domain.Entities
+namespace RosterSensei.Domain.Entities;
+
+// One player in a match's lineup.
+public class MatchParticipation
 {
-    public class MatchParticipation
-    {
-        public int Id { get; set; }
-        public string UserId { get; set; } = string.Empty;
+    public int Id { get; set; }
+    public string UserId { get; set; } = string.Empty;
 
-        public int MatchId { get; set; }
-        public Match Match { get; set; } = null!;
+    public int MatchId { get; set; }
+    public Match Match { get; set; } = null!;
 
-        public string Role { get; set; } = string.Empty;
-        public bool Played { get; set; }
-    }
+    // Free text, e.g. "IGL" or "AWPer". Null when the role wasn't recorded.
+    public string? Role { get; set; }
 
+    // False for a substitute who was in the lineup but didn't play.
+    public bool Played { get; set; }
 }
