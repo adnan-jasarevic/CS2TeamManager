@@ -34,7 +34,8 @@ builder.Services.AddCors(options =>
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
 
-builder.Services.AddIdentity<AppUser, IdentityRole>()
+// Login and invites look users up by email, so two accounts must never share one.
+builder.Services.AddIdentity<AppUser, IdentityRole>(options => options.User.RequireUniqueEmail = true)
     .AddEntityFrameworkStores<AppDbContext>()
     .AddDefaultTokenProviders();
 

@@ -8,6 +8,7 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <PackageReference Include="Microsoft.AspNetCore.Mvc.Testing" Version="10.0.3" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" Version="10.0.3" />
     <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.14.1" />
     <!-- 2.1.14 bundles SQLite 3.54.0, which has the fix for CVE-2025-6965. It keeps EF Core on the same version as production.
@@ -25,6 +26,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\RosterSensei.Api\RosterSensei.Api.csproj" />
     <ProjectReference Include="..\RosterSensei.Application\RosterSensei.Application.csproj" />
     <ProjectReference Include="..\RosterSensei.Infrastructure\RosterSensei.Infrastructure.csproj" />
   </ItemGroup>

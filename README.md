@@ -35,7 +35,7 @@ RosterSensei.Application       DTOs, services, validators, repository interfaces
 RosterSensei.Infrastructure    EF Core DbContext, migrations, repositories, Identity
 RosterSensei.Api               Controllers, validation filter, exception handler, startup
 RosterSensei.Client            React frontend
-RosterSensei.Tests             xUnit tests for the services, run against an in-memory SQLite database
+RosterSensei.Tests             xUnit tests for the services and the HTTP API, run against an in-memory SQLite database
 ```
 
 ## Getting started
@@ -98,7 +98,7 @@ The backend tests run the real services and repositories against an in-memory SQ
 dotnet test RosterSensei.Tests
 ```
 
-They cover team membership, invites, roles and permissions, ownership transfer, leaving and deleting teams, and Steam account linking.
+They cover team membership, invites, roles and permissions, ownership transfer, leaving and deleting teams, and Steam account linking. The tests in `RosterSensei.Tests/Api` also start the whole API in memory and call it over HTTP, to check sign-up, login, JWT validation, request validation and the status codes errors map to.
 
 The frontend has browser tests (Playwright and axe) that run the production build against a mocked API, so they need no backend either:
 
